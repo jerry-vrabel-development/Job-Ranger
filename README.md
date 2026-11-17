@@ -55,6 +55,22 @@ npm run check        # format, lint, types, unit tests with coverage
 npm run test:e2e     # browser tests (first time: npx playwright install)
 ```
 
+### Deploying
+
+`main` is what's deployed. After a change reaches `main`:
+
+```sh
+git checkout main && git pull && npm ci && npm run deploy
+```
+
+`npm run deploy` builds, deploys the Worker, then applies any new database
+migrations. The new code can run for a moment before its migration lands, so
+migrations add (new tables, new columns with defaults) and never break what the
+running code expects.
+
+The first deploy also creates the D1 database. Until sign-in is set up (below),
+every page answers "Sign-in is not set up yet".
+
 ### Sign-in (Cloudflare Access)
 
 Job Ranger is private: every page and form goes through

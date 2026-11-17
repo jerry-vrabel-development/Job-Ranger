@@ -2,7 +2,7 @@
 	import '../app.css';
 	import type { Snippet } from 'svelte';
 	import { resolve } from '$app/paths';
-	import { SITE } from '$lib/site';
+	import { SITE } from '#lib/site.ts';
 
 	let { children }: { children: Snippet } = $props();
 </script>

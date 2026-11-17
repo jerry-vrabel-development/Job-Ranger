@@ -31,7 +31,7 @@ direction, review every line, and own what ships. Every change goes through a
 pull request, CI (lint, strict types, unit, browser and accessibility tests)
 and review before it merges.
 
-- **SvelteKit** (Svelte 5) on **Cloudflare Workers**, in strict TypeScript
+- **SvelteKit 3** (Svelte 5) on **Cloudflare Workers**, in strict TypeScript
 - **Vitest** for unit tests, with coverage floors
 - **Playwright** with **axe** on desktop Chrome, Android (Pixel 7) and iPhone
   (WebKit)

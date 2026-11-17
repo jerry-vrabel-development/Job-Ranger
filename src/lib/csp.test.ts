@@ -17,7 +17,7 @@ describe('the announcer style', () => {
 		// If a SvelteKit upgrade changes the announcer's style, this fails here
 		// instead of the browser quietly blocking it: update ANNOUNCER_STYLE.
 		const kit = dirname(createRequire(import.meta.url).resolve('@sveltejs/kit/package.json'));
-		const root = readFileSync(join(kit, 'src/core/sync/write_root.js'), 'utf8');
+		const root = readFileSync(join(kit, 'src/runtime/components/root.svelte'), 'utf8');
 		expect(root).toContain(`id="svelte-announcer"`);
 		expect(root).toContain(`style="${ANNOUNCER_STYLE}"`);
 	});

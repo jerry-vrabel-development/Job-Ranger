@@ -6,7 +6,6 @@ import { defineConfig, globalIgnores, includeIgnoreFile } from 'eslint/config';
 import globals from 'globals';
 import path from 'node:path';
 import ts from 'typescript-eslint';
-import svelteConfig from './svelte.config.js';
 
 const gitignorePath = path.resolve(import.meta.dirname, '.gitignore');
 
@@ -23,11 +22,7 @@ export default defineConfig(
 		languageOptions: {
 			globals: { ...globals.browser, ...globals.node },
 			parserOptions: {
-				projectService: {
-					// playwright.config.ts is checked with the e2e project's Node types.
-					allowDefaultProject: ['playwright.config.ts'],
-					defaultProject: './e2e/tsconfig.json'
-				},
+				projectService: true,
 				extraFileExtensions: ['.svelte'],
 				tsconfigRootDir: import.meta.dirname
 			}
@@ -41,8 +36,7 @@ export default defineConfig(
 		files: ['**/*.svelte', '**/*.svelte.ts', '**/*.svelte.js'],
 		languageOptions: {
 			parserOptions: {
-				parser: ts.parser,
-				svelteConfig
+				parser: ts.parser
 			}
 		}
 	},

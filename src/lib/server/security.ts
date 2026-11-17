@@ -1,6 +1,6 @@
 /**
  * Security headers on every response, alongside the Content-Security-Policy
- * that SvelteKit writes (see `kit.csp` in svelte.config.js). Pure, so it is
+ * that SvelteKit writes (see `csp` in vite.config.ts). Pure, so it is
  * tested on its own.
  */
 export const SECURITY_HEADERS: Readonly<Record<string, string>> = {

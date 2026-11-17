@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { pageTitle, SITE } from '$lib/site';
+	import { pageTitle, SITE } from '#lib/site.ts';
 </script>
 
 <svelte:head>

@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Format, lint, types, tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Worker types are up to date
+        run: |
+          npm run cf-typegen
+          git diff --exit-code -- worker-configuration.d.ts
+
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:coverage
+
+      - name: Builds, and the Worker bundles for deploy (dry run)
+        run: |
+          npm run build
+          npx wrangler deploy --dry-run --outdir dist
+
+      - name: Coverage summary
+        if: always()
+        run: |
+          if [ -f coverage/coverage-summary.json ]; then
+            node -e 'const t=require("./coverage/coverage-summary.json").total;console.log(`| Metric | Covered |\n| --- | --- |\n${["lines","statements","functions","branches"].map(k=>`| ${k} | ${t[k].pct}% |`).join("\n")}`)' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  e2e:
+    name: Browser tests (desktop, Android, iPhone)
+    runs-on: ubuntu-latest
+    # Playwright's official image has the browsers and every system library
+    # they need. Keep its version equal to @playwright/test in package.json
+    # (the first step checks).
+    container:
+      image: mcr.microsoft.com/playwright:v1.65.0-noble
+      options: --user 1001
+    env:
+      PLAYWRIGHT_IMAGE_VERSION: 1.65.0
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Playwright matches the container image
+        run: |
+          installed=$(node -p 'require("@playwright/test/package.json").version')
+          if [ "$installed" != "$PLAYWRIGHT_IMAGE_VERSION" ]; then
+            echo "::error::@playwright/test is $installed but the CI image is $PLAYWRIGHT_IMAGE_VERSION. Update both version numbers in the e2e job of .github/workflows/ci.yml."
+            exit 1
+          fi
+
+      - name: Browser tests with axe accessibility checks
+        run: npm run test:e2e
+
+      - name: Upload the Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

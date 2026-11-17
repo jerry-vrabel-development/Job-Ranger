@@ -38,6 +38,9 @@ worn down by a long search, so the bar is: correct, accessible, and honest.
 - Job Ranger never auto-applies and never writes application answers.
 - A flag or score always shows what it is based on. No made-up certainty.
 - No personal data in logs, analytics or error messages. No third-party scripts.
+- Every route is private by default (src/lib/server/handle.ts). Don't add a
+  bypass; local development uses `ACCESS_LOCAL_DEV` in `.dev.vars`, which only
+  works for localhost.
 
 ## Pull requests
 

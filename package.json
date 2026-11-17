@@ -29,7 +29,7 @@
 		"check": "npm run format:check && npm run lint && npm run typecheck && npm run test:coverage",
 		"db:migrate:local": "wrangler d1 migrations apply DB --local",
 		"e2e:seed": "wrangler d1 execute DB --local --file e2e/seed.sql",
-		"e2e:serve": "npm run build && npm run db:migrate:local && npm run e2e:seed && npm run preview"
+		"e2e:serve": "npm run build && npm run db:migrate:local && npm run e2e:seed && wrangler dev --port 4173 --var ACCESS_LOCAL_DEV:true"
 	},
 	"devDependencies": {
 		"@axe-core/playwright": "^4.11.1",
@@ -58,5 +58,8 @@
 	},
 	"overrides": {
 		"playwright-core": "$@playwright/test"
+	},
+	"dependencies": {
+		"jose": "^6.2.17"
 	}
 }

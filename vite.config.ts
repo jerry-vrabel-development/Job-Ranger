@@ -77,7 +77,8 @@ export default defineConfig({
 		coverage: {
 			// Istanbul works in both Node and the Workers runtime.
 			provider: 'istanbul',
-			include: ['src/lib/**/*.{ts,js}', 'src/hooks.server.ts'],
+			// hooks.server.ts only hands the Worker's env to src/lib/server/handle.ts.
+			include: ['src/lib/**/*.{ts,js}'],
 			exclude: ['src/**/*.{test,spec}.ts'],
 			reporter: ['text', 'json-summary', 'html'],
 			// Floors, like the other projects. We aim for 100%.

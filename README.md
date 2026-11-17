@@ -8,9 +8,10 @@ each with the evidence behind the flag.
 
 **Being built.** Working now: a daily fetch from employers' Ashby job boards,
 dedupe and closing of postings that leave a board, and a jobs page with each
-job's real apply link. The rest of the features below are planned, not shipped
-yet. The plan is in [design note 0001](docs/design/0001-job-ranger.md), and how
-it connects to email, documents and AI assistants is in
+job's real apply link, all behind sign-in. The rest of the features below are
+planned, not shipped yet. The plan is in
+[design note 0001](docs/design/0001-job-ranger.md), and how it connects to
+email, documents and AI assistants is in
 [design note 0002](docs/design/0002-connectors-company-insight-dashboards.md).
 
 ## What makes it different
@@ -52,6 +53,40 @@ npm ci
 npm run dev          # local dev server
 npm run check        # format, lint, types, unit tests with coverage
 npm run test:e2e     # browser tests (first time: npx playwright install)
+```
+
+### Sign-in (Cloudflare Access)
+
+Job Ranger is private: every page and form goes through
+[Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/access-controls/policies/),
+and the Worker checks the Access token itself as well (signature, team,
+application and an allowed email). Until sign-in is set up, every page answers
+"Sign-in is not set up yet", so a first deploy is safe.
+
+On your own machine, let localhost in by creating `.dev.vars` (it's ignored by
+git):
+
+```sh
+echo 'ACCESS_LOCAL_DEV=true' > .dev.vars
+```
+
+That flag only works for `localhost`; the browser tests check that the same
+Worker stays closed under any other host name.
+
+To set up Access for the deployed Worker:
+
+1. In the Cloudflare dashboard, open **Workers & Pages**, select `job-ranger`,
+   then **Settings** > **Domains & Routes**. For **workers.dev** (and
+   **Preview URLs**, if you use them), select **Enable Cloudflare Access**, and
+   make the policy allow only your email.
+2. Note the **team domain** (`https://<team>.cloudflareaccess.com`) and the
+   **AUD tag** it shows.
+3. Store them as Worker secrets, so they stay out of this repository:
+
+```sh
+npx wrangler secret put ACCESS_TEAM_DOMAIN     # https://<team>.cloudflareaccess.com
+npx wrangler secret put ACCESS_AUD             # the AUD tag (comma-separate several)
+npx wrangler secret put ACCESS_ALLOWED_EMAILS  # your email (comma-separate several)
 ```
 
 ### The database and the daily fetch

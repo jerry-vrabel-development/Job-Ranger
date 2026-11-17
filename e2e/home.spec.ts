@@ -13,8 +13,8 @@ test.describe('the home page', () => {
 
 	test('names the site once in the header, with its mark as decoration', async ({ page }) => {
 		await page.goto('/');
-		const brand = page.getByRole('banner').getByRole('link');
 		// The mark has empty alt text, so the link's name is just the site's name.
+		const brand = page.getByRole('banner').getByRole('link', { name: 'Job Ranger', exact: true });
 		await expect(brand).toHaveAccessibleName('Job Ranger');
 		await expect(brand.locator('img')).toHaveAttribute('alt', '');
 		await expect(brand.locator('img')).toBeVisible();

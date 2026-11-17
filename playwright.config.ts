@@ -19,7 +19,8 @@ export default defineConfig({
 		{ name: 'iphone', use: { ...devices['iPhone 14'] } }
 	],
 	webServer: {
-		command: 'npm run build && npm run preview',
+		// Builds, sets up a local D1 with the test data (e2e/seed.sql), then serves.
+		command: 'npm run e2e:serve',
 		port: PORT,
 		reuseExistingServer: !process.env['CI'],
 		timeout: 120_000

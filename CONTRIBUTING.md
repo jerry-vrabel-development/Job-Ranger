@@ -17,6 +17,12 @@ worn down by a long search, so the bar is: correct, accessible, and honest.
   `dev` is released to `main`.
 - **Small pull requests.** One complete, tested change beats a big half-done one.
 - **A bug fix starts with a test** that fails for the right reason.
+- **Database changes are new migrations** in `migrations/` (never edit one that
+  has shipped). Tests named `*.worker.test.ts` run in the Workers runtime
+  against them.
+- **Job board sources** are adapters in `src/lib/sources/` behind one
+  interface, tested against recorded-shape responses in `fixtures/`. No live
+  calls in tests.
 - **`npm run check` must pass:** formatting, type-aware lint, strict types, and
   unit tests above the coverage floors. CI also runs the browser tests.
 

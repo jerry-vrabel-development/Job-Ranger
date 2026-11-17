@@ -6,9 +6,12 @@ each with the evidence behind the flag.
 
 ## Status
 
-**Being built.** This repository holds the foundation (tooling, CI, tests and
-an accessible starter page). The features below are planned, not shipped yet.
-The plan is in [design note 0001](docs/design/0001-job-ranger.md).
+**Being built.** Working now: a daily fetch from employers' Ashby job boards,
+dedupe and closing of postings that leave a board, and a jobs page with each
+job's real apply link. The rest of the features below are planned, not shipped
+yet. The plan is in [design note 0001](docs/design/0001-job-ranger.md), and how
+it connects to email, documents and AI assistants is in
+[design note 0002](docs/design/0002-connectors-company-insight-dashboards.md).
 
 ## What makes it different
 
@@ -32,7 +35,9 @@ pull request, CI (lint, strict types, unit, browser and accessibility tests)
 and review before it merges.
 
 - **SvelteKit 3** (Svelte 5) on **Cloudflare Workers**, in strict TypeScript
-- **Vitest** for unit tests, with coverage floors
+- **Cloudflare D1** for boards and postings, and a daily **cron** for the fetch
+- **Vitest** for unit tests, property-based tests (fast-check), and database
+  tests in the Workers runtime against the real migrations, with coverage floors
 - **Playwright** with **axe** on desktop Chrome, Android (Pixel 7) and iPhone
   (WebKit)
 - **ESLint** (type-aware), **Prettier**, **svelte-check**
@@ -48,6 +53,23 @@ npm run dev          # local dev server
 npm run check        # format, lint, types, unit tests with coverage
 npm run test:e2e     # browser tests (first time: npx playwright install)
 ```
+
+### The database and the daily fetch
+
+The Worker's entry point is `worker/index.js`: SvelteKit's pages plus the daily
+fetch on a cron (11:23 UTC). Job boards are rows in D1, not code, so the list of
+companies stays out of the repository.
+
+```sh
+npm run db:migrate:local     # set up the local database
+# add a company's Ashby board (the name after jobs.ashbyhq.com/, lowercased)
+npx wrangler d1 execute DB --local --command \
+  "INSERT INTO boards (source, token, company) VALUES ('ashby', 'example', 'Example Co')"
+npm run build && npm run preview
+curl "http://localhost:4173/cdn-cgi/handler/scheduled?cron=23+11+*+*+*"   # run the fetch now
+```
+
+Use `--remote` instead of `--local` for the deployed database.
 
 Adding a dependency: some npm 10 versions fail with "Cannot read properties of
 null (reading 'edgesOut')". `npx npm@11 install <package>` works; `npm ci` is

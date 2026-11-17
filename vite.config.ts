@@ -1,3 +1,4 @@
+import { cloudflareTest, readD1Migrations } from '@cloudflare/vitest-plugin';
 import adapter from '@sveltejs/adapter-cloudflare';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vitest/config';
@@ -6,7 +7,13 @@ import { ANNOUNCER_STYLE, styleHash } from './src/lib/csp.js';
 export default defineConfig({
 	plugins: [
 		sveltekit({
-			adapter: adapter(),
+			// The adapter writes SvelteKit's worker where sveltekit.wrangler.jsonc
+			// says; wrangler.jsonc's entry (worker/index.js) wraps it with the cron.
+			// Local dev still gets the real bindings (D1) from wrangler.jsonc.
+			adapter: adapter({
+				config: 'sveltekit.wrangler.jsonc',
+				platformProxy: { configPath: 'wrangler.jsonc' }
+			}),
 			compilerOptions: {
 				// Runes mode for this project's code (libraries decide for themselves).
 				runes: ({ filename }) =>
@@ -36,10 +43,40 @@ export default defineConfig({
 	test: {
 		// A test with no assertions proves nothing.
 		expect: { requireAssertions: true },
-		include: ['src/**/*.{test,spec}.ts'],
-		environment: 'node',
+		projects: [
+			{
+				extends: true,
+				test: {
+					name: 'unit',
+					include: ['src/**/*.{test,spec}.ts'],
+					exclude: ['src/**/*.worker.test.ts'],
+					environment: 'node'
+				}
+			},
+			{
+				// Database tests run in the Workers runtime, against the real
+				// migrations, with a fresh local D1 for each test file.
+				plugins: [
+					cloudflareTest(async () => ({
+						miniflare: {
+							// Keep these in step with wrangler.jsonc.
+							compatibilityDate: '2026-11-17',
+							compatibilityFlags: ['nodejs_als'],
+							d1Databases: ['DB'],
+							bindings: { TEST_MIGRATIONS: await readD1Migrations('migrations') }
+						}
+					}))
+				],
+				test: {
+					name: 'workers',
+					include: ['src/**/*.worker.test.ts'],
+					expect: { requireAssertions: true }
+				}
+			}
+		],
 		coverage: {
-			provider: 'v8',
+			// Istanbul works in both Node and the Workers runtime.
+			provider: 'istanbul',
 			include: ['src/lib/**/*.{ts,js}', 'src/hooks.server.ts'],
 			exclude: ['src/**/*.{test,spec}.ts'],
 			reporter: ['text', 'json-summary', 'html'],

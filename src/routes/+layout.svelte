@@ -2,6 +2,7 @@
 	import '../app.css';
 	import type { Snippet } from 'svelte';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import { SITE } from '#lib/site.ts';
 
 	let { children }: { children: Snippet } = $props();
@@ -20,6 +21,11 @@
 			<img src="/favicon.svg" alt="" width="32" height="32" />
 			<span>{SITE.name}</span>
 		</a>
+		<nav aria-label="Main">
+			<a href={resolve('/jobs')} aria-current={page.url.pathname === '/jobs' ? 'page' : undefined}
+				>Jobs</a
+			>
+		</nav>
 	</div>
 </header>
 

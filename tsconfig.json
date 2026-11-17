@@ -13,7 +13,7 @@
 		"noUnusedParameters": true,
 		"noPropertyAccessFromIndexSignature": true,
 		"useUnknownInCatchVariables": true,
-		"types": ["$app/types", "./worker-configuration.d.ts"]
+		"types": ["$app/types", "./worker-configuration.d.ts", "@cloudflare/vitest-plugin/types"]
 	},
 	"include": ["src", "test", "*"],
 	"exclude": ["src/service-worker"]

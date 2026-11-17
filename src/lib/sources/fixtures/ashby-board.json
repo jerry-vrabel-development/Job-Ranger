@@ -1,0 +1,116 @@
+{
+	"apiVersion": "1",
+	"jobs": [
+		{
+			"id": "4f1c2d3e-0a1b-4c5d-8e9f-000000000001",
+			"title": "Senior Software Engineer, Accessibility",
+			"department": "Engineering",
+			"team": "Platform",
+			"employmentType": "FullTime",
+			"location": "Chicago, IL",
+			"shouldDisplayCompensationOnJobPostings": true,
+			"secondaryLocations": [
+				{
+					"location": "Remote (US)",
+					"address": { "addressLocality": null, "addressRegion": null, "addressCountry": "USA" }
+				}
+			],
+			"publishedAt": "2026-11-12T15:04:05.000+00:00",
+			"isListed": true,
+			"isRemote": true,
+			"workplaceType": "Hybrid",
+			"address": {
+				"postalAddress": {
+					"addressLocality": "Chicago",
+					"addressRegion": "Illinois",
+					"addressCountry": "USA"
+				}
+			},
+			"jobUrl": "https://jobs.ashbyhq.com/example/4f1c2d3e-0a1b-4c5d-8e9f-000000000001",
+			"applyUrl": "https://jobs.ashbyhq.com/example/4f1c2d3e-0a1b-4c5d-8e9f-000000000001/application",
+			"descriptionHtml": "<p>Build things people can use.</p>",
+			"descriptionPlain": "Build things people can use.",
+			"compensation": {
+				"compensationTierSummary": "$150K – $180K • Offers Equity",
+				"scrapeableCompensationSalarySummary": "$150K - $180K",
+				"compensationTiers": [
+					{
+						"id": "c0000000-0000-4000-8000-000000000001",
+						"tierSummary": "$150K – $180K • Offers Equity",
+						"title": "Zone A",
+						"additionalInformation": null,
+						"components": [
+							{
+								"id": "c0000000-0000-4000-8000-000000000002",
+								"summary": "$150K – $180K",
+								"compensationType": "Salary",
+								"interval": "1 YEAR",
+								"currencyCode": "USD",
+								"minValue": 150000,
+								"maxValue": 180000
+							}
+						]
+					}
+				],
+				"summaryComponents": [
+					{
+						"compensationType": "Salary",
+						"interval": "1 YEAR",
+						"currencyCode": "USD",
+						"minValue": 150000,
+						"maxValue": 180000
+					},
+					{
+						"compensationType": "EquityCashValue",
+						"interval": "NONE",
+						"currencyCode": "USD",
+						"minValue": null,
+						"maxValue": null
+					}
+				]
+			}
+		},
+		{
+			"id": "4f1c2d3e-0a1b-4c5d-8e9f-000000000002",
+			"title": "QA Engineer",
+			"department": "Engineering",
+			"team": "Engineering",
+			"employmentType": "Contract",
+			"location": "Remote",
+			"secondaryLocations": [],
+			"publishedAt": "2026-11-10T09:00:00.000+00:00",
+			"isListed": true,
+			"isRemote": true,
+			"workplaceType": "Remote",
+			"jobUrl": "https://jobs.ashbyhq.com/example/4f1c2d3e-0a1b-4c5d-8e9f-000000000002",
+			"applyUrl": "https://jobs.ashbyhq.com/example/4f1c2d3e-0a1b-4c5d-8e9f-000000000002/application",
+			"descriptionHtml": "<p>Test everything.</p>",
+			"descriptionPlain": "Test everything."
+		},
+		{
+			"id": "4f1c2d3e-0a1b-4c5d-8e9f-000000000003",
+			"title": "Hidden role (direct link only)",
+			"department": "Operations",
+			"employmentType": "FullTime",
+			"location": "New York, NY",
+			"publishedAt": "2026-11-01T00:00:00.000+00:00",
+			"isListed": false,
+			"isRemote": false,
+			"workplaceType": "OnSite",
+			"jobUrl": "https://jobs.ashbyhq.com/example/4f1c2d3e-0a1b-4c5d-8e9f-000000000003",
+			"applyUrl": "https://jobs.ashbyhq.com/example/4f1c2d3e-0a1b-4c5d-8e9f-000000000003/application"
+		},
+		{
+			"id": "4f1c2d3e-0a1b-4c5d-8e9f-000000000004",
+			"title": "Product Designer",
+			"department": "Design",
+			"employmentType": "FullTime",
+			"location": "Austin, TX",
+			"publishedAt": "2026-11-05T00:00:00.000+00:00",
+			"isListed": true,
+			"isRemote": false,
+			"workplaceType": "OnSite",
+			"jobUrl": "https://jobs.ashbyhq.com/example/4f1c2d3e-0a1b-4c5d-8e9f-000000000004"
+		}
+	]
+}

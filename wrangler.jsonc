@@ -1,0 +1,31 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "job-ranger",
+	"compatibility_date": "2026-11-17",
+	"compatibility_flags": ["nodejs_als"],
+	// SvelteKit's worker plus the daily cron. Build first: `npm run build`.
+	"main": "worker/index.js",
+	"assets": {
+		"binding": "ASSETS",
+		"directory": ".svelte-kit/cloudflare"
+	},
+	"d1_databases": [
+		{
+			// No database_id: Wrangler creates the database on the first deploy and
+			// keeps it linked. Apply migrations before the first fetch runs.
+			"binding": "DB",
+			"database_name": "job-ranger",
+			"migrations_dir": "migrations"
+		}
+	],
+	"triggers": {
+		// The daily fetch, at 11:23 UTC (5:23 or 6:23 in Chicago). Off the hour,
+		// when cron traffic is heaviest.
+		"crons": ["23 11 * * *"]
+	},
+	"observability": {
+		"enabled": true
+	},
+	"workers_dev": true,
+	"preview_urls": true
+}

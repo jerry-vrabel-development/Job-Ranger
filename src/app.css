@@ -1,0 +1,177 @@
+/* Job Ranger: plain, calm and readable. Every color pair meets WCAG 2.2 AA. */
+:root {
+	--bg: #fbfaf7;
+	--surface: #ffffff;
+	--text: #1d2421;
+	--muted: #4a5550;
+	--accent: #1f5c3f;
+	--rule: #d5dad6;
+	--focus: #1f5c3f;
+	font-family:
+		system-ui,
+		-apple-system,
+		'Segoe UI',
+		Roboto,
+		sans-serif;
+	line-height: 1.6;
+	color: var(--text);
+	background: var(--bg);
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--bg: #131715;
+		--surface: #1b201d;
+		--text: #e9ede9;
+		--muted: #b8c2bc;
+		--accent: #8fd3ad;
+		--rule: #36403a;
+		--focus: #8fd3ad;
+	}
+}
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	font-size: 1.125rem;
+}
+
+.app {
+	display: contents;
+}
+
+.wrap {
+	max-width: 44rem;
+	margin: 0 auto;
+	padding: 0 1.25rem;
+}
+
+a {
+	color: var(--accent);
+	text-underline-offset: 0.15em;
+}
+
+:focus-visible {
+	outline: 3px solid var(--focus);
+	outline-offset: 3px;
+}
+
+.skip-link {
+	position: absolute;
+	left: 1rem;
+	top: -10rem;
+	padding: 0.5rem 1rem;
+	background: var(--surface);
+	color: var(--text);
+	border: 2px solid var(--focus);
+	z-index: 10;
+}
+
+.skip-link:focus {
+	top: 1rem;
+}
+
+header.site,
+footer.site {
+	border-color: var(--rule);
+	border-style: solid;
+	border-width: 0;
+}
+
+header.site {
+	border-bottom-width: 1px;
+	padding: 1rem 0;
+}
+
+footer.site {
+	border-top-width: 1px;
+	margin-top: 3rem;
+	padding: 1rem 0 2rem;
+	color: var(--muted);
+	font-size: 1rem;
+}
+
+.brand {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.6rem;
+	font-weight: 700;
+	font-size: 1.25rem;
+	color: var(--text);
+	text-decoration: none;
+}
+
+.brand img {
+	display: block;
+}
+
+header.site .wrap {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem 1.5rem;
+}
+
+header.site nav a {
+	display: inline-block;
+	padding: 0.5rem 0;
+	min-height: 44px;
+	font-weight: 600;
+}
+
+/* The current page is underlined thicker and said by aria-current, not shown by color alone. */
+header.site nav a[aria-current='page'] {
+	text-decoration-thickness: 3px;
+}
+
+/* Read by screen readers, not shown. */
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+	border: 0;
+}
+
+main {
+	padding-top: 1.5rem;
+}
+
+main:focus {
+	outline: none;
+}
+
+h1 {
+	font-size: 2.25rem;
+	line-height: 1.2;
+	margin: 0.5rem 0;
+}
+
+.status {
+	background: var(--surface);
+	border: 1px solid var(--rule);
+	border-left: 4px solid var(--accent);
+	padding: 0.75rem 1rem;
+	border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
+}

@@ -64,10 +64,12 @@ npm run test:e2e     # browser tests (first time: npx playwright install)
 git checkout main && git pull && npm ci && npm run deploy
 ```
 
-`npm run deploy` builds, deploys the Worker, then applies any new database
-migrations. The new code can run for a moment before its migration lands, so
-migrations add (new tables, new columns with defaults) and never break what the
-running code expects.
+`npm run deploy` builds, applies any new database migrations, then deploys the
+Worker. New code may need its migration, so the migration goes first. The old
+code keeps running for a moment against the new tables, so migrations only add
+(new tables, new columns with defaults) or rebuild a table with the same
+columns, and never break what the running code expects. If a migration fails,
+the deploy stops and the old Worker keeps running.
 
 `wrangler.jsonc` names this deployment's D1 database by its ID. If you deploy
 your own copy, delete the `database_id` line and the first deploy creates a

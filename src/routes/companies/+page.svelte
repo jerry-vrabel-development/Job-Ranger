@@ -164,7 +164,7 @@
 							</form>
 						</div>
 						<details>
-							<summary>Remove<span class="visually-hidden"> {company.company}</span>…</summary>
+							<summary>Remove<span class="visually-hidden">{` ${company.company}`}</span>…</summary>
 							<p>
 								This removes {company.company} and every job stored for it. It can’t be undone.
 								{#if !company.paused}Pause keeps the history, if you might want it back.{/if}

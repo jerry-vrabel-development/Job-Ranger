@@ -32,6 +32,8 @@ test.describe('the companies page', () => {
 	test('names every button for its company', async ({ page }) => {
 		await expect(page.getByRole('button', { name: 'Check now for Civic Co' })).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Pause Civic Co' })).toBeVisible();
+		// Read as one phrase, with a space: "Remove Civic Co…", not "RemoveCivic Co…".
+		await expect(page.locator('summary', { hasText: 'Civic Co' })).toHaveText('Remove Civic Co…');
 		await page.locator('summary', { hasText: 'Civic Co' }).click();
 		await expect(page.getByRole('button', { name: 'Remove Civic Co' })).toBeVisible();
 	});

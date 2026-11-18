@@ -6,7 +6,8 @@ each with the evidence behind the flag.
 
 ## Status
 
-**Being built.** Working now: a daily fetch from employers' Ashby, Greenhouse and Lever job boards,
+**Being built.** Working now: a daily fetch from employers' Ashby, Greenhouse, Lever and Breezy job
+boards,
 dedupe and closing of postings that leave a board, a jobs page with each
 job's real apply link, and a companies page to add (by pasting job-board
 links, up to 25 at once), check, rename, pause and remove companies, all behind sign-in. The rest of the features below are
@@ -115,7 +116,8 @@ npx wrangler secret put ACCESS_ALLOWED_EMAILS  # your email (comma-separate seve
 The Worker's entry point is `worker/index.js`: SvelteKit's pages plus the daily
 fetch on a cron (11:23 UTC). Job boards are rows in D1, not code, so the list of
 companies stays out of the repository. Add companies on the Companies page:
-paste links from jobs.ashbyhq.com, job-boards.greenhouse.io or jobs.lever.co,
+paste links from jobs.ashbyhq.com, job-boards.greenhouse.io, jobs.lever.co or
+a company's breezy.hr page,
 one per line
 (add `, Name` after a link to choose its name), and Job Ranger reads each board
 once before saving it.

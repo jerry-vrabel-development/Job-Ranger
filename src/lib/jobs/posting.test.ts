@@ -20,6 +20,7 @@ describe('isSource', () => {
 		expect(isSource('ashby')).toBe(true);
 		expect(isSource('greenhouse')).toBe(true);
 		expect(isSource('lever')).toBe(true);
+		expect(isSource('breezy')).toBe(true);
 		expect(isSource('workday')).toBe(false);
 		expect(isSource(1)).toBe(false);
 	});

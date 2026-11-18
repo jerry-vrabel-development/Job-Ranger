@@ -20,6 +20,11 @@ describe('parseBoardLink', () => {
 		// Lever's board names are case-sensitive, so they are kept as written.
 		['jobs.lever.co/BluesInc/0f1e2d3c-aaaa-4bbb-8ccc-123456789abc/apply', 'lever', 'BluesInc'],
 		['https://api.lever.co/v0/postings/BluesInc?mode=json', 'lever', 'BluesInc'],
+		['https://community-solutions.breezy.hr/', 'breezy', 'community-solutions'],
+		['swing-left.breezy.hr/p/6291cb2086e1-organizer', 'breezy', 'swing-left'],
+		['https://SWING-LEFT.breezy.hr', 'breezy', 'swing-left'],
+		['https://app.breezy.hr/json/community-solutions', 'breezy', 'community-solutions'],
+		['https://app.breezy.hr/swing-left', 'breezy', 'swing-left'],
 		['https://api.lever.co/v0/postings/skydio?mode=json', 'lever', 'skydio']
 	] as const)('reads %s', (link, source, token) => {
 		expect(parseBoardLink(link)).toEqual({ ok: true, source, token });
@@ -41,6 +46,9 @@ describe('parseBoardLink', () => {
 		['https://jobs.eu.lever.co/somecompany', /can't read boards on jobs\.eu\.lever\.co yet/],
 		['https://api.lever.co/v1/postings/x', /can't read boards on api\.lever\.co yet/],
 		['https://jobs.lever.co/', /^That Lever link doesn't name a board/],
+		['https://a.b.breezy.hr/', /can't read boards on a\.b\.breezy\.hr yet/],
+		['https://app.breezy.hr/json/bad_name', /^That Breezy link doesn't name a board/],
+		['https://breezy.hr/careers', /that link is on breezy\.hr/],
 		['https://www.splice.com/careers?gh_jid=123', /that link is on www\.splice\.com/],
 		['https://jobs.ashbyhq.com.evil.example/suno', /that link is on jobs\.ashbyhq\.com\.evil/],
 		[`https://jobs.ashbyhq.com/${'a'.repeat(2000)}`, /^That link is too long/]
@@ -58,16 +66,16 @@ describe('parseBoardLink', () => {
 			'job-boards.greenhouse.io',
 			'boards-api.greenhouse.io',
 			'jobs.lever.co',
-			'api.lever.co'
+			'api.lever.co',
+			'app.breezy.hr'
 		];
 		fc.assert(
 			fc.property(fc.webUrl({ withQueryParameters: true, withFragments: true }), (link) => {
 				const parsed = parseBoardLink(link);
 				const host = new URL(link).hostname.toLowerCase();
 				// Either it's refused, or it's on a known host with a valid board name.
-				expect(!parsed.ok || (known.includes(host) && isToken(parsed.token, parsed.source))).toBe(
-					true
-				);
+				const knownHost = known.includes(host) || /^[^.]+\.breezy\.hr$/.test(host);
+				expect(!parsed.ok || (knownHost && isToken(parsed.token, parsed.source))).toBe(true);
 			})
 		);
 	});
@@ -94,6 +102,9 @@ describe('isToken', () => {
 		expect(isToken('BluesInc', 'lever')).toBe(true);
 		expect(isToken('BluesInc', 'greenhouse')).toBe(false);
 		expect(isToken('-x', 'lever')).toBe(false);
+		expect(isToken('community-solutions', 'breezy')).toBe(true);
+		expect(isToken('a.b', 'breezy')).toBe(false);
+		expect(isToken('a b', 'breezy')).toBe(false);
 		expect(isToken('')).toBe(false);
 		expect(isToken('-x')).toBe(false);
 		expect(isToken('a/b')).toBe(false);

@@ -1,0 +1,38 @@
+[
+	{
+		"id": "a1b2c3d4e5f6",
+		"friendly_id": "a1b2c3d4e5f6-data-systems-advisor",
+		"name": "Data Systems Advisor",
+		"url": "https://example.breezy.hr/p/a1b2c3d4e5f6-data-systems-advisor",
+		"published_date": "2026-11-10T15:00:00.000Z",
+		"type": { "id": "fullTime", "name": "Full-Time" },
+		"location": {
+			"country": { "name": "United States", "id": "US" },
+			"state": { "id": "NY", "name": "New York" },
+			"city": "New York",
+			"is_remote": true,
+			"name": "Remote - US"
+		},
+		"department": "Built for Zero",
+		"salary": "$76,000 - $97,000",
+		"company": { "name": "Example Org", "friendly_id": "example" }
+	},
+	{
+		"id": "b2c3d4e5f6a1",
+		"name": "Community Organizer",
+		"url": "https://example.breezy.hr/p/b2c3d4e5f6a1-community-organizer",
+		"type": "Part-Time",
+		"location": {
+			"city": "Chicago",
+			"state": { "name": "Illinois" },
+			"country": { "name": "United States" }
+		},
+		"department": { "name": "Field" },
+		"company": { "name": "Example Org" }
+	},
+	{
+		"id": "c3d4e5f6a1b2",
+		"name": "Over plain http",
+		"url": "http://example.breezy.hr/p/c3d4e5f6a1b2"
+	}
+]

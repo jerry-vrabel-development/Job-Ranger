@@ -81,9 +81,9 @@
 		<div class="field">
 			<label for="links">Job board links, one per line</label>
 			<p class="hint" id="links-hint">
-				From jobs.ashbyhq.com, job-boards.greenhouse.io or jobs.lever.co; a link to one of their
-				jobs works too. Up to 25 at a time. Greenhouse boards bring their own company name. To
-				choose a name, add it after a comma: <span class="example"
+				From jobs.ashbyhq.com, job-boards.greenhouse.io, jobs.lever.co or a company's breezy.hr
+				page; a link to one of their jobs works too. Up to 25 at a time. Greenhouse boards bring
+				their own company name. To choose a name, add it after a comma: <span class="example"
 					>job-boards.greenhouse.io/splice, Splice</span
 				>
 			</p>

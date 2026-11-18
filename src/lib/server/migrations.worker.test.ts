@@ -193,3 +193,43 @@ describe('migration 0005: Lever board names keep their case', () => {
 		).toEqual({ name: 'postings_open_newest' });
 	});
 });
+
+describe('migration 0006: Breezy boards', () => {
+	it('keeps every row, still keeps Lever names’ case, and then accepts Breezy', async () => {
+		await db.batch([
+			db.prepare('DROP TABLE IF EXISTS postings'),
+			db.prepare('DROP TABLE IF EXISTS boards'),
+			db.prepare('DROP TABLE IF EXISTS d1_migrations')
+		]);
+		await applyD1Migrations(db, MIGRATIONS.slice(0, 5));
+		await db
+			.prepare(
+				"INSERT INTO boards (source, token, company, paused) VALUES ('lever', 'BluesInc', 'Blues', 1)"
+			)
+			.run();
+		const addBreezy = () =>
+			db
+				.prepare(
+					"INSERT INTO boards (source, token, company) VALUES ('breezy', 'swing-left', 'Swing Left')"
+				)
+				.run();
+		await expect(addBreezy()).rejects.toThrow();
+
+		await applyD1Migrations(db, [...MIGRATIONS]);
+
+		await addBreezy();
+		expect(await first("SELECT paused FROM boards WHERE token = 'BluesInc'")).toEqual({
+			paused: 1
+		});
+		await expect(
+			db
+				.prepare("INSERT INTO boards (source, token, company) VALUES ('breezy', 'Upper', 'U')")
+				.run()
+		).rejects.toThrow();
+		expect(
+			await first(
+				"SELECT COUNT(*) AS n FROM sqlite_master WHERE name IN ('boards_new', 'postings_new')"
+			)
+		).toEqual({ n: 0 });
+	});
+});

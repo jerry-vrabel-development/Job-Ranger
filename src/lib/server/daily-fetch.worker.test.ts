@@ -7,6 +7,7 @@ import {
 	failureNote,
 	MAX_BOARDS_PER_RUN,
 	runDailyFetch,
+	TIME_BUDGET_MS,
 	successNote
 } from './daily-fetch.ts';
 import { listBoardStatus, listOpenPostings, StoredDataError } from './db.ts';
@@ -42,7 +43,7 @@ describe('runDailyFetch', () => {
 	it('fills the list from a board, with real apply links, and notes how it went', async () => {
 		await addBoard(db, example);
 		const summary = await runDailyFetch(db, network({ example: json(recorded) }), DAY1);
-		expect(summary).toEqual({ boards: 1, ok: 1, failed: 0, added: 2, closed: 0 });
+		expect(summary).toEqual({ boards: 1, ok: 1, failed: 0, added: 2, closed: 0, deferred: 0 });
 
 		const open = await listOpenPostings(db);
 		expect(open.map((p) => p.title)).toEqual([
@@ -75,7 +76,7 @@ describe('runDailyFetch', () => {
 		await addBoard(db, example);
 		await addBoard(db, missing);
 		const summary = await runDailyFetch(db, network({ example: json(recorded) }), DAY1);
-		expect(summary).toEqual({ boards: 2, ok: 1, failed: 1, added: 2, closed: 0 });
+		expect(summary).toEqual({ boards: 2, ok: 1, failed: 1, added: 2, closed: 0, deferred: 0 });
 		const statuses = await listBoardStatus(db);
 		expect(statuses.find((b) => b.token === 'missing')).toMatchObject({
 			lastFetchOk: false,
@@ -94,8 +95,8 @@ describe('runDailyFetch', () => {
 	it('reads one board per request, and at most the per-run limit', async () => {
 		const boards = Array.from({ length: MAX_BOARDS_PER_RUN + 2 }, (_, i) => ({
 			source: 'ashby' as const,
-			token: `board-${String(i).padStart(2, '0')}`,
-			company: `Company ${String(i).padStart(2, '0')}`
+			token: `board-${String(i).padStart(3, '0')}`,
+			company: `Company ${String(i).padStart(3, '0')}`
 		}));
 		for (const board of boards) await addBoard(db, board);
 		const fetcher = network({});
@@ -106,7 +107,50 @@ describe('runDailyFetch', () => {
 		const tomorrow = network({});
 		await runDailyFetch(db, tomorrow, DAY2);
 		const [first] = tomorrow.mock.calls[0] ?? [];
-		expect(first).toBe(ADAPTERS.ashby.boardUrl('board-40'));
+		expect(first).toBe(ADAPTERS.ashby.boardUrl(`board-${String(MAX_BOARDS_PER_RUN)}`));
+	});
+
+	it('stops starting boards when the time budget runs out, and goes on tomorrow', async () => {
+		for (const token of ['a', 'b', 'c', 'd']) {
+			await addBoard(db, { source: 'ashby', token, company: `Company ${token}` });
+		}
+		// Each board takes four minutes on this clock, so the budget fits three
+		// starts at most (0, 4 and 8 minutes in) and stops before a fourth.
+		let minutes = 0;
+		const clock = () => minutes * 60_000;
+		const slow = vi.fn<typeof fetch>(() => {
+			minutes += 4;
+			return Promise.resolve(Response.json({ jobs: [] }));
+		});
+		const summary = await runDailyFetch(db, slow, DAY1, clock);
+		expect(minutes * 60_000).toBeGreaterThanOrEqual(TIME_BUDGET_MS);
+		expect(summary).toMatchObject({ boards: 3, ok: 3, deferred: 1 });
+		// The board it didn't reach is first in line the next day.
+		const tomorrow = network({});
+		await runDailyFetch(db, tomorrow, DAY2);
+		const [first] = tomorrow.mock.calls[0] ?? [];
+		expect(first).toBe(ADAPTERS.ashby.boardUrl('d'));
+	});
+
+	it('handles a big board: hundreds of jobs with long descriptions', async () => {
+		await addBoard(db, example);
+		const description = 'Build accessible software. '.repeat(400);
+		const jobs = Array.from({ length: 600 }, (_, i) => ({
+			id: `job-${String(i)}`,
+			title: `Software Engineer ${String(i)}`,
+			isListed: true,
+			location: 'Remote',
+			workplaceType: 'Remote',
+			publishedAt: '2026-11-10T00:00:00.000Z',
+			applyUrl: `https://jobs.ashbyhq.com/example/job-${String(i)}/application`,
+			descriptionHtml: `<p>${description}</p>`,
+			descriptionPlain: description
+		}));
+		const summary = await runDailyFetch(db, network({ example: json({ jobs }) }), DAY1);
+		expect(summary).toMatchObject({ ok: 1, added: 600 });
+		expect(await listOpenPostings(db, 1000)).toHaveLength(600);
+		const again = await runDailyFetch(db, network({ example: json({ jobs }) }), DAY2);
+		expect(again).toMatchObject({ ok: 1, added: 0, closed: 0 });
 	});
 
 	it('does nothing, quietly, with no boards', async () => {
@@ -116,7 +160,8 @@ describe('runDailyFetch', () => {
 			ok: 0,
 			failed: 0,
 			added: 0,
-			closed: 0
+			closed: 0,
+			deferred: 0
 		});
 		expect(fetcher).not.toHaveBeenCalled();
 	});
@@ -132,7 +177,15 @@ describe('scheduled', () => {
 			network({ example: json(recorded) })
 		);
 		expect(log).toHaveBeenCalledWith(
-			JSON.stringify({ event: 'daily-fetch', boards: 1, ok: 1, failed: 0, added: 2, closed: 0 })
+			JSON.stringify({
+				event: 'daily-fetch',
+				boards: 1,
+				ok: 1,
+				failed: 0,
+				added: 2,
+				closed: 0,
+				deferred: 0
+			})
 		);
 		const logged = log.mock.calls.flat().join(' ');
 		expect(logged).not.toContain('Example');

@@ -5,7 +5,7 @@
  */
 
 /** The job boards Job Ranger can read. One adapter each (see src/lib/sources). */
-export const SOURCES = ['ashby', 'greenhouse'] as const;
+export const SOURCES = ['ashby', 'greenhouse', 'lever'] as const;
 export type Source = (typeof SOURCES)[number];
 
 /**
@@ -15,13 +15,15 @@ export type Source = (typeof SOURCES)[number];
  */
 export const SOURCE_LISTS_PAY: Readonly<Record<Source, boolean>> = {
 	ashby: true,
-	greenhouse: false
+	greenhouse: false,
+	lever: true
 };
 
 /** Each source's name as people know it. */
 export const SOURCE_NAMES: Readonly<Record<Source, string>> = {
 	ashby: 'Ashby',
-	greenhouse: 'Greenhouse'
+	greenhouse: 'Greenhouse',
+	lever: 'Lever'
 };
 
 export function isSource(value: unknown): value is Source {
@@ -94,6 +96,15 @@ export function cleanText(value: unknown, maxLength = 300): string | null {
 		.trim();
 	if (!text) return null;
 	return text.length > maxLength ? `${text.slice(0, maxLength - 1).trimEnd()}…` : text;
+}
+
+/**
+ * The value a source's own word maps to, or undefined. Only the map's own
+ * entries count: a board sending "constructor" or "__proto__" gets nothing,
+ * not one of JavaScript's built-ins.
+ */
+export function known<T>(map: Readonly<Record<string, T>>, key: unknown): T | undefined {
+	return typeof key === 'string' && Object.hasOwn(map, key) ? map[key] : undefined;
 }
 
 /** An https URL, or null. Anything else (http, javascript:, garbage) is refused. */

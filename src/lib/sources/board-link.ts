@@ -26,7 +26,8 @@ export type BoardLink =
 	| { readonly ok: true; readonly source: Source; readonly token: string }
 	| { readonly ok: false; readonly message: string };
 
-const EXAMPLE = 'job-boards.greenhouse.io/example or jobs.ashbyhq.com/example';
+const EXAMPLE =
+	'job-boards.greenhouse.io/example, jobs.ashbyhq.com/example or jobs.lever.co/example';
 
 const GREENHOUSE_BOARD_HOSTS = new Set(['boards.greenhouse.io', 'job-boards.greenhouse.io']);
 
@@ -91,10 +92,18 @@ export function parseBoardLink(input: string): BoardLink {
 	if (host === 'boards-api.greenhouse.io' && parts[0] === 'v1' && parts[1] === 'boards') {
 		return found('greenhouse', parts[2]);
 	}
-	if (host.endsWith('.greenhouse.io') || host.endsWith('.ashbyhq.com')) {
+	if (host === 'jobs.lever.co') return found('lever', parts[0]);
+	if (host === 'api.lever.co' && parts[0] === 'v0' && parts[1] === 'postings') {
+		return found('lever', parts[2]);
+	}
+	if (
+		host.endsWith('.greenhouse.io') ||
+		host.endsWith('.ashbyhq.com') ||
+		host.endsWith('.lever.co')
+	) {
 		return fail(`Job Ranger can't read boards on ${host} yet. Try a link like ${EXAMPLE}.`);
 	}
 	return fail(
-		`Job Ranger reads Ashby and Greenhouse boards, and that link is on ${host}. If the company's careers page has a link to jobs.ashbyhq.com or job-boards.greenhouse.io, paste that one.`
+		`Job Ranger reads Ashby, Greenhouse and Lever boards, and that link is on ${host}. If the company's careers page has a link to jobs.ashbyhq.com, job-boards.greenhouse.io or jobs.lever.co, paste that one.`
 	);
 }

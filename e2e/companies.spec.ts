@@ -15,15 +15,18 @@ test.describe('the companies page', () => {
 	test('has one main heading, a clear title, and lists every company', async ({ page }) => {
 		await expect(page).toHaveTitle('Companies · Job Ranger');
 		await expect(page.getByRole('heading', { level: 1 })).toHaveText('Companies');
-		await expect(page.getByText('Watching 3 of 3 companies.')).toBeVisible();
+		await expect(page.getByText('Watching 4 of 4 companies.')).toBeVisible();
 		const names = page.getByRole('heading', { level: 3 });
-		await expect(names).toHaveText(['Civic Co', 'Example Co', 'Quiet Co']);
+		await expect(names).toHaveText(['Civic Co', 'Example Co', 'Flight Co', 'Quiet Co']);
 	});
 
 	test('says each company’s board, jobs and last check in words', async ({ page }) => {
 		const civic = page.getByRole('article', { name: 'Civic Co' });
 		await expect(civic.getByText('Greenhouse: civic')).toBeVisible();
 		await expect(civic.getByText('Read on')).toBeVisible();
+		await expect(
+			page.getByRole('article', { name: 'Flight Co' }).getByText('Lever: flight')
+		).toBeVisible();
 		const quiet = page.getByRole('article', { name: 'Quiet Co' });
 		await expect(quiet.getByText('Could not be read on')).toBeVisible();
 		await expect(quiet.getByText('Board not found (404)')).toBeVisible();
@@ -52,7 +55,7 @@ test.describe('the companies page', () => {
 			/^Not added \(line 3, not a link, Some Co\):\s+That doesn't look like a link/
 		]);
 		await expect(box).toHaveValue('https://www.example.com/careers\nnot a link, Some Co');
-		await expect(page.getByRole('heading', { level: 3 })).toHaveCount(3);
+		await expect(page.getByRole('heading', { level: 3 })).toHaveCount(4);
 	});
 
 	test('explains an empty paste next to the box, and puts focus on it', async ({ page }) => {

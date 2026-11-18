@@ -308,7 +308,7 @@ describe('toStoredPosting', () => {
 
 	it('fails loudly on a bad row', () => {
 		for (const broken of [
-			{ ...row, source: 'lever' },
+			{ ...row, source: 'workday' },
 			{ ...row, workplace: 'moon' },
 			{ ...row, title: 7 },
 			{ ...row, department: 7 },

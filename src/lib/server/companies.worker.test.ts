@@ -336,7 +336,7 @@ describe('boardKey', () => {
 
 	it.each([
 		{},
-		{ source: 'lever', token: 'splice' },
+		{ source: 'workday', token: 'splice' },
 		{ source: 'greenhouse', token: 'Splice' },
 		{ source: 'greenhouse', token: '../x' },
 		{ source: 'greenhouse' }

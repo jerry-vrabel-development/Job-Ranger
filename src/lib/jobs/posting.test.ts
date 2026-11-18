@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { cleanText, httpsUrl, isoDate, isSource, normaliseToken, postingKey } from './posting.ts';
+import {
+	cleanText,
+	httpsUrl,
+	isoDate,
+	isSource,
+	known,
+	normaliseToken,
+	postingKey
+} from './posting.ts';
 
 describe('postingKey', () => {
 	it('is the source, board and id together', () => {
@@ -11,7 +19,8 @@ describe('isSource', () => {
 	it('knows the sources it has adapters for, and nothing else', () => {
 		expect(isSource('ashby')).toBe(true);
 		expect(isSource('greenhouse')).toBe(true);
-		expect(isSource('lever')).toBe(false);
+		expect(isSource('lever')).toBe(true);
+		expect(isSource('workday')).toBe(false);
 		expect(isSource(1)).toBe(false);
 	});
 });
@@ -60,5 +69,19 @@ describe('isoDate', () => {
 		expect(isoDate('soon')).toBeNull();
 		expect(isoDate('')).toBeNull();
 		expect(isoDate(undefined)).toBeNull();
+	});
+});
+
+describe('known', () => {
+	const map = { Remote: 'remote' };
+
+	it('finds only the map’s own words', () => {
+		expect(known(map, 'Remote')).toBe('remote');
+		expect(known(map, 'remote')).toBeUndefined();
+		expect(known(map, 'constructor')).toBeUndefined();
+		expect(known(map, '__proto__')).toBeUndefined();
+		expect(known(map, 'hasOwnProperty')).toBeUndefined();
+		expect(known(map, 7)).toBeUndefined();
+		expect(known(map, undefined)).toBeUndefined();
 	});
 });

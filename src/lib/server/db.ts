@@ -7,6 +7,7 @@
  * well inside D1's per-run query limits.
  */
 import { isSource, type Board, type Pay, type Workplace } from '#lib/jobs/posting.ts';
+import { NO_FILTER, type JobFilter } from '#lib/jobs/filter.ts';
 import type { StoredPosting, SyncPlan } from '#lib/jobs/sync.ts';
 
 /** At most this many postings per write statement, to keep each statement small. */
@@ -43,7 +44,7 @@ function numberOrNull(row: Row, column: string): number | null {
 }
 
 /** A count from a query (COUNT(*) always gives one), checked like any stored value. */
-export function count(row: Row | undefined, column: string): number {
+export function count(row: Row | null | undefined, column: string): number {
 	const value = row?.[column];
 	if (typeof value !== 'number') throw new StoredDataError(`${column} is not a count`);
 	return value;
@@ -253,20 +254,68 @@ export async function recordFetch(
 const ACTIVE = `EXISTS (SELECT 1 FROM boards b
 	WHERE b.source = p.source AND b.token = p.board AND b.paused = 0)`;
 
-/** Open postings on active boards, newest first (by posting date, then when we first saw them). */
+/** LIKE treats % and _ as wildcards; a search for "50%" means the characters 50%. */
+function likePattern(word: string): string {
+	return `%${word.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+}
+
+/**
+ * The WHERE clause for open postings on active boards that match a filter,
+ * with its values. Every value is bound, never written into the SQL.
+ */
+function openWhere(filter: JobFilter): { sql: string; values: unknown[] } {
+	const clauses = ['p.closed_at IS NULL', ACTIVE];
+	const values: unknown[] = [];
+	const bind = (value: unknown) => {
+		values.push(value);
+		return `?${String(values.length)}`;
+	};
+	for (const word of filter.words) {
+		const like = bind(likePattern(word));
+		clauses.push(
+			`(p.title LIKE ${like} ESCAPE '\\' OR p.department LIKE ${like} ESCAPE '\\'` +
+				` OR p.location LIKE ${like} ESCAPE '\\' OR p.company LIKE ${like} ESCAPE '\\')`
+		);
+	}
+	if (filter.board) {
+		clauses.push(
+			`p.source = ${bind(filter.board.source)} AND p.board = ${bind(filter.board.token)}`
+		);
+	}
+	if (filter.workplace) clauses.push(`p.workplace = ${bind(filter.workplace)}`);
+	if (filter.onlyNew) clauses.push('p.seen_at IS NULL');
+	return { sql: clauses.join(' AND '), values };
+}
+
+/** Open postings on active boards that match the filter, newest first (by posting date, then when we first saw them). */
 export async function listOpenPostings(
 	db: D1Database,
+	filter: JobFilter = NO_FILTER,
 	limit = LIST_LIMIT
 ): Promise<StoredPosting[]> {
+	const where = openWhere(filter);
 	const { results } = await db
 		.prepare(
-			`SELECT p.* FROM postings p WHERE p.closed_at IS NULL AND ${ACTIVE}
+			`SELECT p.* FROM postings p WHERE ${where.sql}
 			 ORDER BY p.posted_at DESC NULLS LAST, p.first_seen_at DESC, p.company, p.title, p.id
-			 LIMIT ?1`
+			 LIMIT ?${String(where.values.length + 1)}`
 		)
-		.bind(limit)
+		.bind(...where.values, limit)
 		.all<Row>();
 	return results.map(toStoredPosting);
+}
+
+/** How many open postings on active boards match the filter (the list itself stops at LIST_LIMIT). */
+export async function countOpenPostings(
+	db: D1Database,
+	filter: JobFilter = NO_FILTER
+): Promise<number> {
+	const where = openWhere(filter);
+	const row = await db
+		.prepare(`SELECT COUNT(*) AS n FROM postings p WHERE ${where.sql}`)
+		.bind(...where.values)
+		.first<Row>();
+	return count(row, 'n');
 }
 
 export interface BoardStatus extends Board {

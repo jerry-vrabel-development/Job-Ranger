@@ -1,8 +1,10 @@
+import { NO_FILTER } from '#lib/jobs/filter.ts';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Board, Posting } from '#lib/jobs/posting.ts';
 import { planSync, type StoredPosting } from '#lib/jobs/sync.ts';
 import {
 	count,
+	countOpenPostings,
 	findBoard,
 	insertBoard,
 	listBoardStatus,
@@ -151,7 +153,7 @@ describe('listOpenPostings', () => {
 			DAY2
 		);
 		expect((await listOpenPostings(db)).map((p) => p.id)).toEqual(['new', 'old', 'undated']);
-		expect(await listOpenPostings(db, 1)).toHaveLength(1);
+		expect(await listOpenPostings(db, NO_FILTER, 1)).toHaveLength(1);
 	});
 });
 
@@ -325,5 +327,64 @@ describe('count', () => {
 		expect(() => count({ n: '3' }, 'n')).toThrow(StoredDataError);
 		expect(() => count({}, 'n')).toThrow(StoredDataError);
 		expect(() => count(undefined, 'n')).toThrow(StoredDataError);
+		expect(() => count(null, 'n')).toThrow(StoredDataError);
+	});
+});
+
+describe('listOpenPostings and countOpenPostings with a filter', () => {
+	beforeEach(async () => {
+		await sync(
+			db,
+			example,
+			[
+				posting('fw', { title: 'Firmware Engineer', department: 'Hardware', workplace: 'remote' }),
+				posting('pm', { title: 'Product Manager, 50% Travel', location: 'Austin, TX' }),
+				posting('ux', { title: 'Designer', department: 'Product_Design', workplace: 'on-site' })
+			],
+			DAY1
+		);
+		await sync(
+			db,
+			other,
+			[posting('o1', { board: 'other', company: 'Another Co', title: 'Firmware Lead' })],
+			DAY1
+		);
+	});
+
+	const ids = async (filter: Partial<typeof NO_FILTER>) =>
+		(await listOpenPostings(db, { ...NO_FILTER, ...filter })).map((p) => p.id).sort();
+
+	it('matches every word, in any case, across title, team, location and company', async () => {
+		expect(await ids({ words: ['firmware'] })).toEqual(['fw', 'o1']);
+		expect(await ids({ words: ['firmware', 'hardware'] })).toEqual(['fw']);
+		expect(await ids({ words: ['austin'] })).toEqual(['pm']);
+		expect(await ids({ words: ['another'] })).toEqual(['o1']);
+		expect(await countOpenPostings(db, { ...NO_FILTER, words: ['firmware'] })).toBe(2);
+	});
+
+	it('searches for % and _ as the characters themselves', async () => {
+		expect(await ids({ words: ['50%'] })).toEqual(['pm']);
+		expect(await ids({ words: ['%'] })).toEqual(['pm']);
+		expect(await ids({ words: ['product_design'] })).toEqual(['ux']);
+		expect(await ids({ words: ['_'] })).toEqual(['ux']);
+	});
+
+	it('filters by company, workplace and new', async () => {
+		expect(await ids({ board: { source: 'ashby', token: 'other' } })).toEqual(['o1']);
+		expect(await ids({ board: { source: 'greenhouse', token: 'other' } })).toEqual([]);
+		expect(await ids({ workplace: 'on-site' })).toEqual(['ux']);
+		await db.prepare("UPDATE postings SET seen_at = ?1 WHERE id = 'fw'").bind(DAY2).run();
+		expect(await ids({ onlyNew: true })).toEqual(['o1', 'pm', 'ux']);
+	});
+
+	it('counts all matches even when the list stops at its limit', async () => {
+		expect(await listOpenPostings(db, NO_FILTER, 2)).toHaveLength(2);
+		expect(await countOpenPostings(db)).toBe(4);
+	});
+
+	it('leaves out paused companies, in the list and the count', async () => {
+		await setPaused(db, 'ashby', 'other', true);
+		expect(await ids({ words: ['firmware'] })).toEqual(['fw']);
+		expect(await countOpenPostings(db)).toBe(3);
 	});
 });

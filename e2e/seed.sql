@@ -5,7 +5,18 @@ DELETE FROM boards;
 
 INSERT INTO boards (source, token, company, last_fetched_at, last_fetch_ok, last_fetch_note) VALUES
 	('ashby', 'example', 'Example Co', '2026-11-17T11:23:00.000Z', 1, '44 open, 3 new, 1 closed.'),
-	('ashby', 'quiet', 'Quiet Co', '2026-11-17T11:23:00.000Z', 0, 'Board not found (404)');
+	('ashby', 'quiet', 'Quiet Co', '2026-11-17T11:23:00.000Z', 0, 'Board not found (404)'),
+	('greenhouse', 'civic', 'Civic Co', '2026-11-17T11:23:00.000Z', 1, '1 open, 1 new, 0 closed.');
+
+-- A Greenhouse job: its board lists no pay, so the card points to the posting.
+INSERT INTO postings (source, board, id, company, title, location, workplace, department,
+	apply_url, job_url, posted_at, first_seen_at, last_seen_at, seen_at) VALUES
+	('greenhouse', 'civic', '4206440009', 'Civic Co', 'Software Engineer, Benefits Access',
+		'Remote - US', 'remote', 'Engineering',
+		'https://job-boards.greenhouse.io/civic/jobs/4206440009',
+		'https://job-boards.greenhouse.io/civic/jobs/4206440009',
+		'2026-11-12T15:00:00.000Z', '2026-11-12T11:23:00.000Z', '2026-11-17T11:23:00.000Z',
+		'2026-11-13T00:00:00.000Z');
 
 INSERT INTO postings (source, board, id, company, title, location, workplace, employment_type,
 	department, apply_url, job_url, posted_at, pay_summary, pay_min, pay_max, pay_currency,

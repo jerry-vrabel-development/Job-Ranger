@@ -1,0 +1,72 @@
+import { applyD1Migrations } from 'cloudflare:test';
+import { describe, expect, it } from 'vitest';
+import { MIGRATIONS, scratchDb as db } from './test-db.ts';
+
+const first = (sql: string) => db.prepare(sql).first();
+
+describe('migration 0002: Greenhouse boards', () => {
+	it('keeps every board and posting, and then accepts Greenhouse', async () => {
+		// The database as it is in production today: migration 0001 only.
+		await applyD1Migrations(db, MIGRATIONS.slice(0, 1));
+		await db.batch([
+			db.prepare(
+				`INSERT INTO boards (source, token, company, last_fetched_at, last_fetch_ok, last_fetch_note)
+				 VALUES ('ashby', 'example', 'Example Co', '2026-11-17T11:23:00.000Z', 1, '1 open')`
+			),
+			db.prepare(
+				`INSERT INTO postings (source, board, id, company, title, location, workplace, apply_url,
+				 pay_summary, pay_min, first_seen_at, last_seen_at, reopen_count, seen_at)
+				 VALUES ('ashby', 'example', 'a1', 'Example Co', 'Engineer', 'Remote', 'remote',
+				 'https://jobs.ashbyhq.com/example/a1/application', '$1', 1, '2026-11-17T11:23:00.000Z',
+				 '2026-11-17T11:23:00.000Z', 2, '2026-11-17T12:00:00.000Z')`
+			)
+		]);
+		await expect(
+			db
+				.prepare("INSERT INTO boards (source, token, company) VALUES ('greenhouse', 'x', 'X')")
+				.run()
+		).rejects.toThrow();
+
+		await applyD1Migrations(db, [...MIGRATIONS]);
+
+		expect(await first('SELECT * FROM boards')).toMatchObject({
+			source: 'ashby',
+			token: 'example',
+			last_fetch_ok: 1,
+			last_fetch_note: '1 open'
+		});
+		expect(await first('SELECT * FROM postings')).toMatchObject({
+			id: 'a1',
+			pay_summary: '$1',
+			pay_min: 1,
+			reopen_count: 2,
+			seen_at: '2026-11-17T12:00:00.000Z'
+		});
+
+		await db
+			.prepare(
+				"INSERT INTO boards (source, token, company) VALUES ('greenhouse', 'navapbc', 'Nava')"
+			)
+			.run();
+		await expect(
+			db.prepare("INSERT INTO boards (source, token, company) VALUES ('lever', 'x', 'X')").run()
+		).rejects.toThrow();
+
+		// Postings still belong to boards: removing a board removes its postings.
+		await db.prepare("DELETE FROM boards WHERE token = 'example'").run();
+		expect(await first('SELECT COUNT(*) AS n FROM postings')).toEqual({ n: 0 });
+
+		// The list page's index came back.
+		expect(
+			await first(
+				"SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'postings_open_newest'"
+			)
+		).toEqual({ name: 'postings_open_newest' });
+		// No leftovers.
+		expect(
+			await first(
+				"SELECT COUNT(*) AS n FROM sqlite_master WHERE name IN ('boards_new', 'postings_new')"
+			)
+		).toEqual({ n: 0 });
+	});
+});

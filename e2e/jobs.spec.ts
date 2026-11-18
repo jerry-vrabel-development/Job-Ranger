@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-// Data comes from e2e/seed.sql: 43 open jobs (3 new), 1 closed, and one board
+// Data comes from e2e/seed.sql: 44 open jobs (3 new, one from Greenhouse), 1 closed, and one board
 // that couldn't be read. These tests only read, so they can run in parallel.
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
@@ -18,7 +18,7 @@ test.describe('the jobs page', () => {
 		await expect(page).toHaveTitle('Jobs · Job Ranger');
 		await expect(page.getByRole('heading', { level: 1 })).toHaveText('Jobs');
 		await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
-		await expect(page.getByText('43 open jobs from 2 job boards, newest first.')).toBeVisible();
+		await expect(page.getByText('44 open jobs from 3 job boards, newest first.')).toBeVisible();
 		await expect(page.getByText('3 new.')).toBeVisible();
 	});
 
@@ -26,7 +26,7 @@ test.describe('the jobs page', () => {
 		page
 	}) => {
 		const headings = page.getByRole('list').first().getByRole('heading', { level: 2 });
-		await expect(headings).toHaveCount(43);
+		await expect(headings).toHaveCount(44);
 		await expect(headings.nth(0)).toHaveText('Senior Software Engineer, AccessibilityNew');
 		await expect(headings.nth(1)).toHaveText(LONG_TITLE);
 		// Undated postings come last.
@@ -54,11 +54,13 @@ test.describe('the jobs page', () => {
 			'Read the posting for Senior Software Engineer, Accessibility at Example Co'
 		);
 		const all = page.getByRole('link', { name: /^Apply for / });
-		await expect(all).toHaveCount(43);
+		await expect(all).toHaveCount(44);
 		for (const href of await all.evaluateAll((links) =>
 			links.map((link) => link.getAttribute('href') ?? '')
 		)) {
-			expect(href).toMatch(/^https:\/\/jobs\.ashbyhq\.com\/example\/.+\/application$/);
+			expect(href).toMatch(
+				/^https:\/\/(jobs\.ashbyhq\.com\/example\/.+\/application|job-boards\.greenhouse\.io\/civic\/jobs\/\d+)$/
+			);
 		}
 	});
 
@@ -73,11 +75,15 @@ test.describe('the jobs page', () => {
 		await expect(undated.getByText('Pay not posted')).toBeVisible();
 		await expect(undated.getByText('Location not given · Workplace not stated')).toBeVisible();
 		await expect(undated.getByText('Posting date not given')).toBeVisible();
+
+		const greenhouseJob = page.getByRole('article', { name: /Benefits Access/ });
+		await expect(greenhouseJob.getByText('See the posting for pay')).toBeVisible();
+		await expect(greenhouseJob.getByText('Remote - US · Remote')).toBeVisible();
 	});
 
 	test('says when a board could not be read, and why', async ({ page }) => {
 		await expect(page.getByText('1 board couldn’t be read in the last check.')).toBeVisible();
-		await page.getByText('Job boards (2)').click();
+		await page.getByText('Job boards (3)').click();
 		await expect(
 			page.getByText(/could not be read on Nov 17, 2026\. Board not found \(404\)/)
 		).toBeVisible();
@@ -92,7 +98,7 @@ test.describe('the jobs page', () => {
 		test(`has no WCAG 2.2 AA violations (${colorScheme})`, async ({ page }) => {
 			await page.emulateMedia({ colorScheme });
 			await page.goto('/jobs');
-			await page.getByText('Job boards (2)').click();
+			await page.getByText('Job boards (3)').click();
 			const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
 			expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
 		});

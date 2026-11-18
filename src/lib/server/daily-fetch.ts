@@ -6,6 +6,7 @@
 import type { Board, Source } from '#lib/jobs/posting.ts';
 import { planSync } from '#lib/jobs/sync.ts';
 import { ashby } from '#lib/sources/ashby.ts';
+import { greenhouse } from '#lib/sources/greenhouse.ts';
 import {
 	fetchBoard,
 	SourceFormatError,
@@ -15,7 +16,7 @@ import {
 } from '#lib/sources/source.ts';
 import { listBoardsToFetch, loadBoard, recordFetch, StoredDataError, writePlan } from './db.ts';
 
-export const ADAPTERS: Readonly<Record<Source, JobSource>> = { ashby };
+export const ADAPTERS: Readonly<Record<Source, JobSource>> = { ashby, greenhouse };
 
 /**
  * Boards per run. Sized for the Workers Paid plan: each board costs one

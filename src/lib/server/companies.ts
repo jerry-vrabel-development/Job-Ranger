@@ -197,7 +197,7 @@ export async function renameCompany(
 export function boardKey(form: FormData): { source: Source; token: string } | null {
 	const source = form.get('source');
 	const token = form.get('token');
-	if (!isSource(source) || !isToken(token)) return null;
+	if (!isSource(source) || !isToken(token, source)) return null;
 	return { source, token };
 }
 

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Board } from '#lib/jobs/posting.ts';
 import ashbyBoard from '#lib/sources/fixtures/ashby-board.json' with { type: 'json' };
 import greenhouseBoard from '#lib/sources/fixtures/greenhouse-board.json' with { type: 'json' };
+import leverBoard from '#lib/sources/fixtures/lever-board.json' with { type: 'json' };
 import {
 	ADD_CONCURRENCY,
 	addCompanies,
@@ -129,6 +130,19 @@ describe('addCompanies', () => {
 		expect(lines(result)).toEqual([
 			{ line: 1, ok: true, message: 'Added Distrokid: 2 open jobs found.' }
 		]);
+	});
+
+	it('keeps a Lever board name exactly as written: Lever names are case-sensitive', async () => {
+		const fetcher = network({ BluesInc: json(leverBoard) });
+		const result = await addCompanies(db, fetcher, 'https://jobs.lever.co/BluesInc', NOW);
+		expect(lines(result)).toEqual([
+			{ line: 1, ok: true, message: 'Added BluesInc: 2 open jobs found.' }
+		]);
+		expect(fetcher).toHaveBeenCalledWith(
+			'https://api.lever.co/v0/postings/BluesInc?mode=json',
+			expect.anything()
+		);
+		expect(await findBoard(db, 'lever', 'BluesInc')).toMatchObject({ openJobs: 2 });
 	});
 
 	it('says "1 open job" for one', async () => {
@@ -332,12 +346,17 @@ describe('boardKey', () => {
 			source: 'greenhouse',
 			token: 'splice'
 		});
+		expect(boardKey(form({ source: 'lever', token: 'BluesInc' }))).toEqual({
+			source: 'lever',
+			token: 'BluesInc'
+		});
 	});
 
 	it.each([
 		{},
 		{ source: 'workday', token: 'splice' },
 		{ source: 'greenhouse', token: 'Splice' },
+		{ source: 'lever', token: '-BluesInc' },
 		{ source: 'greenhouse', token: '../x' },
 		{ source: 'greenhouse' }
 	])('refuses a form that does not name a board properly (%#)', (fields) => {

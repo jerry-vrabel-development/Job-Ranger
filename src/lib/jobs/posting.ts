@@ -33,7 +33,10 @@ export function isSource(value: unknown): value is Source {
 /** A company's job board: which source, the board's name there, and who it is. */
 export interface Board {
 	readonly source: Source;
-	/** The board's name on the source, lowercased (e.g. `example` in jobs.ashbyhq.com/example). */
+	/**
+	 * The board's name on the source (e.g. `example` in jobs.ashbyhq.com/example):
+	 * lowercased, except on Lever, whose names are case-sensitive.
+	 */
 	readonly token: string;
 	/** The company's name as I want to see it. The sources don't all provide one. */
 	readonly company: string;

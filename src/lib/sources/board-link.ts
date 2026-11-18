@@ -6,11 +6,21 @@
  */
 import { SOURCE_NAMES, type Source } from '#lib/jobs/posting.ts';
 
-/** A board name as stored: lowercase letters, digits, spaces, dots, dashes, underscores. */
+/** A board name as stored: letters, digits, spaces, dots, dashes, underscores. */
 const TOKEN = /^[a-z0-9][a-z0-9 ._-]{0,99}$/;
+const CASED_TOKEN = /^[A-Za-z0-9][A-Za-z0-9 ._-]{0,99}$/;
 
-export function isToken(value: unknown): value is string {
-	return typeof value === 'string' && TOKEN.test(value);
+/**
+ * Sources whose board names are case-sensitive: Lever answers for
+ * "BluesInc" but not "bluesinc". The others ignore case, so their names are
+ * kept lowercase, and one board can't be added twice in different cases.
+ */
+const KEEPS_CASE: ReadonlySet<Source> = new Set(['lever']);
+
+/** Whether a value is a board name as stored for `source` (lowercase unless the source keeps case). */
+export function isToken(value: unknown, source?: Source): value is string {
+	const pattern = source !== undefined && KEEPS_CASE.has(source) ? CASED_TOKEN : TOKEN;
+	return typeof value === 'string' && pattern.test(value);
 }
 
 /** A starting name made from a board name: "civic-roundtable" becomes "Civic Roundtable". */
@@ -39,8 +49,8 @@ function segments(url: URL): string[] {
 	return url.pathname.split('/').filter((part) => part !== '');
 }
 
-/** The board name from one path segment, or null if it isn't a usable name. */
-function tokenFrom(raw: string | undefined | null): string | null {
+/** The board name from one path segment, as stored for `source`, or null if it isn't usable. */
+function tokenFrom(source: Source, raw: string | undefined | null): string | null {
 	if (raw === undefined || raw === null) return null;
 	let decoded: string;
 	try {
@@ -48,12 +58,13 @@ function tokenFrom(raw: string | undefined | null): string | null {
 	} catch {
 		return null;
 	}
-	const token = decoded.trim().toLowerCase();
-	return TOKEN.test(token) ? token : null;
+	const trimmed = decoded.trim();
+	const token = KEEPS_CASE.has(source) ? trimmed : trimmed.toLowerCase();
+	return isToken(token, source) ? token : null;
 }
 
 function found(source: Source, raw: string | undefined | null): BoardLink {
-	const token = tokenFrom(raw);
+	const token = tokenFrom(source, raw);
 	if (token === null) {
 		return fail(
 			`That ${SOURCE_NAMES[source]} link doesn't name a board. It should look like ${EXAMPLE}.`

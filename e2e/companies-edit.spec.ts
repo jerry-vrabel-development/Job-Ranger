@@ -31,10 +31,23 @@ test('pausing hides a company’s jobs, and resuming brings them back', async ({
 
 test('removing a company asks first, then says what went', async ({ page }) => {
 	await page.goto('/companies');
-	await page.locator('summary', { hasText: 'Quiet Co' }).click();
+	await page.locator('summary', { hasText: 'Remove' }).filter({ hasText: 'Quiet Co' }).click();
 	await expect(page.getByText(/This removes Quiet Co and every job stored for it/)).toBeVisible();
 	await page.getByRole('button', { name: 'Remove Quiet Co' }).click();
 
 	await expect(page.getByRole('status')).toHaveText('Removed Quiet Co and its 0 jobs.');
 	await expect(page.getByRole('heading', { level: 3 })).toHaveText(['Civic Co', 'Example Co']);
+});
+
+test('renaming a company renames it on the Jobs page too', async ({ page }) => {
+	await page.goto('/companies');
+	await page.locator('summary', { hasText: 'Rename' }).filter({ hasText: 'Civic Co' }).click();
+	await page.getByRole('textbox', { name: 'New name for Civic Co' }).fill('Civic Company');
+	await page.getByRole('button', { name: 'Save name for Civic Co' }).click();
+
+	await expect(page.getByRole('status')).toHaveText('Renamed Civic Co to Civic Company.');
+	await expect(page.getByRole('heading', { level: 3 })).toHaveText(['Civic Company', 'Example Co']);
+	await page.goto('/jobs');
+	const job = page.getByRole('article', { name: /Benefits Access/ });
+	await expect(job.getByText('Civic Company', { exact: true })).toBeVisible();
 });

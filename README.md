@@ -8,8 +8,8 @@ each with the evidence behind the flag.
 
 **Being built.** Working now: a daily fetch from employers' Ashby and Greenhouse job boards,
 dedupe and closing of postings that leave a board, a jobs page with each
-job's real apply link, and a companies page to add (by pasting a job-board
-link), check, pause and remove companies, all behind sign-in. The rest of the features below are
+job's real apply link, and a companies page to add (by pasting job-board
+links, up to 25 at once), check, rename, pause and remove companies, all behind sign-in. The rest of the features below are
 planned, not shipped yet. The plan is in
 [design note 0001](docs/design/0001-job-ranger.md), and how it connects to
 email, documents and AI assistants is in
@@ -64,10 +64,12 @@ npm run test:e2e     # browser tests (first time: npx playwright install)
 git checkout main && git pull && npm ci && npm run deploy
 ```
 
-`npm run deploy` builds, deploys the Worker, then applies any new database
-migrations. The new code can run for a moment before its migration lands, so
-migrations add (new tables, new columns with defaults) and never break what the
-running code expects.
+`npm run deploy` builds, applies any new database migrations, then deploys the
+Worker. New code may need its migration, so the migration goes first. The old
+code keeps running for a moment against the new tables, so migrations only add
+(new tables, new columns with defaults) or rebuild a table with the same
+columns, and never break what the running code expects. If a migration fails,
+the deploy stops and the old Worker keeps running.
 
 `wrangler.jsonc` names this deployment's D1 database by its ID. If you deploy
 your own copy, delete the `database_id` line and the first deploy creates a
@@ -113,8 +115,9 @@ npx wrangler secret put ACCESS_ALLOWED_EMAILS  # your email (comma-separate seve
 The Worker's entry point is `worker/index.js`: SvelteKit's pages plus the daily
 fetch on a cron (11:23 UTC). Job boards are rows in D1, not code, so the list of
 companies stays out of the repository. Add companies on the Companies page:
-paste a link from jobs.ashbyhq.com or job-boards.greenhouse.io, and Job Ranger
-reads the board once before saving it.
+paste links from jobs.ashbyhq.com or job-boards.greenhouse.io, one per line
+(add `, Name` after a link to choose its name), and Job Ranger reads each board
+once before saving it.
 
 ```sh
 npm run db:migrate:local     # set up the local database

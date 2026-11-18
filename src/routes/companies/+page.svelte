@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
+	import { browser } from '$app/env';
 	import { enhance, type SubmitFunction } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import { checkedLabel, countLabel } from '#lib/jobs/display.ts';
@@ -8,25 +9,28 @@
 
 	let { data, form }: PageProps = $props();
 
-	let status: HTMLParagraphElement | undefined = $state();
-	let linkInput: HTMLInputElement | undefined = $state();
-	let companyInput: HTMLInputElement | undefined = $state();
+	let status: HTMLElement | undefined = $state();
+	let linksInput: HTMLTextAreaElement | undefined = $state();
 
-	const result = $derived(form?.result);
-	const field = $derived(result && 'field' in result ? result.field : undefined);
-	const values = $derived(form && 'values' in form ? form.values : undefined);
+	/** What the last per-company action said. */
+	const result = $derived(form && 'result' in form ? form.result : undefined);
+	/** What the last paste said: a problem with the paste, or how each line went. */
+	const add = $derived(form && 'add' in form ? form.add : undefined);
+	const problem = $derived(add && 'problem' in add ? add.problem : undefined);
+	const added = $derived(add && 'results' in add ? add : undefined);
+	const notAdded = $derived(added ? added.results.length - added.added : 0);
+	/** The box keeps what still needs doing: the paste back after a problem, or the lines not added. */
+	const keep = $derived(add && 'links' in add ? add.links : (added?.retry ?? ''));
 	const watching = $derived(data.companies.filter((company) => !company.paused).length);
 
-	// After any action: an add with a field error puts focus on that field;
-	// everything else focuses the message, so it is read out and easy to find.
+	// After any action, focus goes to what it said: the problem in the box, or the message.
 	const afterAction: SubmitFunction =
 		() =>
 		async ({ update }) => {
 			// Refresh the list after failures too, so a stale page catches up.
 			await update({ refreshAll: true });
 			await tick();
-			if (field === 'link') linkInput?.focus();
-			else if (field === 'company') companyInput?.focus();
+			if (problem) linksInput?.focus();
 			else status?.focus();
 		};
 </script>
@@ -45,58 +49,59 @@
 	{/if}
 </p>
 
-{#if result && (result.ok || !field)}
+{#if result}
 	<p class="note" class:problem={!result.ok} role="status" tabindex="-1" bind:this={status}>
 		{#if !result.ok}<strong>Not done:</strong>{/if}
 		{result.message}
 	</p>
+{:else if added}
+	<div class="note" class:problem={notAdded > 0} role="status" tabindex="-1" bind:this={status}>
+		<p>
+			<strong>{countLabel(added.added, 'company', 'companies')} added</strong>{#if notAdded > 0}, {notAdded}
+				not added. The ones not added are back in the box, to fix or leave{/if}.
+		</p>
+		<ul class="results">
+			{#each added.results as line (line.line)}
+				<li>
+					{#if line.ok}
+						{line.message}
+					{:else}
+						<strong>Not added</strong> (line {line.line}, <span class="pasted">{line.text}</span>):
+						{line.message}
+					{/if}
+				</li>
+			{/each}
+		</ul>
+	</div>
 {/if}
 
 <section aria-labelledby="add-heading">
-	<h2 id="add-heading">Add a company</h2>
+	<h2 id="add-heading">Add companies</h2>
 	<form method="POST" action="?/add" use:enhance={afterAction} novalidate>
 		<div class="field">
-			<label for="link">Job board link</label>
-			<p class="hint" id="link-hint">
-				From jobs.ashbyhq.com or job-boards.greenhouse.io. A link to one of their jobs works too.
+			<label for="links">Job board links, one per line</label>
+			<p class="hint" id="links-hint">
+				From jobs.ashbyhq.com or job-boards.greenhouse.io; a link to one of their jobs works too. Up
+				to 25 at a time. Greenhouse boards bring their own company name. To choose a name, add it
+				after a comma: <span class="example">job-boards.greenhouse.io/splice, Splice</span>
 			</p>
-			{#if field === 'link' && result && !result.ok}
-				<p class="error" id="link-error"><strong>Error:</strong> {result.message}</p>
+			{#if problem}
+				<p class="error" id="links-error"><strong>Error:</strong> {problem}</p>
 			{/if}
-			<input
-				id="link"
-				name="link"
-				type="text"
-				inputmode="url"
+			<textarea
+				id="links"
+				name="links"
+				rows="6"
 				autocomplete="off"
 				spellcheck="false"
 				required
-				defaultValue={values?.link ?? ''}
-				aria-invalid={field === 'link' ? 'true' : undefined}
-				aria-describedby={field === 'link' ? 'link-error link-hint' : 'link-hint'}
-				bind:this={linkInput}
-			/>
+				value={browser ? undefined : keep}
+				defaultValue={keep}
+				aria-invalid={problem ? 'true' : undefined}
+				aria-describedby={problem ? 'links-error links-hint' : 'links-hint'}
+				bind:this={linksInput}></textarea>
 		</div>
-		<div class="field">
-			<label for="company">Company name</label>
-			<p class="hint" id="company-hint">How you want to see it on the Jobs page.</p>
-			{#if field === 'company' && result && !result.ok}
-				<p class="error" id="company-error"><strong>Error:</strong> {result.message}</p>
-			{/if}
-			<input
-				id="company"
-				name="company"
-				type="text"
-				autocomplete="off"
-				required
-				maxlength="200"
-				defaultValue={values?.company ?? ''}
-				aria-invalid={field === 'company' ? 'true' : undefined}
-				aria-describedby={field === 'company' ? 'company-error company-hint' : 'company-hint'}
-				bind:this={companyInput}
-			/>
-		</div>
-		<p class="hint">Job Ranger reads the board once before adding it, so you know it works.</p>
+		<p class="hint">Job Ranger reads each board once before adding it, so you know it works.</p>
 		<button type="submit">Check and add</button>
 	</form>
 </section>
@@ -164,7 +169,29 @@
 							</form>
 						</div>
 						<details>
-							<summary>Remove<span class="visually-hidden"> {company.company}</span>…</summary>
+							<summary>Rename<span class="visually-hidden">{` ${company.company}`}</span>…</summary>
+							<form method="POST" action="?/rename" use:enhance={afterAction} class="rename">
+								<input type="hidden" name="source" value={company.source} />
+								<input type="hidden" name="token" value={company.token} />
+								<label for="rename-{company.key}"
+									>New name<span class="visually-hidden">{` for ${company.company}`}</span></label
+								>
+								<input
+									id="rename-{company.key}"
+									name="company"
+									type="text"
+									autocomplete="off"
+									required
+									maxlength="200"
+									defaultValue={company.company}
+								/>
+								<button type="submit"
+									>Save name<span class="visually-hidden">{` for ${company.company}`}</span></button
+								>
+							</form>
+						</details>
+						<details>
+							<summary>Remove<span class="visually-hidden">{` ${company.company}`}</span>…</summary>
 							<p>
 								This removes {company.company} and every job stored for it. It can’t be undone.
 								{#if !company.paused}Pause keeps the history, if you might want it back.{/if}
@@ -223,6 +250,7 @@
 		font-weight: 600;
 	}
 
+	textarea,
 	input[type='text'] {
 		display: block;
 		width: 100%;
@@ -235,7 +263,12 @@
 		min-height: 44px;
 	}
 
-	input[aria-invalid='true'] {
+	textarea {
+		resize: vertical;
+		line-height: 1.5;
+	}
+
+	[aria-invalid='true'] {
 		border-width: 3px;
 		border-style: dashed;
 	}
@@ -336,6 +369,36 @@
 		cursor: pointer;
 		min-height: 44px;
 		padding: 0.5rem 0;
+	}
+
+	.results {
+		margin: 0.5rem 0 0;
+		padding-left: 1.25rem;
+	}
+
+	.results li + li {
+		margin-top: 0.25rem;
+	}
+
+	.note > p {
+		margin: 0;
+	}
+
+	.pasted,
+	.example {
+		font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+		font-size: 0.95em;
+		overflow-wrap: anywhere;
+	}
+
+	.rename {
+		display: grid;
+		gap: 0.35rem;
+		margin-bottom: 0.5rem;
+	}
+
+	.rename button {
+		justify-self: start;
 	}
 
 	.danger {

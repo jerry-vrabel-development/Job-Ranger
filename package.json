@@ -30,7 +30,7 @@
 		"db:migrate:local": "wrangler d1 migrations apply DB --local",
 		"e2e:seed": "wrangler d1 execute DB --local --file e2e/seed.sql",
 		"e2e:serve": "npm run build && npm run db:migrate:local && npm run e2e:seed && wrangler dev --port 4173 --var ACCESS_LOCAL_DEV:true",
-		"deploy": "npm run build && wrangler deploy && wrangler d1 migrations apply DB --remote"
+		"deploy": "npm run build && wrangler d1 migrations apply DB --remote && wrangler deploy"
 	},
 	"devDependencies": {
 		"@axe-core/playwright": "^4.11.1",

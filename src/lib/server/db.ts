@@ -347,6 +347,32 @@ export async function setPaused(
 }
 
 /**
+ * Renames a board's company, on the board and on every posting stored for it,
+ * in one transaction. Returns the old name, or null if the board isn't on the list.
+ */
+export async function renameBoard(
+	db: D1Database,
+	source: Board['source'],
+	token: string,
+	company: string
+): Promise<string | null> {
+	const before = await db
+		.prepare('SELECT company FROM boards WHERE source = ?1 AND token = ?2')
+		.bind(source, token)
+		.first<Row>();
+	if (before === null) return null;
+	await db.batch([
+		db
+			.prepare('UPDATE boards SET company = ?1 WHERE source = ?2 AND token = ?3')
+			.bind(company, source, token),
+		db
+			.prepare('UPDATE postings SET company = ?1 WHERE source = ?2 AND board = ?3')
+			.bind(company, source, token)
+	]);
+	return text(before, 'company');
+}
+
+/**
  * Removes a board and everything stored for it (the postings go with it, by
  * the foreign key's cascade), in one transaction. Returns the company name and
  * how many postings went, or null if the board wasn't on the list.

@@ -16,17 +16,17 @@ test('pausing hides a company’s jobs, and resuming brings them back', async ({
 	const civic = page.getByRole('article', { name: /^Civic Co/ });
 	await expect(civic.getByText('Paused', { exact: true })).toBeVisible();
 	await expect(civic.getByText('(hidden while paused)')).toBeVisible();
-	await expect(page.getByText('Watching 2 of 3 companies.')).toBeVisible();
+	await expect(page.getByText('Watching 3 of 4 companies.')).toBeVisible();
 
 	await page.goto('/jobs');
-	await expect(page.getByText('43 open jobs from 2 job boards, newest first.')).toBeVisible();
+	await expect(page.getByText('44 open jobs from 3 job boards, newest first.')).toBeVisible();
 	await expect(page.getByRole('heading', { name: /Benefits Access/ })).toHaveCount(0);
 
 	await page.goto('/companies');
 	await page.getByRole('button', { name: 'Resume Civic Co' }).click();
 	await expect(page.getByRole('status')).toHaveText(/Resumed Civic Co\./);
 	await page.goto('/jobs');
-	await expect(page.getByText('44 open jobs from 3 job boards, newest first.')).toBeVisible();
+	await expect(page.getByText('45 open jobs from 4 job boards, newest first.')).toBeVisible();
 });
 
 test('removing a company asks first, then says what went', async ({ page }) => {
@@ -36,7 +36,11 @@ test('removing a company asks first, then says what went', async ({ page }) => {
 	await page.getByRole('button', { name: 'Remove Quiet Co' }).click();
 
 	await expect(page.getByRole('status')).toHaveText('Removed Quiet Co and its 0 jobs.');
-	await expect(page.getByRole('heading', { level: 3 })).toHaveText(['Civic Co', 'Example Co']);
+	await expect(page.getByRole('heading', { level: 3 })).toHaveText([
+		'Civic Co',
+		'Example Co',
+		'Flight Co'
+	]);
 });
 
 test('renaming a company renames it on the Jobs page too', async ({ page }) => {
@@ -46,7 +50,11 @@ test('renaming a company renames it on the Jobs page too', async ({ page }) => {
 	await page.getByRole('button', { name: 'Save name for Civic Co' }).click();
 
 	await expect(page.getByRole('status')).toHaveText('Renamed Civic Co to Civic Company.');
-	await expect(page.getByRole('heading', { level: 3 })).toHaveText(['Civic Company', 'Example Co']);
+	await expect(page.getByRole('heading', { level: 3 })).toHaveText([
+		'Civic Company',
+		'Example Co',
+		'Flight Co'
+	]);
 	await page.goto('/jobs');
 	const job = page.getByRole('article', { name: /Benefits Access/ });
 	await expect(job.getByText('Civic Company', { exact: true })).toBeVisible();

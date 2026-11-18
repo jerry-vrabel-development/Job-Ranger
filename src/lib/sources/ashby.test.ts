@@ -127,6 +127,9 @@ describe('ashby.parse, one posting at a time', () => {
 	it('says "unknown" when the workplace is missing or new to us', () => {
 		expect(one({}).postings[0]?.workplace).toBe('unknown');
 		expect(one({ workplaceType: 'Moon' }).postings[0]?.workplace).toBe('unknown');
+		// Names every JavaScript object has are not workplaces.
+		expect(one({ workplaceType: 'constructor' }).postings[0]?.workplace).toBe('unknown');
+		expect(one({ workplaceType: '__proto__' }).postings[0]?.workplace).toBe('unknown');
 		expect(one({ workplaceType: 'OnSite' }).postings[0]?.workplace).toBe('on-site');
 	});
 
@@ -139,6 +142,7 @@ describe('ashby.parse, one posting at a time', () => {
 
 	it('keeps an employment type it does not know, as written', () => {
 		expect(one({ employmentType: 'Seasonal' }).postings[0]?.employmentType).toBe('Seasonal');
+		expect(one({ employmentType: 'toString' }).postings[0]?.employmentType).toBe('toString');
 		expect(one({ employmentType: 7 }).postings[0]?.employmentType).toBeNull();
 	});
 

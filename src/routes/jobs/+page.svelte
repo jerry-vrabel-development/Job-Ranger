@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { enhance } from '$app/forms';
+	import { resolve } from '$app/paths';
 	import { checkedLabel, countLabel, latest } from '#lib/jobs/display.ts';
 	import { pageTitle } from '#lib/site.ts';
 	import type { PageProps } from './$types';
@@ -22,8 +23,8 @@
 
 {#if data.boards.length === 0}
 	<p class="note">
-		No job boards yet. Add a company’s job board, and the daily check will fill this list. The
-		README says how.
+		No companies yet. <a href={resolve('/companies')}>Add a company</a>, and the daily check will
+		fill this list.
 	</p>
 {:else}
 	<p class="summary">
@@ -124,6 +125,7 @@
 
 	<details>
 		<summary>Job boards ({data.boards.length})</summary>
+		<p><a href={resolve('/companies')}>Add, pause or remove companies</a></p>
 		<ul class="boards">
 			{#each data.boards as board (board.key)}
 				<li>

@@ -18,6 +18,12 @@ export const SOURCE_LISTS_PAY: Readonly<Record<Source, boolean>> = {
 	greenhouse: false
 };
 
+/** Each source's name as people know it. */
+export const SOURCE_NAMES: Readonly<Record<Source, string>> = {
+	ashby: 'Ashby',
+	greenhouse: 'Greenhouse'
+};
+
 export function isSource(value: unknown): value is Source {
 	return typeof value === 'string' && (SOURCES as readonly string[]).includes(value);
 }

@@ -137,8 +137,8 @@ part of what the scoring model reads.
 
 ## Build order
 
-1. **Companies page:** add by link with the check, pause, remove. (This
-   replaces the terminal commands.)
+1. **Companies page:** add by link with the check, pause, remove, and "Check
+   now". (This replaces the terminal commands.) _Built._
 2. **Interests:** create, edit, pause, remove; tag companies.
 3. **Jobs by interest:** the filter, keyword matches, and the "why it
    matched" line.

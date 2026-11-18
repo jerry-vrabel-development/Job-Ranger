@@ -18,13 +18,16 @@ export const load: PageServerLoad = async () => {
 	const [postings, boards] = await Promise.all([listOpenPostings(db), listBoardStatus(db)]);
 	return {
 		jobs: postings.map((posting) => toJobCard(posting, now)),
-		boards: boards.map((board) => ({
-			key: `${board.source}:${board.token}`,
-			company: board.company,
-			lastFetchedAt: board.lastFetchedAt,
-			lastFetchOk: board.lastFetchOk,
-			lastFetchNote: board.lastFetchNote
-		}))
+		// Paused companies are hidden here; the Companies page lists them.
+		boards: boards
+			.filter((board) => !board.paused)
+			.map((board) => ({
+				key: `${board.source}:${board.token}`,
+				company: board.company,
+				lastFetchedAt: board.lastFetchedAt,
+				lastFetchOk: board.lastFetchOk,
+				lastFetchNote: board.lastFetchNote
+			}))
 	};
 };
 

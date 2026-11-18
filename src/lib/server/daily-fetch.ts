@@ -11,6 +11,7 @@ import {
 	fetchBoard,
 	SourceFormatError,
 	SourceHttpError,
+	type BoardResult,
 	type JobSource,
 	type SkipReason
 } from '#lib/sources/source.ts';
@@ -76,16 +77,48 @@ export function failureNote(error: unknown): string {
 	return 'Something unexpected went wrong';
 }
 
-async function syncBoard(db: D1Database, board: Board, fetcher: typeof fetch, now: string) {
-	const result = await fetchBoard(ADAPTERS[board.source], board, fetcher);
+export interface BoardCheck {
+	readonly ok: boolean;
+	readonly open: number;
+	readonly added: number;
+	readonly closed: number;
+	/** The status line stored for the board. */
+	readonly note: string;
+}
+
+/** Stores what a board's fetch found, and records the fetch as a success. */
+export async function storeResult(
+	db: D1Database,
+	board: Board,
+	result: BoardResult,
+	now: string
+): Promise<BoardCheck> {
 	const plan = planSync(await loadBoard(db, board), result.postings, now);
 	await writePlan(db, board, plan, now);
 	const open = plan.insert.length + plan.update.length + plan.touch.length;
-	return {
-		added: plan.insert.length,
-		closed: plan.close.length,
-		note: successNote(open, plan.insert.length, plan.close.length, result.skipped)
-	};
+	const note = successNote(open, plan.insert.length, plan.close.length, result.skipped);
+	await recordFetch(db, board, now, true, note);
+	return { ok: true, open, added: plan.insert.length, closed: plan.close.length, note };
+}
+
+/**
+ * Reads one board and stores what it found, the same way the daily fetch
+ * does. A failure is recorded against the board and returned, not thrown.
+ */
+export async function checkBoard(
+	db: D1Database,
+	board: Board,
+	fetcher: typeof fetch,
+	now: string
+): Promise<BoardCheck> {
+	try {
+		const result = await fetchBoard(ADAPTERS[board.source], board, fetcher);
+		return await storeResult(db, board, result, now);
+	} catch (error) {
+		const note = failureNote(error);
+		await recordFetch(db, board, now, false, note);
+		return { ok: false, open: 0, added: 0, closed: 0, note };
+	}
 }
 
 /**
@@ -108,15 +141,10 @@ export async function runDailyFetch(
 	for (const board of boards) {
 		if (clock() - started >= TIME_BUDGET_MS) break;
 		read += 1;
-		try {
-			const synced = await syncBoard(db, board, fetcher, stamp);
-			await recordFetch(db, board, stamp, true, synced.note);
-			ok += 1;
-			added += synced.added;
-			closed += synced.closed;
-		} catch (error) {
-			await recordFetch(db, board, stamp, false, failureNote(error));
-		}
+		const checked = await checkBoard(db, board, fetcher, stamp);
+		if (checked.ok) ok += 1;
+		added += checked.added;
+		closed += checked.closed;
 	}
 	return { boards: read, ok, failed: read - ok, added, closed, deferred: boards.length - read };
 }

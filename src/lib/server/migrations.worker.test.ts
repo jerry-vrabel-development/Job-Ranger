@@ -70,3 +70,18 @@ describe('migration 0002: Greenhouse boards', () => {
 		).toEqual({ n: 0 });
 	});
 });
+
+describe('migration 0003: paused boards', () => {
+	it('starts every board unpaused, and only accepts 0 or 1', async () => {
+		await applyD1Migrations(db, [...MIGRATIONS]);
+		await db
+			.prepare("INSERT INTO boards (source, token, company) VALUES ('ashby', 'paused', 'P')")
+			.run();
+		expect(await first("SELECT paused FROM boards WHERE token = 'paused'")).toEqual({
+			paused: 0
+		});
+		await expect(
+			db.prepare("UPDATE boards SET paused = 2 WHERE token = 'paused'").run()
+		).rejects.toThrow();
+	});
+});

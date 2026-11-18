@@ -42,6 +42,13 @@ function numberOrNull(row: Row, column: string): number | null {
 	return value;
 }
 
+/** A count from a query (COUNT(*) always gives one), checked like any stored value. */
+export function count(row: Row | undefined, column: string): number {
+	const value = row?.[column];
+	if (typeof value !== 'number') throw new StoredDataError(`${column} is not a count`);
+	return value;
+}
+
 const WORKPLACES: readonly string[] = ['remote', 'hybrid', 'on-site', 'unknown'];
 
 function workplace(row: Row): Workplace {
@@ -95,13 +102,13 @@ export function toStoredPosting(row: Row): StoredPosting {
 
 /**
  * The boards the daily fetch should read, stalest first (never-fetched
- * boards lead). The limit keeps one run inside the Workers subrequest limit;
+ * boards lead). Paused boards are skipped. The limit keeps one run inside the Workers subrequest limit;
  * boards past it are first in line the next day.
  */
 export async function listBoardsToFetch(db: D1Database, limit: number): Promise<Board[]> {
 	const { results } = await db
 		.prepare(
-			`SELECT source, token, company FROM boards
+			`SELECT source, token, company FROM boards WHERE paused = 0
 			 ORDER BY last_fetched_at ASC NULLS FIRST, company, token LIMIT ?1`
 		)
 		.bind(limit)
@@ -242,15 +249,19 @@ export async function recordFetch(
 		.run();
 }
 
-/** Open postings, newest first (by posting date, then when we first saw them). */
+/** Postings on boards that aren't paused. */
+const ACTIVE = `EXISTS (SELECT 1 FROM boards b
+	WHERE b.source = p.source AND b.token = p.board AND b.paused = 0)`;
+
+/** Open postings on active boards, newest first (by posting date, then when we first saw them). */
 export async function listOpenPostings(
 	db: D1Database,
 	limit = LIST_LIMIT
 ): Promise<StoredPosting[]> {
 	const { results } = await db
 		.prepare(
-			`SELECT * FROM postings WHERE closed_at IS NULL
-			 ORDER BY posted_at DESC NULLS LAST, first_seen_at DESC, company, title, id
+			`SELECT p.* FROM postings p WHERE p.closed_at IS NULL AND ${ACTIVE}
+			 ORDER BY p.posted_at DESC NULLS LAST, p.first_seen_at DESC, p.company, p.title, p.id
 			 LIMIT ?1`
 		)
 		.bind(limit)
@@ -263,32 +274,108 @@ export interface BoardStatus extends Board {
 	/** null until the first fetch. */
 	readonly lastFetchOk: boolean | null;
 	readonly lastFetchNote: string | null;
+	readonly paused: boolean;
+	/** Open postings on this board, paused or not. */
+	readonly openJobs: number;
 }
 
+const STATUS_SQL = `SELECT b.source, b.token, b.company, b.last_fetched_at, b.last_fetch_ok,
+	b.last_fetch_note, b.paused,
+	(SELECT COUNT(*) FROM postings p
+	 WHERE p.source = b.source AND p.board = b.token AND p.closed_at IS NULL) AS open_jobs
+	FROM boards b`;
+
+function toBoardStatus(row: Row): BoardStatus {
+	const ok = numberOrNull(row, 'last_fetch_ok');
+	const paused = numberOrNull(row, 'paused');
+	if (paused !== 0 && paused !== 1) throw new StoredDataError('paused is not 0 or 1');
+	return {
+		source: source(row),
+		token: text(row, 'token'),
+		company: text(row, 'company'),
+		lastFetchedAt: textOrNull(row, 'last_fetched_at'),
+		lastFetchOk: ok === null ? null : ok === 1,
+		lastFetchNote: textOrNull(row, 'last_fetch_note'),
+		paused: paused === 1,
+		openJobs: count(row, 'open_jobs')
+	};
+}
+
+/** Every board with how its last fetch went, by company name. */
 export async function listBoardStatus(db: D1Database): Promise<BoardStatus[]> {
-	const { results } = await db
-		.prepare(
-			`SELECT source, token, company, last_fetched_at, last_fetch_ok, last_fetch_note
-			 FROM boards ORDER BY company, token`
-		)
-		.all<Row>();
-	return results.map((row) => {
-		const ok = numberOrNull(row, 'last_fetch_ok');
-		return {
-			source: source(row),
-			token: text(row, 'token'),
-			company: text(row, 'company'),
-			lastFetchedAt: textOrNull(row, 'last_fetched_at'),
-			lastFetchOk: ok === null ? null : ok === 1,
-			lastFetchNote: textOrNull(row, 'last_fetch_note')
-		};
-	});
+	const { results } = await db.prepare(`${STATUS_SQL} ORDER BY b.company, b.token`).all<Row>();
+	return results.map(toBoardStatus);
 }
 
-/** Marks every open, new posting as seen. Returns how many changed. */
+/** One board, or null if it isn't on the list. */
+export async function findBoard(
+	db: D1Database,
+	source: Board['source'],
+	token: string
+): Promise<BoardStatus | null> {
+	const row = await db
+		.prepare(`${STATUS_SQL} WHERE b.source = ?1 AND b.token = ?2`)
+		.bind(source, token)
+		.first<Row>();
+	return row === null ? null : toBoardStatus(row);
+}
+
+/** Adds a board. Returns false if it was already on the list (nothing changes then). */
+export async function insertBoard(db: D1Database, board: Board): Promise<boolean> {
+	const result = await db
+		.prepare(
+			`INSERT INTO boards (source, token, company) VALUES (?1, ?2, ?3)
+			 ON CONFLICT (source, token) DO NOTHING`
+		)
+		.bind(board.source, board.token, board.company)
+		.run();
+	return result.meta.changes === 1;
+}
+
+/** Pauses or resumes a board. Returns its company name, or null if it isn't on the list. */
+export async function setPaused(
+	db: D1Database,
+	source: Board['source'],
+	token: string,
+	paused: boolean
+): Promise<string | null> {
+	const row = await db
+		.prepare('UPDATE boards SET paused = ?1 WHERE source = ?2 AND token = ?3 RETURNING company')
+		.bind(paused ? 1 : 0, source, token)
+		.first<Row>();
+	return row === null ? null : text(row, 'company');
+}
+
+/**
+ * Removes a board and everything stored for it (the postings go with it, by
+ * the foreign key's cascade), in one transaction. Returns the company name and
+ * how many postings went, or null if the board wasn't on the list.
+ */
+export async function removeBoard(
+	db: D1Database,
+	source: Board['source'],
+	token: string
+): Promise<{ company: string; jobs: number } | null> {
+	const [counted, removed] = await db.batch<Row>([
+		db
+			.prepare('SELECT COUNT(*) AS n FROM postings WHERE source = ?1 AND board = ?2')
+			.bind(source, token),
+		db
+			.prepare('DELETE FROM boards WHERE source = ?1 AND token = ?2 RETURNING company')
+			.bind(source, token)
+	]);
+	const row = removed?.results[0];
+	if (row === undefined) return null;
+	return { company: text(row, 'company'), jobs: count(counted?.results[0], 'n') };
+}
+
+/** Marks every open, new posting on an active board as seen. Returns how many changed. */
 export async function markAllSeen(db: D1Database, now: string): Promise<number> {
 	const result = await db
-		.prepare('UPDATE postings SET seen_at = ?1 WHERE seen_at IS NULL AND closed_at IS NULL')
+		.prepare(
+			`UPDATE postings AS p SET seen_at = ?1
+			 WHERE p.seen_at IS NULL AND p.closed_at IS NULL AND ${ACTIVE}`
+		)
 		.bind(now)
 		.run();
 	return result.meta.changes;

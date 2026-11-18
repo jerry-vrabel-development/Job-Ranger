@@ -55,7 +55,11 @@ export default defineConfig({
 			},
 			{
 				// Database tests run in the Workers runtime, against the real
-				// migrations, with a fresh local D1 for each test file.
+				// migrations, with a fresh local D1 for each test file. They don't
+				// take SvelteKit's plugin: its adapter swaps cloudflare:workers for
+				// a stand-in that only works while the app runs, and these tests
+				// need the runtime's real module.
+				extends: false,
 				plugins: [
 					cloudflareTest(async () => ({
 						miniflare: {

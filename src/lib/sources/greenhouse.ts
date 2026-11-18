@@ -58,7 +58,9 @@ export const greenhouse: JobSource = {
 
 		const skipped = noneSkipped();
 		const postings: Posting[] = [];
+		let companyName: string | null = null;
 		for (const job of body['jobs']) {
+			if (companyName === null && isObject(job)) companyName = cleanText(job['company_name'], 200);
 			const id = isObject(job) ? jobId(job['id']) : null;
 			if (!isObject(job) || !id) {
 				skipped['missing-id'] += 1;
@@ -93,6 +95,6 @@ export const greenhouse: JobSource = {
 				pay: null
 			});
 		}
-		return { postings, skipped };
+		return { postings, skipped, companyName };
 	}
 };

@@ -7,6 +7,8 @@ export type SkipReason = 'no-apply-link' | 'missing-id' | 'missing-title' | 'unl
 export interface BoardResult {
 	readonly postings: readonly Posting[];
 	readonly skipped: Readonly<Record<SkipReason, number>>;
+	/** The company's name as the board gives it, when it does (Greenhouse does; Ashby doesn't). */
+	readonly companyName?: string | null;
 }
 
 /** One job board API. Each adapter turns its board's response into Postings. */

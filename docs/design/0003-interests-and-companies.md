@@ -161,4 +161,5 @@ Each step is one PR with unit, database and browser tests, including axe.
 
 - If keyword matches turn out noisy, drop them and keep tags only.
 - If adding companies one link at a time is too slow, add a paste-a-list
-  import that runs the same check for each.
+  import that runs the same check for each. _Done: the add box takes up to 25
+  links, and Greenhouse boards bring their own company name._

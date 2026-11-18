@@ -33,38 +33,43 @@ test.describe('the companies page', () => {
 		await expect(page.getByRole('button', { name: 'Check now for Civic Co' })).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Pause Civic Co' })).toBeVisible();
 		// Read as one phrase, with a space: "Remove Civic Co…", not "RemoveCivic Co…".
-		await expect(page.locator('summary', { hasText: 'Civic Co' })).toHaveText('Remove Civic Co…');
-		await page.locator('summary', { hasText: 'Civic Co' }).click();
+		const toggles = page.locator('summary').filter({ hasText: 'Civic Co' });
+		await expect(toggles).toHaveText(['Rename Civic Co…', 'Remove Civic Co…']);
+		await page.locator('summary', { hasText: 'Remove' }).filter({ hasText: 'Civic Co' }).click();
 		await expect(page.getByRole('button', { name: 'Remove Civic Co' })).toBeVisible();
 	});
 
-	test('explains a link it cannot use, keeps what was typed, and puts focus on it', async ({
-		page
-	}) => {
-		const link = page.getByRole('textbox', { name: 'Job board link' });
-		await link.fill('https://www.example.com/careers');
-		await page.getByRole('textbox', { name: 'Company name' }).fill('Example Careers');
+	test('says why each line was not added, and hands those lines back to fix', async ({ page }) => {
+		const box = page.getByRole('textbox', { name: 'Job board links, one per line' });
+		await box.fill('https://www.example.com/careers\n\nnot a link, Some Co');
 		await page.getByRole('button', { name: 'Check and add' }).click();
 
-		await expect(
-			page.getByText(/^Error: Job Ranger reads Ashby and Greenhouse boards/)
-		).toBeVisible();
-		await expect(link).toBeFocused();
-		await expect(link).toHaveAttribute('aria-invalid', 'true');
-		await expect(link).toHaveAccessibleDescription(/that link is on www\.example\.com/);
-		await expect(link).toHaveValue('https://www.example.com/careers');
-		await expect(page.getByRole('textbox', { name: 'Company name' })).toHaveValue(
-			'Example Careers'
-		);
+		const status = page.getByRole('status');
+		await expect(status).toContainText('0 companies added, 2 not added.');
+		await expect(status).toBeFocused();
+		await expect(status.getByRole('listitem')).toHaveText([
+			/^Not added \(line 1, https:\/\/www\.example\.com\/careers\):\s+Job Ranger reads Ashby/,
+			/^Not added \(line 3, not a link, Some Co\):\s+That doesn't look like a link/
+		]);
+		await expect(box).toHaveValue('https://www.example.com/careers\nnot a link, Some Co');
 		await expect(page.getByRole('heading', { level: 3 })).toHaveCount(3);
 	});
 
-	test('asks for a company name', async ({ page }) => {
-		await page.getByRole('textbox', { name: 'Job board link' }).fill('jobs.ashbyhq.com/someone');
+	test('explains an empty paste next to the box, and puts focus on it', async ({ page }) => {
 		await page.getByRole('button', { name: 'Check and add' }).click();
-		const company = page.getByRole('textbox', { name: 'Company name' });
-		await expect(company).toBeFocused();
-		await expect(company).toHaveAccessibleDescription(/Give the company a name\./);
+		const box = page.getByRole('textbox', { name: 'Job board links, one per line' });
+		await expect(page.getByText(/^Error: Paste at least one job board link/)).toBeVisible();
+		await expect(box).toBeFocused();
+		await expect(box).toHaveAttribute('aria-invalid', 'true');
+		await expect(box).toHaveAccessibleDescription(/Paste at least one job board link/);
+	});
+
+	test('offers to rename each company, with its current name ready to edit', async ({ page }) => {
+		await page.locator('summary', { hasText: 'Rename' }).filter({ hasText: 'Civic Co' }).click();
+		await expect(page.getByRole('textbox', { name: 'New name for Civic Co' })).toHaveValue(
+			'Civic Co'
+		);
+		await expect(page.getByRole('button', { name: 'Save name for Civic Co' })).toBeVisible();
 	});
 
 	test('is reachable from the main navigation, and marks it', async ({ page }) => {
@@ -83,7 +88,7 @@ test.describe('the companies page', () => {
 		test(`has no WCAG 2.2 AA violations (${colorScheme})`, async ({ page }) => {
 			await page.emulateMedia({ colorScheme });
 			await page.goto('/companies');
-			await page.locator('summary', { hasText: 'Civic Co' }).click();
+			await page.locator('summary', { hasText: 'Remove' }).filter({ hasText: 'Civic Co' }).click();
 			expect(
 				(await new AxeBuilder({ page }).withTags(WCAG).analyze()).violations.map(
 					(v) => `${v.id}: ${v.help}`
@@ -96,6 +101,15 @@ test.describe('the companies page', () => {
 		}) => {
 			await page.emulateMedia({ colorScheme });
 			await page.goto('/companies');
+			await page.getByRole('textbox', { name: 'Job board links, one per line' }).fill('not a link');
+			await page.getByRole('button', { name: 'Check and add' }).click();
+			await expect(page.getByRole('status')).toContainText('not added');
+			expect(
+				(await new AxeBuilder({ page }).withTags(WCAG).analyze()).violations.map(
+					(v) => `${v.id}: ${v.help}`
+				)
+			).toEqual([]);
+			await page.getByRole('textbox', { name: 'Job board links, one per line' }).fill('');
 			await page.getByRole('button', { name: 'Check and add' }).click();
 			await expect(page.getByText(/^Error:/)).toBeVisible();
 			expect(
@@ -109,7 +123,7 @@ test.describe('the companies page', () => {
 	test('reflows at 320 pixels wide', async ({ page }) => {
 		await page.setViewportSize({ width: 320, height: 640 });
 		await page.goto('/companies');
-		await page.locator('summary', { hasText: 'Civic Co' }).click();
+		await page.locator('summary', { hasText: 'Remove' }).filter({ hasText: 'Civic Co' }).click();
 		const overflow = await page.evaluate(
 			() => document.documentElement.scrollWidth - document.documentElement.clientWidth
 		);
@@ -120,10 +134,14 @@ test.describe('the companies page', () => {
 		const context = await browser.newContext({ javaScriptEnabled: false });
 		const page = await context.newPage();
 		await page.goto('/companies');
-		await page.getByRole('textbox', { name: 'Job board link' }).fill('not a link');
+		const box = page.getByRole('textbox', { name: 'Job board links, one per line' });
+		await box.fill('not a link');
 		await page.getByRole('button', { name: 'Check and add' }).click();
-		await expect(page.getByText(/^Error: That doesn't look like a link/)).toBeVisible();
-		await expect(page.getByRole('textbox', { name: 'Job board link' })).toHaveValue('not a link');
+		await expect(page.getByRole('status')).toContainText("That doesn't look like a link");
+		await expect(box).toHaveValue('not a link');
+		await box.fill('');
+		await page.getByRole('button', { name: 'Check and add' }).click();
+		await expect(page.getByText(/^Error: Paste at least one job board link/)).toBeVisible();
 		await context.close();
 	});
 });

@@ -13,6 +13,15 @@ export function isToken(value: unknown): value is string {
 	return typeof value === 'string' && TOKEN.test(value);
 }
 
+/** A starting name made from a board name: "civic-roundtable" becomes "Civic Roundtable". */
+export function nameFromToken(token: string): string {
+	return token
+		.split(/[\s._-]+/)
+		.filter((word) => word !== '')
+		.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+		.join(' ');
+}
+
 export type BoardLink =
 	| { readonly ok: true; readonly source: Source; readonly token: string }
 	| { readonly ok: false; readonly message: string };

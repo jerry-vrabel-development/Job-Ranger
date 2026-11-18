@@ -1,6 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { isToken, parseBoardLink } from './board-link.ts';
+import { isToken, nameFromToken, parseBoardLink } from './board-link.ts';
 
 describe('parseBoardLink', () => {
 	it.each([
@@ -85,5 +85,17 @@ describe('isToken', () => {
 		expect(isToken('a'.repeat(101))).toBe(false);
 		expect(isToken(7)).toBe(false);
 		expect(isToken(null)).toBe(false);
+	});
+});
+
+describe('nameFromToken', () => {
+	it.each([
+		['splice', 'Splice'],
+		['civic roundtable', 'Civic Roundtable'],
+		['veo-corporate_careers', 'Veo Corporate Careers'],
+		['a..b', 'A B'],
+		['4dx', '4dx']
+	])('makes %s into %s', (token, name) => {
+		expect(nameFromToken(token)).toBe(name);
 	});
 });

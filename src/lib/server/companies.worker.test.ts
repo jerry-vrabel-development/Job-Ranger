@@ -3,14 +3,19 @@ import type { Board } from '#lib/jobs/posting.ts';
 import ashbyBoard from '#lib/sources/fixtures/ashby-board.json' with { type: 'json' };
 import greenhouseBoard from '#lib/sources/fixtures/greenhouse-board.json' with { type: 'json' };
 import {
-	addCompany,
+	ADD_CONCURRENCY,
+	addCompanies,
 	boardKey,
 	checkNow,
 	COMPANY_MAX,
+	MAX_LINES,
 	pauseCompany,
-	removeCompany
+	removeCompany,
+	renameCompany,
+	splitLine,
+	type AddResult
 } from './companies.ts';
-import { findBoard, insertBoard, listOpenPostings, setPaused } from './db.ts';
+import { findBoard, insertBoard, listOpenPostings, loadBoard, setPaused } from './db.ts';
 import { addBoard, migratedDb } from './test-db.ts';
 
 const NOW = new Date('2026-11-18T16:00:00.000Z');
@@ -40,126 +45,208 @@ beforeEach(async () => {
 	offline.mockClear();
 });
 
-describe('addCompany', () => {
-	it('checks the board, then adds it with the jobs it found', async () => {
+/** The per-line results of a paste that was tried. */
+function lines(result: AddResult) {
+	if (!result.ok) throw new Error(`The paste was refused: ${result.message}`);
+	return result.results.map(({ line, ok, message }) => ({ line, ok, message }));
+}
+
+describe('addCompanies', () => {
+	it('checks a board, then adds it with its jobs and the name Greenhouse gives it', async () => {
 		const fetcher = network({ splice: json(greenhouseBoard) });
-		const result = await addCompany(
+		const result = await addCompanies(
 			db,
 			fetcher,
 			'https://job-boards.greenhouse.io/splice/jobs/1',
-			'  Splice  ',
 			NOW
 		);
-		expect(result).toEqual({ ok: true, message: 'Added Splice: 2 open jobs found.' });
-		expect(fetcher).toHaveBeenCalledOnce();
+		expect(result).toEqual({
+			ok: true,
+			added: 1,
+			results: [
+				{
+					line: 1,
+					text: 'https://job-boards.greenhouse.io/splice/jobs/1',
+					ok: true,
+					message: 'Added Example Co: 2 open jobs found.'
+				}
+			],
+			retry: ''
+		});
 		expect(fetcher).toHaveBeenCalledWith(
 			'https://boards-api.greenhouse.io/v1/boards/splice/jobs?content=true',
 			expect.anything()
 		);
 		expect(await findBoard(db, 'greenhouse', 'splice')).toMatchObject({
-			company: 'Splice',
+			company: 'Example Co',
 			lastFetchedAt: NOW.toISOString(),
 			lastFetchOk: true,
 			openJobs: 2
 		});
-		expect((await listOpenPostings(db)).every((p) => p.company === 'Splice')).toBe(true);
+		// Every stored job carries the company's name too.
+		const stored = await loadBoard(db, { source: 'greenhouse', token: 'splice', company: '' });
+		expect(stored.map((posting) => posting.company)).toEqual(['Example Co', 'Example Co']);
+	});
+
+	it('uses a name typed after a comma, over the board’s own', async () => {
+		const result = await addCompanies(
+			db,
+			network({ splice: json(greenhouseBoard) }),
+			'job-boards.greenhouse.io/splice ,  Splice \t  Music ',
+			NOW
+		);
+		expect(lines(result)).toEqual([
+			{ line: 1, ok: true, message: 'Added Splice Music: 2 open jobs found.' }
+		]);
+		expect((await listOpenPostings(db)).map((posting) => posting.company)).toEqual([
+			'Splice Music',
+			'Splice Music'
+		]);
+	});
+
+	it('makes a name from the link when the board has none (Ashby)', async () => {
+		const result = await addCompanies(
+			db,
+			network({ 'civic roundtable': json(ashbyBoard) }),
+			'jobs.ashbyhq.com/civic%20roundtable',
+			NOW
+		);
+		expect(lines(result)).toEqual([
+			{ line: 1, ok: true, message: 'Added Civic Roundtable: 2 open jobs found.' }
+		]);
+	});
+
+	it('makes a name from the link when a Greenhouse board names no company', async () => {
+		const unnamed = {
+			jobs: greenhouseBoard.jobs.map((job) => ({ ...job, company_name: undefined }))
+		};
+		const result = await addCompanies(
+			db,
+			network({ distrokid: json(unnamed) }),
+			'job-boards.greenhouse.io/distrokid',
+			NOW
+		);
+		expect(lines(result)).toEqual([
+			{ line: 1, ok: true, message: 'Added Distrokid: 2 open jobs found.' }
+		]);
 	});
 
 	it('says "1 open job" for one', async () => {
 		const one = { ...greenhouseBoard, jobs: greenhouseBoard.jobs.slice(0, 1) };
-		const result = await addCompany(
+		const result = await addCompanies(
 			db,
 			network({ one: json(one) }),
-			'job-boards.greenhouse.io/one',
-			'One',
+			'job-boards.greenhouse.io/one, One',
 			NOW
 		);
-		expect(result).toEqual({ ok: true, message: 'Added One: 1 open job found.' });
+		expect(lines(result)).toEqual([{ line: 1, ok: true, message: 'Added One: 1 open job found.' }]);
 	});
 
-	it('reads Ashby boards too', async () => {
-		const result = await addCompany(
-			db,
-			network({ suno: json(ashbyBoard) }),
-			'jobs.ashbyhq.com/suno',
-			'Suno',
-			NOW
-		);
-		expect(result.ok).toBe(true);
-		expect(await findBoard(db, 'ashby', 'suno')).toMatchObject({ openJobs: 2 });
-	});
-
-	it('explains a link it cannot use, without going to the network', async () => {
-		const result = await addCompany(db, offline, 'https://www.splice.com/careers', 'Splice', NOW);
-		expect(result).toMatchObject({ ok: false, field: 'link' });
-		expect(offline).not.toHaveBeenCalled();
-	});
-
-	it.each([
-		['', 'Give the company a name.'],
-		['   ', 'Give the company a name.'],
-		['x'.repeat(COMPANY_MAX + 1), `Keep the name under ${String(COMPANY_MAX)} characters.`]
-	])('asks for a usable company name (%#)', async (name, message) => {
-		const result = await addCompany(db, offline, 'jobs.ashbyhq.com/suno', name, NOW);
-		expect(result).toEqual({ ok: false, field: 'company', message });
-		expect(offline).not.toHaveBeenCalled();
-	});
-
-	it('tidies the spaces in a company name', async () => {
-		await addCompany(
-			db,
-			network({ suno: json(ashbyBoard) }),
-			'jobs.ashbyhq.com/suno',
-			' Suno \n  Inc ',
-			NOW
-		);
-		expect(await findBoard(db, 'ashby', 'suno')).toMatchObject({ company: 'Suno Inc' });
-	});
-
-	it('says when the board is already on the list, and by what name', async () => {
+	it('adds every good line, says why each other line was not added, and hands those back', async () => {
 		await addBoard(db, { source: 'ashby', token: 'suno', company: 'Suno' });
-		const result = await addCompany(db, offline, 'jobs.ashbyhq.com/Suno', 'Again', NOW);
-		expect(result).toEqual({
-			ok: false,
-			field: 'link',
-			message: 'That board is already on your list, as Suno.'
-		});
-		expect(offline).not.toHaveBeenCalled();
-	});
+		const paste = [
+			'job-boards.greenhouse.io/splice',
+			'',
+			'https://www.splice.com/careers',
+			'jobs.ashbyhq.com/suno',
+			'job-boards.greenhouse.io/splise, Splice',
+			'job-boards.greenhouse.io/Splice/jobs/2',
+			`jobs.ashbyhq.com/new, ${'x'.repeat(COMPANY_MAX + 1)}`,
+			'jobs.ashbyhq.com/blank,   '
+		].join('\r\n');
+		const fetcher = network({ splice: json(greenhouseBoard), blank: json(ashbyBoard) });
+		const result = await addCompanies(db, fetcher, paste, NOW);
 
-	it('does not add a board that does not exist', async () => {
-		const result = await addCompany(
-			db,
-			network({}),
-			'job-boards.greenhouse.io/splise',
-			'Splice',
-			NOW
-		);
-		expect(result).toEqual({
-			ok: false,
-			field: 'link',
-			message: "There's no Greenhouse board called “splise”. Check the spelling in the link."
+		expect(lines(result)).toEqual([
+			{ line: 1, ok: true, message: 'Added Example Co: 2 open jobs found.' },
+			{
+				line: 3,
+				ok: false,
+				message: expect.stringMatching(/that link is on www\.splice\.com/) as string
+			},
+			{ line: 4, ok: false, message: 'Already on your list, as Suno.' },
+			{
+				line: 5,
+				ok: false,
+				message: "There's no Greenhouse board called “splise”. Check the spelling in the link."
+			},
+			{ line: 6, ok: false, message: 'The same board as line 1.' },
+			{
+				line: 7,
+				ok: false,
+				message: `Keep the name under ${String(COMPANY_MAX)} characters.`
+			},
+			// An empty name after the comma just means "no name given".
+			{ line: 8, ok: true, message: 'Added Blank: 2 open jobs found.' }
+		]);
+		expect(result).toMatchObject({
+			added: 2,
+			retry: [
+				'https://www.splice.com/careers',
+				'jobs.ashbyhq.com/suno',
+				'job-boards.greenhouse.io/splise, Splice',
+				'job-boards.greenhouse.io/Splice/jobs/2',
+				`jobs.ashbyhq.com/new, ${'x'.repeat(COMPANY_MAX + 1)}`
+			].join('\n')
 		});
-		expect(await findBoard(db, 'greenhouse', 'splise')).toBeNull();
+		// The refused lines never reached the network; the misspelled one did, once.
+		expect(fetcher).toHaveBeenCalledTimes(3);
 	});
 
 	it.each([
 		['an error status', () => new Response('down', { status: 503 }), /Board answered 503/],
 		['a changed format', () => Response.json({ nope: true }), /format changed/]
 	])('does not add a board that answers with %s', async (_, answer, message) => {
-		const result = await addCompany(
+		const result = await addCompanies(
 			db,
 			network({ splice: answer }),
 			'job-boards.greenhouse.io/splice',
-			'Splice',
 			NOW
 		);
-		expect(result).toMatchObject({ ok: false, field: 'link' });
-		if (!result.ok) {
-			expect(result.message).toMatch(message);
-			expect(result.message).toMatch(/Nothing was added/);
-		}
+		const [line] = lines(result);
+		expect(line?.ok).toBe(false);
+		expect(line?.message).toMatch(message);
+		expect(line?.message).toMatch(/Try again later/);
 		expect(await findBoard(db, 'greenhouse', 'splice')).toBeNull();
+	});
+
+	it('refuses an empty paste, or too long a one, without trying any of it', async () => {
+		expect(await addCompanies(db, offline, ' \n \n', NOW)).toEqual({
+			ok: false,
+			message: 'Paste at least one job board link, one per line.'
+		});
+		const tooMany = Array.from(
+			{ length: MAX_LINES + 1 },
+			(_, i) => `job-boards.greenhouse.io/b${String(i)}`
+		);
+		expect(await addCompanies(db, offline, tooMany.join('\n'), NOW)).toEqual({
+			ok: false,
+			message: `That's ${String(MAX_LINES + 1)} lines. Paste up to ${String(MAX_LINES)} at a time.`
+		});
+		expect(offline).not.toHaveBeenCalled();
+	});
+
+	it(`reads at most ${String(ADD_CONCURRENCY)} boards at once, and keeps the lines in order`, async () => {
+		let reading = 0;
+		let most = 0;
+		const slow = async () => {
+			reading += 1;
+			most = Math.max(most, reading);
+			await new Promise((resolve) => setTimeout(resolve, 5));
+			reading -= 1;
+			return Response.json(greenhouseBoard);
+		};
+		const tokens = Array.from({ length: MAX_LINES }, (_, i) => `b${String(i)}`);
+		const result = await addCompanies(
+			db,
+			network(Object.fromEntries(tokens.map((token) => [token, slow]))),
+			tokens.map((token) => `job-boards.greenhouse.io/${token}, ${token}`).join('\n'),
+			NOW
+		);
+		expect(most).toBe(ADD_CONCURRENCY);
+		expect(lines(result).map((line) => line.message)).toEqual(
+			tokens.map((token) => `Added ${token}: 2 open jobs found.`)
+		);
 	});
 
 	it('does not add the same board twice when two adds race', async () => {
@@ -171,11 +258,64 @@ describe('addCompany', () => {
 				return Response.json(greenhouseBoard);
 			}
 		});
-		const result = await addCompany(db, fetcher, 'job-boards.greenhouse.io/splice', 'Splice', NOW);
-		expect(result).toEqual({
+		const result = await addCompanies(db, fetcher, 'job-boards.greenhouse.io/splice', NOW);
+		expect(lines(result)).toEqual([{ line: 1, ok: false, message: 'Already on your list.' }]);
+	});
+});
+
+describe('splitLine', () => {
+	it('splits a link from an optional name at the first comma', () => {
+		expect(splitLine(' jobs.ashbyhq.com/suno ')).toEqual({
+			link: 'jobs.ashbyhq.com/suno',
+			name: null
+		});
+		expect(splitLine('jobs.ashbyhq.com/suno, Suno, Inc.')).toEqual({
+			link: 'jobs.ashbyhq.com/suno',
+			name: 'Suno, Inc.'
+		});
+		expect(splitLine('jobs.ashbyhq.com/suno,')).toEqual({
+			link: 'jobs.ashbyhq.com/suno',
+			name: null
+		});
+	});
+});
+
+describe('renameCompany', () => {
+	it('renames a company everywhere, its jobs included', async () => {
+		await addCompanies(
+			db,
+			network({ splice: json(greenhouseBoard) }),
+			'job-boards.greenhouse.io/splice',
+			NOW
+		);
+		expect(await renameCompany(db, 'greenhouse', 'splice', '  Splice   Music ')).toEqual({
+			ok: true,
+			message: 'Renamed Example Co to Splice Music.'
+		});
+		expect(await findBoard(db, 'greenhouse', 'splice')).toMatchObject({ company: 'Splice Music' });
+		expect((await listOpenPostings(db)).map((posting) => posting.company)).toEqual([
+			'Splice Music',
+			'Splice Music'
+		]);
+	});
+
+	it('asks for a usable name', async () => {
+		await addBoard(db, { source: 'ashby', token: 'suno', company: 'Suno' });
+		expect(await renameCompany(db, 'ashby', 'suno', '  ')).toEqual({
 			ok: false,
-			field: 'link',
-			message: 'That board is already on your list.'
+			message: 'Give the company a name.'
+		});
+		expect(await renameCompany(db, 'ashby', 'suno', 'x'.repeat(COMPANY_MAX + 1))).toEqual({
+			ok: false,
+			message: `Keep the name under ${String(COMPANY_MAX)} characters.`
+		});
+		expect(await findBoard(db, 'ashby', 'suno')).toMatchObject({ company: 'Suno' });
+	});
+
+	it('says when the company is gone', async () => {
+		expect(await renameCompany(db, 'ashby', 'nope', 'Name')).toEqual({
+			ok: false,
+			message: 'That company is no longer on your list.'
 		});
 	});
 });
@@ -255,11 +395,10 @@ describe('checkNow', () => {
 
 describe('pauseCompany and removeCompany', () => {
 	beforeEach(async () => {
-		await addCompany(
+		await addCompanies(
 			db,
 			network({ splice: json(greenhouseBoard) }),
-			'job-boards.greenhouse.io/splice',
-			'Splice',
+			'job-boards.greenhouse.io/splice, Splice',
 			NOW
 		);
 	});

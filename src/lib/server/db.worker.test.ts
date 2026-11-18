@@ -2,12 +2,17 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { Board, Posting } from '#lib/jobs/posting.ts';
 import { planSync, type StoredPosting } from '#lib/jobs/sync.ts';
 import {
+	count,
+	findBoard,
+	insertBoard,
 	listBoardStatus,
 	listBoardsToFetch,
 	listOpenPostings,
 	loadBoard,
 	markAllSeen,
 	recordFetch,
+	removeBoard,
+	setPaused,
 	StoredDataError,
 	toStoredPosting,
 	WRITE_CHUNK,
@@ -177,7 +182,9 @@ describe('boards', () => {
 				company: 'Another Co',
 				lastFetchedAt: null,
 				lastFetchOk: null,
-				lastFetchNote: null
+				lastFetchNote: null,
+				paused: false,
+				openJobs: 0
 			},
 			{
 				source: 'ashby',
@@ -185,9 +192,76 @@ describe('boards', () => {
 				company: 'Example Co',
 				lastFetchedAt: DAY1,
 				lastFetchOk: false,
-				lastFetchNote: 'Board not found (404)'
+				lastFetchNote: 'Board not found (404)',
+				paused: false,
+				openJobs: 0
 			}
 		]);
+	});
+
+	it('counts open jobs per board, not closed ones', async () => {
+		await sync(db, example, [posting('a'), posting('b')], DAY1);
+		await sync(db, example, [posting('a')], DAY2);
+		expect(await findBoard(db, 'ashby', 'example')).toMatchObject({ openJobs: 1 });
+	});
+
+	it('finds one board, or says it is not there', async () => {
+		expect(await findBoard(db, 'ashby', 'example')).toMatchObject({ company: 'Example Co' });
+		expect(await findBoard(db, 'ashby', 'nope')).toBeNull();
+		expect(await findBoard(db, 'greenhouse', 'example')).toBeNull();
+	});
+
+	it('adds a board once, and leaves an existing one alone', async () => {
+		const board: Board = { source: 'greenhouse', token: 'splice', company: 'Splice' };
+		expect(await insertBoard(db, board)).toBe(true);
+		expect(await insertBoard(db, { ...board, company: 'Renamed' })).toBe(false);
+		expect(await findBoard(db, 'greenhouse', 'splice')).toMatchObject({
+			company: 'Splice',
+			paused: false,
+			lastFetchOk: null
+		});
+	});
+
+	it('pauses a board: skipped by the fetch, its jobs hidden, its history kept', async () => {
+		await sync(db, example, [posting('a')], DAY1);
+		await sync(db, other, [posting('x', { board: 'other', company: 'Another Co' })], DAY1);
+
+		expect(await setPaused(db, 'ashby', 'example', true)).toBe('Example Co');
+		expect((await listBoardsToFetch(db, 10)).map((b) => b.token)).toEqual(['other']);
+		expect((await listOpenPostings(db)).map((p) => p.id)).toEqual(['x']);
+		// Marking seen only touches what you can see.
+		expect(await markAllSeen(db, DAY2)).toBe(1);
+		expect(await findBoard(db, 'ashby', 'example')).toMatchObject({ paused: true, openJobs: 1 });
+		expect(await loadBoard(db, example)).toHaveLength(1);
+
+		expect(await setPaused(db, 'ashby', 'example', false)).toBe('Example Co');
+		expect((await listOpenPostings(db)).map((p) => p.id).sort()).toEqual(['a', 'x']);
+		expect((await loadBoard(db, example))[0]?.seenAt).toBeNull();
+	});
+
+	it('says when there is no board to pause', async () => {
+		expect(await setPaused(db, 'ashby', 'nope', true)).toBeNull();
+	});
+
+	it('removes a board with everything stored for it, and says how much went', async () => {
+		await sync(db, example, [posting('a'), posting('b')], DAY1);
+		await sync(db, example, [posting('a')], DAY2);
+		expect(await removeBoard(db, 'ashby', 'example')).toEqual({
+			company: 'Example Co',
+			jobs: 2
+		});
+		expect(await loadBoard(db, example)).toEqual([]);
+		expect(await findBoard(db, 'ashby', 'example')).toBeNull();
+		expect(await findBoard(db, 'ashby', 'other')).not.toBeNull();
+		expect(await removeBoard(db, 'ashby', 'example')).toBeNull();
+	});
+
+	it('fails loudly on a stored pause flag it does not know', async () => {
+		// The column's CHECK keeps this out of real data; the reader checks anyway.
+		await db.prepare('PRAGMA ignore_check_constraints = ON').run();
+		await db.prepare("UPDATE boards SET paused = 2 WHERE token = 'example'").run();
+		await db.prepare('PRAGMA ignore_check_constraints = OFF').run();
+		await expect(listBoardStatus(db)).rejects.toThrow(StoredDataError);
 	});
 
 	it('only accepts lowercase board names from sources it knows', async () => {
@@ -242,5 +316,14 @@ describe('toStoredPosting', () => {
 		]) {
 			expect(() => toStoredPosting(broken)).toThrow(StoredDataError);
 		}
+	});
+});
+
+describe('count', () => {
+	it('reads a count, and fails loudly when there is none', () => {
+		expect(count({ n: 3 }, 'n')).toBe(3);
+		expect(() => count({ n: '3' }, 'n')).toThrow(StoredDataError);
+		expect(() => count({}, 'n')).toThrow(StoredDataError);
+		expect(() => count(undefined, 'n')).toThrow(StoredDataError);
 	});
 });

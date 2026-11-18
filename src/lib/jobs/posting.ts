@@ -5,7 +5,7 @@
  */
 
 /** The job boards Job Ranger can read. One adapter each (see src/lib/sources). */
-export const SOURCES = ['ashby', 'greenhouse', 'lever'] as const;
+export const SOURCES = ['ashby', 'greenhouse', 'lever', 'breezy'] as const;
 export type Source = (typeof SOURCES)[number];
 
 /**
@@ -16,14 +16,16 @@ export type Source = (typeof SOURCES)[number];
 export const SOURCE_LISTS_PAY: Readonly<Record<Source, boolean>> = {
 	ashby: true,
 	greenhouse: false,
-	lever: true
+	lever: true,
+	breezy: true
 };
 
 /** Each source's name as people know it. */
 export const SOURCE_NAMES: Readonly<Record<Source, string>> = {
 	ashby: 'Ashby',
 	greenhouse: 'Greenhouse',
-	lever: 'Lever'
+	lever: 'Lever',
+	breezy: 'Breezy'
 };
 
 export function isSource(value: unknown): value is Source {

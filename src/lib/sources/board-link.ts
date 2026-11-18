@@ -9,6 +9,12 @@ import { SOURCE_NAMES, type Source } from '#lib/jobs/posting.ts';
 /** A board name as stored: letters, digits, spaces, dots, dashes, underscores. */
 const TOKEN = /^[a-z0-9][a-z0-9 ._-]{0,99}$/;
 const CASED_TOKEN = /^[A-Za-z0-9][A-Za-z0-9 ._-]{0,99}$/;
+/**
+ * A Breezy board name is the company's subdomain (name.breezy.hr), so it must
+ * be a plain DNS label: lowercase letters, digits and inner dashes. Nothing
+ * else can reach the address, so the fetch can only ever go to breezy.hr.
+ */
+const SUBDOMAIN = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 
 /**
  * Sources whose board names are case-sensitive: Lever answers for
@@ -17,10 +23,14 @@ const CASED_TOKEN = /^[A-Za-z0-9][A-Za-z0-9 ._-]{0,99}$/;
  */
 const KEEPS_CASE: ReadonlySet<Source> = new Set(['lever']);
 
+function patternFor(source: Source | undefined): RegExp {
+	if (source === 'breezy') return SUBDOMAIN;
+	return source !== undefined && KEEPS_CASE.has(source) ? CASED_TOKEN : TOKEN;
+}
+
 /** Whether a value is a board name as stored for `source` (lowercase unless the source keeps case). */
 export function isToken(value: unknown, source?: Source): value is string {
-	const pattern = source !== undefined && KEEPS_CASE.has(source) ? CASED_TOKEN : TOKEN;
-	return typeof value === 'string' && pattern.test(value);
+	return typeof value === 'string' && patternFor(source).test(value);
 }
 
 /** A starting name made from a board name: "civic-roundtable" becomes "Civic Roundtable". */
@@ -37,7 +47,7 @@ export type BoardLink =
 	| { readonly ok: false; readonly message: string };
 
 const EXAMPLE =
-	'job-boards.greenhouse.io/example, jobs.ashbyhq.com/example or jobs.lever.co/example';
+	'job-boards.greenhouse.io/example, jobs.ashbyhq.com/example, jobs.lever.co/example or example.breezy.hr';
 
 const GREENHOUSE_BOARD_HOSTS = new Set(['boards.greenhouse.io', 'job-boards.greenhouse.io']);
 
@@ -104,17 +114,23 @@ export function parseBoardLink(input: string): BoardLink {
 		return found('greenhouse', parts[2]);
 	}
 	if (host === 'jobs.lever.co') return found('lever', parts[0]);
+	// Breezy: the company is the subdomain (example.breezy.hr), or app.breezy.hr/json/example.
+	if (host === 'app.breezy.hr') return found('breezy', parts[0] === 'json' ? parts[1] : parts[0]);
+	if (host.endsWith('.breezy.hr') && host.split('.').length === 3) {
+		return found('breezy', host.slice(0, -'.breezy.hr'.length));
+	}
 	if (host === 'api.lever.co' && parts[0] === 'v0' && parts[1] === 'postings') {
 		return found('lever', parts[2]);
 	}
 	if (
 		host.endsWith('.greenhouse.io') ||
 		host.endsWith('.ashbyhq.com') ||
-		host.endsWith('.lever.co')
+		host.endsWith('.lever.co') ||
+		host.endsWith('.breezy.hr')
 	) {
 		return fail(`Job Ranger can't read boards on ${host} yet. Try a link like ${EXAMPLE}.`);
 	}
 	return fail(
-		`Job Ranger reads Ashby, Greenhouse and Lever boards, and that link is on ${host}. If the company's careers page has a link to jobs.ashbyhq.com, job-boards.greenhouse.io or jobs.lever.co, paste that one.`
+		`Job Ranger reads Ashby, Greenhouse, Lever and Breezy boards, and that link is on ${host}. If the company's careers page has a link to jobs.ashbyhq.com, job-boards.greenhouse.io, jobs.lever.co or a breezy.hr address, paste that one.`
 	);
 }

@@ -140,3 +140,56 @@ describe('migration 0004: Lever boards', () => {
 		).toEqual({ name: 'postings_open_newest' });
 	});
 });
+
+describe('migration 0005: Lever board names keep their case', () => {
+	it('accepts a mixed-case Lever name, still lowercases the others, and keeps every row', async () => {
+		await db.batch([
+			db.prepare('DROP TABLE IF EXISTS postings'),
+			db.prepare('DROP TABLE IF EXISTS boards'),
+			db.prepare('DROP TABLE IF EXISTS d1_migrations')
+		]);
+		await applyD1Migrations(db, MIGRATIONS.slice(0, 4));
+		await db.batch([
+			db.prepare(
+				`INSERT INTO boards (source, token, company, paused) VALUES ('lever', 'spotify', 'Spotify', 1)`
+			),
+			db.prepare(
+				`INSERT INTO postings (source, board, id, company, title, location, workplace, apply_url,
+				 first_seen_at, last_seen_at)
+				 VALUES ('lever', 'spotify', 'l1', 'Spotify', 'Engineer', 'Remote', 'remote',
+				 'https://jobs.lever.co/spotify/l1/apply', '2026-11-18T00:00:00.000Z',
+				 '2026-11-18T00:00:00.000Z')`
+			)
+		]);
+		const addBlues = () =>
+			db
+				.prepare(
+					"INSERT INTO boards (source, token, company) VALUES ('lever', 'BluesInc', 'Blues')"
+				)
+				.run();
+		await expect(addBlues()).rejects.toThrow();
+
+		await applyD1Migrations(db, [...MIGRATIONS]);
+
+		await addBlues();
+		await expect(
+			db
+				.prepare("INSERT INTO boards (source, token, company) VALUES ('greenhouse', 'Splice', 'S')")
+				.run()
+		).rejects.toThrow();
+		expect(await first("SELECT paused FROM boards WHERE token = 'spotify'")).toEqual({ paused: 1 });
+		expect(await first('SELECT id FROM postings')).toEqual({ id: 'l1' });
+		await db.prepare("DELETE FROM boards WHERE token = 'spotify'").run();
+		expect(await first('SELECT COUNT(*) AS n FROM postings')).toEqual({ n: 0 });
+		expect(
+			await first(
+				"SELECT COUNT(*) AS n FROM sqlite_master WHERE name IN ('boards_new', 'postings_new')"
+			)
+		).toEqual({ n: 0 });
+		expect(
+			await first(
+				"SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'postings_open_newest'"
+			)
+		).toEqual({ name: 'postings_open_newest' });
+	});
+});

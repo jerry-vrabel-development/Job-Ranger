@@ -17,7 +17,9 @@ describe('parseBoardLink', () => {
 		['HTTPS://JOB-BOARDS.GREENHOUSE.IO/Splice', 'greenhouse', 'splice'],
 		['https://boards-api.greenhouse.io/v1/boards/thedutchie/jobs', 'greenhouse', 'thedutchie'],
 		['https://jobs.lever.co/skydio', 'lever', 'skydio'],
-		['jobs.lever.co/Skydio/0f1e2d3c-aaaa-4bbb-8ccc-123456789abc/apply', 'lever', 'skydio'],
+		// Lever's board names are case-sensitive, so they are kept as written.
+		['jobs.lever.co/BluesInc/0f1e2d3c-aaaa-4bbb-8ccc-123456789abc/apply', 'lever', 'BluesInc'],
+		['https://api.lever.co/v0/postings/BluesInc?mode=json', 'lever', 'BluesInc'],
 		['https://api.lever.co/v0/postings/skydio?mode=json', 'lever', 'skydio']
 	] as const)('reads %s', (link, source, token) => {
 		expect(parseBoardLink(link)).toEqual({ ok: true, source, token });
@@ -63,7 +65,9 @@ describe('parseBoardLink', () => {
 				const parsed = parseBoardLink(link);
 				const host = new URL(link).hostname.toLowerCase();
 				// Either it's refused, or it's on a known host with a valid board name.
-				expect(!parsed.ok || (known.includes(host) && isToken(parsed.token))).toBe(true);
+				expect(!parsed.ok || (known.includes(host) && isToken(parsed.token, parsed.source))).toBe(
+					true
+				);
 			})
 		);
 	});
@@ -87,6 +91,9 @@ describe('isToken', () => {
 		expect(isToken('splice')).toBe(true);
 		expect(isToken('civic roundtable')).toBe(true);
 		expect(isToken('Splice')).toBe(false);
+		expect(isToken('BluesInc', 'lever')).toBe(true);
+		expect(isToken('BluesInc', 'greenhouse')).toBe(false);
+		expect(isToken('-x', 'lever')).toBe(false);
 		expect(isToken('')).toBe(false);
 		expect(isToken('-x')).toBe(false);
 		expect(isToken('a/b')).toBe(false);

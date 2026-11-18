@@ -6,7 +6,7 @@ each with the evidence behind the flag.
 
 ## Status
 
-**Being built.** Working now: a daily fetch from employers' Ashby job boards,
+**Being built.** Working now: a daily fetch from employers' Ashby and Greenhouse job boards,
 dedupe and closing of postings that leave a board, and a jobs page with each
 job's real apply link, all behind sign-in. The rest of the features below are
 planned, not shipped yet. The plan is in
@@ -118,6 +118,9 @@ npm run db:migrate:local     # set up the local database
 # add a company's Ashby board (the name after jobs.ashbyhq.com/, lowercased)
 npx wrangler d1 execute DB --local --command \
   "INSERT INTO boards (source, token, company) VALUES ('ashby', 'example', 'Example Co')"
+# or a Greenhouse board (the name after job-boards.greenhouse.io/)
+npx wrangler d1 execute DB --local --command \
+  "INSERT INTO boards (source, token, company) VALUES ('greenhouse', 'example', 'Example Co')"
 npm run build && npm run preview
 curl "http://localhost:4173/cdn-cgi/handler/scheduled?cron=23+11+*+*+*"   # run the fetch now
 ```

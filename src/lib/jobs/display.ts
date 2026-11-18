@@ -2,7 +2,7 @@
  * Words for the job list, in one place so the page and its tests agree.
  * Everything is said in words: nothing relies on color or icons alone.
  */
-import type { Workplace } from './posting.ts';
+import { SOURCE_LISTS_PAY, type Workplace } from './posting.ts';
 import type { StoredPosting } from './sync.ts';
 
 const WORKPLACE_WORDS: Readonly<Record<Workplace, string>> = {
@@ -51,7 +51,9 @@ export function toJobCard(posting: StoredPosting, now: string): JobCard {
 		company: posting.company,
 		isNew: posting.seenAt === null,
 		where: `${posting.location} · ${workplaceLabel(posting.workplace)}`,
-		pay: posting.pay?.summary ?? 'Pay not posted',
+		pay:
+			posting.pay?.summary ??
+			(SOURCE_LISTS_PAY[posting.source] ? 'Pay not posted' : 'See the posting for pay'),
 		employmentType: posting.employmentType,
 		department: posting.department,
 		posted: postedLabel(posting.postedAt, now),

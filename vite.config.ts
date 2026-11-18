@@ -62,7 +62,8 @@ export default defineConfig({
 							// Keep these in step with wrangler.jsonc.
 							compatibilityDate: '2026-11-17',
 							compatibilityFlags: ['nodejs_als'],
-							d1Databases: ['DB'],
+							// MIGRATION_DB is a scratch database for the migration tests.
+							d1Databases: ['DB', 'MIGRATION_DB'],
 							bindings: { TEST_MIGRATIONS: await readD1Migrations('migrations') }
 						}
 					}))

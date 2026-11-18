@@ -5,8 +5,18 @@
  */
 
 /** The job boards Job Ranger can read. One adapter each (see src/lib/sources). */
-export const SOURCES = ['ashby'] as const;
+export const SOURCES = ['ashby', 'greenhouse'] as const;
 export type Source = (typeof SOURCES)[number];
+
+/**
+ * Whether a source's job list includes pay. Ashby's does; Greenhouse's
+ * doesn't (pay is only on each job's own page), so a missing pay there means
+ * "not in the list", not "not posted".
+ */
+export const SOURCE_LISTS_PAY: Readonly<Record<Source, boolean>> = {
+	ashby: true,
+	greenhouse: false
+};
 
 export function isSource(value: unknown): value is Source {
 	return typeof value === 'string' && (SOURCES as readonly string[]).includes(value);

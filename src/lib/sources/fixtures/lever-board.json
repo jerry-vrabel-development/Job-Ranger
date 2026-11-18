@@ -1,0 +1,39 @@
+[
+	{
+		"id": "6e5c2b1a-0f3d-4f1e-9a51-1c2d3e4f5a6b",
+		"text": "Senior Firmware Engineer, Flight Controls",
+		"categories": {
+			"commitment": "Full-time",
+			"department": "Engineering",
+			"team": "Avionics",
+			"location": "Remote - US",
+			"allLocations": ["Remote - US", "Austin, TX", "Remote - US"]
+		},
+		"country": "US",
+		"workplaceType": "remote",
+		"hostedUrl": "https://jobs.lever.co/example/6e5c2b1a-0f3d-4f1e-9a51-1c2d3e4f5a6b",
+		"applyUrl": "https://jobs.lever.co/example/6e5c2b1a-0f3d-4f1e-9a51-1c2d3e4f5a6b/apply",
+		"createdAt": 1763049600000,
+		"salaryRange": {
+			"min": 150000,
+			"max": 190000,
+			"currency": "USD",
+			"interval": "per-year-salary"
+		},
+		"descriptionPlain": "Not stored."
+	},
+	{
+		"id": "a1b2c3d4-0000-4000-8000-000000000002",
+		"text": "Robotics Technician",
+		"categories": { "commitment": "Part-time", "team": "Field Ops", "location": "Chicago, IL" },
+		"workplaceType": "onsite",
+		"hostedUrl": "https://jobs.lever.co/example/a1b2c3d4-0000-4000-8000-000000000002",
+		"createdAt": 1762963200000
+	},
+	{
+		"id": "a1b2c3d4-0000-4000-8000-000000000003",
+		"text": "Posted over plain http",
+		"categories": {},
+		"hostedUrl": "http://jobs.lever.co/example/a1b2c3d4-0000-4000-8000-000000000003"
+	}
+]

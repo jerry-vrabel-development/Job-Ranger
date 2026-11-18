@@ -49,7 +49,7 @@ describe('migration 0002: Greenhouse boards', () => {
 			)
 			.run();
 		await expect(
-			db.prepare("INSERT INTO boards (source, token, company) VALUES ('lever', 'x', 'X')").run()
+			db.prepare("INSERT INTO boards (source, token, company) VALUES ('workday', 'x', 'X')").run()
 		).rejects.toThrow();
 
 		// Postings still belong to boards: removing a board removes its postings.
@@ -83,5 +83,60 @@ describe('migration 0003: paused boards', () => {
 		await expect(
 			db.prepare("UPDATE boards SET paused = 2 WHERE token = 'paused'").run()
 		).rejects.toThrow();
+	});
+});
+
+describe('migration 0004: Lever boards', () => {
+	it('keeps every board, its pause and its postings, and then accepts Lever', async () => {
+		// The database as it is in production before this migration: 0001 to 0003.
+		await db.batch([
+			db.prepare('DROP TABLE IF EXISTS postings'),
+			db.prepare('DROP TABLE IF EXISTS boards'),
+			db.prepare('DROP TABLE IF EXISTS d1_migrations')
+		]);
+		await applyD1Migrations(db, MIGRATIONS.slice(0, 3));
+		await db.batch([
+			db.prepare(
+				`INSERT INTO boards (source, token, company, last_fetch_ok, last_fetch_note, paused)
+				 VALUES ('greenhouse', 'splice', 'Splice', 1, '4 open', 1)`
+			),
+			db.prepare(
+				`INSERT INTO postings (source, board, id, company, title, location, workplace, apply_url,
+				 first_seen_at, last_seen_at)
+				 VALUES ('greenhouse', 'splice', 'g1', 'Splice', 'Designer', 'Remote', 'remote',
+				 'https://job-boards.greenhouse.io/splice/jobs/1', '2026-11-18T00:00:00.000Z',
+				 '2026-11-18T00:00:00.000Z')`
+			)
+		]);
+		await expect(
+			db.prepare("INSERT INTO boards (source, token, company) VALUES ('lever', 'x', 'X')").run()
+		).rejects.toThrow();
+
+		await applyD1Migrations(db, [...MIGRATIONS]);
+
+		expect(await first("SELECT * FROM boards WHERE token = 'splice'")).toMatchObject({
+			company: 'Splice',
+			last_fetch_note: '4 open',
+			paused: 1
+		});
+		expect(await first('SELECT id FROM postings')).toEqual({ id: 'g1' });
+		await db
+			.prepare("INSERT INTO boards (source, token, company) VALUES ('lever', 'skydio', 'Skydio')")
+			.run();
+		await expect(
+			db.prepare("UPDATE boards SET paused = 2 WHERE token = 'skydio'").run()
+		).rejects.toThrow();
+		await db.prepare("DELETE FROM boards WHERE token = 'splice'").run();
+		expect(await first('SELECT COUNT(*) AS n FROM postings')).toEqual({ n: 0 });
+		expect(
+			await first(
+				"SELECT COUNT(*) AS n FROM sqlite_master WHERE name IN ('boards_new', 'postings_new')"
+			)
+		).toEqual({ n: 0 });
+		expect(
+			await first(
+				"SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'postings_open_newest'"
+			)
+		).toEqual({ name: 'postings_open_newest' });
 	});
 });

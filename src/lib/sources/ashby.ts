@@ -10,6 +10,7 @@ import {
 	cleanText,
 	httpsUrl,
 	isoDate,
+	known,
 	type Pay,
 	type Posting,
 	type Workplace
@@ -129,7 +130,6 @@ export const ashby: JobSource = {
 				skipped['no-apply-link'] += 1;
 				continue;
 			}
-			const workplaceType = job['workplaceType'];
 			postings.push({
 				source: 'ashby',
 				board: board.token,
@@ -137,12 +137,9 @@ export const ashby: JobSource = {
 				company: board.company,
 				title,
 				location: locations(job),
-				workplace:
-					(typeof workplaceType === 'string' ? WORKPLACE[workplaceType] : undefined) ?? 'unknown',
+				workplace: known(WORKPLACE, job['workplaceType']) ?? 'unknown',
 				employmentType:
-					typeof job['employmentType'] === 'string'
-						? (EMPLOYMENT[job['employmentType']] ?? cleanText(job['employmentType'], 60))
-						: null,
+					known(EMPLOYMENT, job['employmentType']) ?? cleanText(job['employmentType'], 60),
 				department: team(job),
 				applyUrl,
 				jobUrl: httpsUrl(job['jobUrl']),

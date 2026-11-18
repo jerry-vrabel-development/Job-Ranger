@@ -6,7 +6,21 @@ DELETE FROM boards;
 INSERT INTO boards (source, token, company, last_fetched_at, last_fetch_ok, last_fetch_note) VALUES
 	('ashby', 'example', 'Example Co', '2026-11-17T11:23:00.000Z', 1, '44 open, 3 new, 1 closed.'),
 	('ashby', 'quiet', 'Quiet Co', '2026-11-17T11:23:00.000Z', 0, 'Board not found (404)'),
-	('greenhouse', 'civic', 'Civic Co', '2026-11-17T11:23:00.000Z', 1, '1 open, 1 new, 0 closed.');
+	('greenhouse', 'civic', 'Civic Co', '2026-11-17T11:23:00.000Z', 1, '1 open, 1 new, 0 closed.'),
+	('lever', 'flight', 'Flight Co', '2026-11-17T11:23:00.000Z', 1, '1 open, 1 new, 0 closed.');
+
+-- A Lever job: pay posted in Lever's salary range, applied for on Lever's form.
+INSERT INTO postings (source, board, id, company, title, location, workplace, employment_type,
+	department, apply_url, job_url, posted_at, pay_summary, pay_min, pay_max, pay_currency,
+	pay_interval, first_seen_at, last_seen_at, seen_at) VALUES
+	('lever', 'flight', '6e5c2b1a-0f3d-4f1e-9a51-1c2d3e4f5a6b', 'Flight Co',
+		'Senior Firmware Engineer, Flight Controls', 'Remote - US; Austin, TX', 'remote', 'Full-time',
+		'Engineering · Avionics',
+		'https://jobs.lever.co/flight/6e5c2b1a-0f3d-4f1e-9a51-1c2d3e4f5a6b/apply',
+		'https://jobs.lever.co/flight/6e5c2b1a-0f3d-4f1e-9a51-1c2d3e4f5a6b',
+		'2026-11-11T16:00:00.000Z', '$150,000 – $190,000 per year', 150000, 190000, 'USD',
+		'per-year-salary', '2026-11-11T11:23:00.000Z', '2026-11-17T11:23:00.000Z',
+		'2026-11-12T00:00:00.000Z');
 
 -- A Greenhouse job: its board lists no pay, so the card points to the posting.
 INSERT INTO postings (source, board, id, company, title, location, workplace, department,

@@ -15,7 +15,10 @@ describe('parseBoardLink', () => {
 		['http://boards.greenhouse.io/distrokid', 'greenhouse', 'distrokid'],
 		['https://boards.greenhouse.io/embed/job_board?for=bitfocus', 'greenhouse', 'bitfocus'],
 		['HTTPS://JOB-BOARDS.GREENHOUSE.IO/Splice', 'greenhouse', 'splice'],
-		['https://boards-api.greenhouse.io/v1/boards/thedutchie/jobs', 'greenhouse', 'thedutchie']
+		['https://boards-api.greenhouse.io/v1/boards/thedutchie/jobs', 'greenhouse', 'thedutchie'],
+		['https://jobs.lever.co/skydio', 'lever', 'skydio'],
+		['jobs.lever.co/Skydio/0f1e2d3c-aaaa-4bbb-8ccc-123456789abc/apply', 'lever', 'skydio'],
+		['https://api.lever.co/v0/postings/skydio?mode=json', 'lever', 'skydio']
 	] as const)('reads %s', (link, source, token) => {
 		expect(parseBoardLink(link)).toEqual({ ok: true, source, token });
 	});
@@ -33,6 +36,9 @@ describe('parseBoardLink', () => {
 		['https://api.ashbyhq.com/other/suno', /can't read boards on api\.ashbyhq\.com yet/],
 		['https://boards-api.greenhouse.io/v2/boards/x', /can't read boards on boards-api/],
 		['https://job-boards.eu.greenhouse.io/splice', /can't read boards on job-boards\.eu/],
+		['https://jobs.eu.lever.co/somecompany', /can't read boards on jobs\.eu\.lever\.co yet/],
+		['https://api.lever.co/v1/postings/x', /can't read boards on api\.lever\.co yet/],
+		['https://jobs.lever.co/', /^That Lever link doesn't name a board/],
 		['https://www.splice.com/careers?gh_jid=123', /that link is on www\.splice\.com/],
 		['https://jobs.ashbyhq.com.evil.example/suno', /that link is on jobs\.ashbyhq\.com\.evil/],
 		[`https://jobs.ashbyhq.com/${'a'.repeat(2000)}`, /^That link is too long/]
@@ -48,7 +54,9 @@ describe('parseBoardLink', () => {
 			'api.ashbyhq.com',
 			'boards.greenhouse.io',
 			'job-boards.greenhouse.io',
-			'boards-api.greenhouse.io'
+			'boards-api.greenhouse.io',
+			'jobs.lever.co',
+			'api.lever.co'
 		];
 		fc.assert(
 			fc.property(fc.webUrl({ withQueryParameters: true, withFragments: true }), (link) => {

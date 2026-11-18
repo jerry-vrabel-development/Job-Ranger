@@ -10,7 +10,8 @@
 
 	let status: HTMLParagraphElement | undefined = $state();
 
-	const newCount = $derived(data.jobs.filter((job) => job.isNew).length);
+	const newCount = $derived(data.counts.new);
+	const shown = $derived(data.jobs.length);
 	const failed = $derived(data.boards.filter((board) => board.lastFetchOk === false));
 	const lastCheck = $derived(latest(data.boards.map((board) => board.lastFetchedAt)));
 </script>
@@ -27,11 +28,62 @@
 		fill this list.
 	</p>
 {:else}
-	<p class="summary">
-		{countLabel(data.jobs.length, 'open job')} from {countLabel(data.boards.length, 'job board')},
-		newest first. {#if newCount > 0}{newCount} new.{/if}
+	<p class="summary" role="status">
+		{#if data.filter.active}
+			{data.counts.matching} of {countLabel(data.counts.all, 'open job')} match, newest first.
+		{:else}
+			{countLabel(data.counts.all, 'open job')} from {countLabel(data.boards.length, 'job board')},
+			newest first. {#if newCount > 0}{newCount} new.{/if}
+		{/if}
+		{#if shown < data.counts.matching}
+			Showing the first {shown}; use the filters to narrow the list.
+		{/if}
 		Last checked: {checkedLabel(lastCheck)}.
 	</p>
+
+	<form method="GET" class="filters" data-sveltekit-keepfocus data-sveltekit-noscroll>
+		<div class="field wide">
+			<label for="q">Search</label>
+			<input
+				id="q"
+				name="q"
+				type="search"
+				value={data.filter.q}
+				autocomplete="off"
+				aria-describedby="q-hint"
+			/>
+			<span class="hint" id="q-hint">Words in the title, team, location or company.</span>
+		</div>
+		<div class="field">
+			<label for="company">Company</label>
+			<select id="company" name="company" value={data.filter.company}>
+				<option value="">All companies</option>
+				{#each data.boards as board (board.key)}
+					<option value={board.key}>{board.company}</option>
+				{/each}
+			</select>
+		</div>
+		<div class="field">
+			<label for="workplace">Workplace</label>
+			<select id="workplace" name="workplace" value={data.filter.workplace}>
+				<option value="">Any</option>
+				<option value="remote">Remote</option>
+				<option value="hybrid">Hybrid</option>
+				<option value="on-site">On site</option>
+				<option value="unknown">Not stated</option>
+			</select>
+		</div>
+		<div class="field check">
+			<input id="new" name="new" type="checkbox" value="1" checked={data.filter.onlyNew} />
+			<label for="new">Only new</label>
+		</div>
+		<div class="buttons">
+			<button type="submit">Show jobs</button>
+			{#if data.filter.active}
+				<a href={resolve('/jobs')}>Clear filters</a>
+			{/if}
+		</div>
+	</form>
 
 	{#if failed.length > 0}
 		<p class="note">
@@ -63,7 +115,11 @@
 	{/if}
 
 	{#if data.jobs.length === 0}
-		<p>No open jobs on your boards right now.</p>
+		<p>
+			{data.filter.active
+				? 'No open jobs match these filters.'
+				: 'No open jobs on your boards right now.'}
+		</p>
 	{:else}
 		<ul class="jobs">
 			{#each data.jobs as job (job.key)}
@@ -165,6 +221,77 @@
 		padding: 0.4rem 1rem;
 		min-height: 44px;
 		cursor: pointer;
+	}
+
+	.filters {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-end;
+		gap: 0.75rem 1rem;
+		margin: 1rem 0 1.5rem;
+		padding: 1rem;
+		background: var(--surface);
+		border: 1px solid var(--rule);
+		border-radius: 6px;
+	}
+
+	.field {
+		display: grid;
+		gap: 0.2rem;
+		flex: 1 1 10rem;
+		min-width: 0;
+	}
+
+	.field.wide {
+		flex: 1 1 100%;
+	}
+
+	.field.check {
+		flex: 0 1 auto;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		min-height: 44px;
+	}
+
+	.field label {
+		font-weight: 600;
+	}
+
+	.hint {
+		color: var(--muted);
+		font-size: 1rem;
+	}
+
+	.filters input[type='search'],
+	.filters select {
+		font: inherit;
+		color: var(--text);
+		background: var(--bg);
+		border: 2px solid var(--muted);
+		border-radius: 4px;
+		padding: 0.4rem 0.5rem;
+		min-height: 44px;
+		width: 100%;
+		min-width: 0;
+	}
+
+	.filters input[type='checkbox'] {
+		width: 1.4rem;
+		height: 1.4rem;
+	}
+
+	.buttons {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.5rem 1rem;
+	}
+
+	.buttons a {
+		display: inline-block;
+		min-height: 44px;
+		padding: 0.5rem 0;
 	}
 
 	.jobs,

@@ -125,7 +125,8 @@ test.describe('the jobs page', () => {
 	}) => {
 		test.skip(browserName === 'webkit', 'WebKit does not tab to links by default');
 		const apply = page.getByRole('link', { name: /^Apply for Senior Software Engineer/ });
-		for (let i = 0; i < 10 && !(await apply.evaluate((el) => el === document.activeElement)); i++) {
+		// Past the skip link, the header and the filter controls.
+		for (let i = 0; i < 25 && !(await apply.evaluate((el) => el === document.activeElement)); i++) {
 			await page.keyboard.press('Tab');
 		}
 		await expect(apply).toBeFocused();

@@ -1,3 +1,4 @@
+import { NO_FILTER } from '#lib/jobs/filter.ts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Board } from '#lib/jobs/posting.ts';
 import recorded from '#lib/sources/fixtures/ashby-board.json' with { type: 'json' };
@@ -148,7 +149,7 @@ describe('runDailyFetch', () => {
 		}));
 		const summary = await runDailyFetch(db, network({ example: json({ jobs }) }), DAY1);
 		expect(summary).toMatchObject({ ok: 1, added: 600 });
-		expect(await listOpenPostings(db, 1000)).toHaveLength(600);
+		expect(await listOpenPostings(db, NO_FILTER, 1000)).toHaveLength(600);
 		const again = await runDailyFetch(db, network({ example: json({ jobs }) }), DAY2);
 		expect(again).toMatchObject({ ok: 1, added: 0, closed: 0 });
 	});

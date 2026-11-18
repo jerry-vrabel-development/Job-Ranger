@@ -6,6 +6,7 @@
 import type { Board, Source } from '#lib/jobs/posting.ts';
 import { planSync } from '#lib/jobs/sync.ts';
 import { ashby } from '#lib/sources/ashby.ts';
+import { greenhouse } from '#lib/sources/greenhouse.ts';
 import {
 	fetchBoard,
 	SourceFormatError,
@@ -15,22 +16,34 @@ import {
 } from '#lib/sources/source.ts';
 import { listBoardsToFetch, loadBoard, recordFetch, StoredDataError, writePlan } from './db.ts';
 
-export const ADAPTERS: Readonly<Record<Source, JobSource>> = { ashby };
+export const ADAPTERS: Readonly<Record<Source, JobSource>> = { ashby, greenhouse };
 
 /**
- * Boards per run. A Worker on the free plan may make 50 outgoing requests
- * per run (one per board here), so this leaves room. Boards past it go first
- * the next day.
+ * Boards per run. Sized for the Workers Paid plan: each board costs one
+ * outgoing request and about three D1 queries, well inside the 10,000
+ * subrequests a run may make. (The free plan allows 50 outgoing requests and
+ * 10 ms of CPU a run, which isn't enough for this job.) Boards past the cap
+ * go first the next day.
  */
-export const MAX_BOARDS_PER_RUN = 40;
+export const MAX_BOARDS_PER_RUN = 200;
+
+/**
+ * Stop starting new boards after this long. A scheduled run may last 15
+ * minutes; if boards are slow (each may take up to the fetch timeout), the
+ * rest wait for tomorrow, first in line, instead of the run being cut off.
+ */
+export const TIME_BUDGET_MS = 10 * 60 * 1000;
 
 /** Counts only: no company names, so the logs carry nothing personal. */
 export interface FetchSummary {
+	/** Boards read this run. */
 	readonly boards: number;
 	readonly ok: number;
 	readonly failed: number;
 	readonly added: number;
 	readonly closed: number;
+	/** Boards left for tomorrow because the run hit its time budget. */
+	readonly deferred: number;
 }
 
 const SKIP_WORDS: Readonly<Record<SkipReason, string>> = {
@@ -75,17 +88,26 @@ async function syncBoard(db: D1Database, board: Board, fetcher: typeof fetch, no
 	};
 }
 
+/**
+ * Reads the stalest boards, one at a time, until the cap or the time budget.
+ * `clock` is injectable so tests can run out the budget without waiting.
+ */
 export async function runDailyFetch(
 	db: D1Database,
 	fetcher: typeof fetch,
-	now: Date
+	now: Date,
+	clock: () => number = Date.now
 ): Promise<FetchSummary> {
 	const stamp = now.toISOString();
+	const started = clock();
 	const boards = await listBoardsToFetch(db, MAX_BOARDS_PER_RUN);
+	let read = 0;
 	let ok = 0;
 	let added = 0;
 	let closed = 0;
 	for (const board of boards) {
+		if (clock() - started >= TIME_BUDGET_MS) break;
+		read += 1;
 		try {
 			const synced = await syncBoard(db, board, fetcher, stamp);
 			await recordFetch(db, board, stamp, true, synced.note);
@@ -96,5 +118,5 @@ export async function runDailyFetch(
 			await recordFetch(db, board, stamp, false, failureNote(error));
 		}
 	}
-	return { boards: boards.length, ok, failed: boards.length - ok, added, closed };
+	return { boards: read, ok, failed: read - ok, added, closed, deferred: boards.length - read };
 }

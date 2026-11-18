@@ -10,7 +10,8 @@ describe('postingKey', () => {
 describe('isSource', () => {
 	it('knows the sources it has adapters for, and nothing else', () => {
 		expect(isSource('ashby')).toBe(true);
-		expect(isSource('greenhouse')).toBe(false);
+		expect(isSource('greenhouse')).toBe(true);
+		expect(isSource('lever')).toBe(false);
 		expect(isSource(1)).toBe(false);
 	});
 });

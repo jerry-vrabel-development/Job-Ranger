@@ -72,6 +72,11 @@ describe('toJobCard', () => {
 		});
 	});
 
+	it('points to the posting for pay when the source does not list it', () => {
+		const card = toJobCard({ ...stored, source: 'greenhouse', pay: null }, NOW);
+		expect(card.pay).toBe('See the posting for pay');
+	});
+
 	it('says when pay is not posted, and when a job has been seen', () => {
 		const card = toJobCard({ ...stored, pay: null, seenAt: NOW }, NOW);
 		expect(card.pay).toBe('Pay not posted');

@@ -11,10 +11,10 @@
 	},
 	"d1_databases": [
 		{
-			// No database_id: Wrangler creates the database on the first deploy and
-			// keeps it linked. Apply migrations before the first fetch runs.
+			// Created by the first deploy (2026-11-17). The ID isn't a secret.
 			"binding": "DB",
 			"database_name": "job-ranger",
+			"database_id": "b13e4449-dd5e-46e3-8cd2-fdba06d223b0",
 			"migrations_dir": "migrations"
 		}
 	],
@@ -27,5 +27,6 @@
 		"enabled": true
 	},
 	"workers_dev": true,
-	"preview_urls": true
+	// No preview URLs: nothing uses them, so there is nothing extra to protect.
+	"preview_urls": false
 }

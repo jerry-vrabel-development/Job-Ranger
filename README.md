@@ -68,8 +68,10 @@ migrations. The new code can run for a moment before its migration lands, so
 migrations add (new tables, new columns with defaults) and never break what the
 running code expects.
 
-The first deploy also creates the D1 database. Until sign-in is set up (below),
-every page answers "Sign-in is not set up yet".
+`wrangler.jsonc` names this deployment's D1 database by its ID. If you deploy
+your own copy, delete the `database_id` line and the first deploy creates a
+database for you. Until sign-in is set up (below), every page answers "Sign-in
+is not set up yet".
 
 ### Sign-in (Cloudflare Access)
 

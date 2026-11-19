@@ -8,6 +8,7 @@
  */
 import { isSource, type Board, type Pay, type Workplace } from '#lib/jobs/posting.ts';
 import { NO_FILTER, type JobFilter } from '#lib/jobs/filter.ts';
+import { normalizeSql } from '#lib/jobs/interest-match.ts';
 import type { StoredPosting, SyncPlan } from '#lib/jobs/sync.ts';
 
 /** At most this many postings per write statement, to keep each statement small. */
@@ -23,7 +24,8 @@ export class StoredDataError extends Error {
 
 type Row = Record<string, unknown>;
 
-function text(row: Row, column: string): string {
+/** A text column, checked: a bad row fails loudly. */
+export function text(row: Row, column: string): string {
 	const value = row[column];
 	if (typeof value !== 'string') throw new StoredDataError(`${column} is not text`);
 	return value;
@@ -48,6 +50,12 @@ export function count(row: Row | null | undefined, column: string): number {
 	const value = row?.[column];
 	if (typeof value !== 'number') throw new StoredDataError(`${column} is not a count`);
 	return value;
+}
+
+/** The rows of one statement in a batch (D1 gives one result per statement). */
+export function rowsOf(result: D1Result<Row> | undefined): Row[] {
+	if (result === undefined) throw new StoredDataError('a query in the batch gave no result');
+	return result.results;
 }
 
 const WORKPLACES: readonly string[] = ['remote', 'hybrid', 'on-site', 'unknown'];
@@ -233,26 +241,48 @@ export async function writePlan(
 	if (statements.length > 0) await db.batch(statements);
 }
 
-/** Records how a board's fetch went. The note is ours (counts or an error kind), never page text. */
+/**
+ * Records how a board's fetch went. The note is ours (counts or an error
+ * kind), never page text. After a good read, pass `openJobs` to record the
+ * day's open-job count too, in the same round trip (last of the day wins).
+ * A failed read records no count: unknown is not zero.
+ */
 export async function recordFetch(
 	db: D1Database,
 	board: Board,
 	now: string,
 	ok: boolean,
-	note: string
+	note: string,
+	openJobs?: number
 ): Promise<void> {
-	await db
-		.prepare(
-			`UPDATE boards SET last_fetched_at = ?1, last_fetch_ok = ?2, last_fetch_note = ?3
-			 WHERE source = ?4 AND token = ?5`
-		)
-		.bind(now, ok ? 1 : 0, note, board.source, board.token)
-		.run();
+	const statements = [
+		db
+			.prepare(
+				`UPDATE boards SET last_fetched_at = ?1, last_fetch_ok = ?2, last_fetch_note = ?3
+				 WHERE source = ?4 AND token = ?5`
+			)
+			.bind(now, ok ? 1 : 0, note, board.source, board.token)
+	];
+	if (ok && openJobs !== undefined) {
+		statements.push(
+			db
+				.prepare(
+					`INSERT INTO board_counts (source, board, day, open_jobs) VALUES (?1, ?2, ?3, ?4)
+					 ON CONFLICT (source, board, day) DO UPDATE SET open_jobs = excluded.open_jobs`
+				)
+				.bind(board.source, board.token, now.slice(0, 10), openJobs)
+		);
+	}
+	await db.batch(statements);
 }
 
 /** Postings on boards that aren't paused. */
 const ACTIVE = `EXISTS (SELECT 1 FROM boards b
 	WHERE b.source = p.source AND b.token = p.board AND b.paused = 0)`;
+
+/** Title and team, ready for whole-word matching (see interest-match.ts). */
+const TITLE_WORDS = normalizeSql('p.title');
+const TEAM_WORDS = normalizeSql('p.department');
 
 /** LIKE treats % and _ as wildcards; a search for "50%" means the characters 50%. */
 function likePattern(word: string): string {
@@ -284,6 +314,21 @@ function openWhere(filter: JobFilter): { sql: string; values: unknown[] } {
 	}
 	if (filter.workplace) clauses.push(`p.workplace = ${bind(filter.workplace)}`);
 	if (filter.onlyNew) clauses.push('p.seen_at IS NULL');
+	if (filter.interest) {
+		const id = bind(filter.interest.id);
+		const either = [
+			`EXISTS (SELECT 1 FROM board_interests t WHERE t.interest_id = ${id}` +
+				' AND t.source = p.source AND t.board = p.board)'
+		];
+		for (const keyword of filter.interest.keywords) {
+			const like = bind(likePattern(` ${keyword} `));
+			either.push(
+				`${TITLE_WORDS} LIKE ${like} ESCAPE '\\'`,
+				`${TEAM_WORDS} LIKE ${like} ESCAPE '\\'`
+			);
+		}
+		clauses.push(`(${either.join(' OR ')})`);
+	}
 	return { sql: clauses.join(' AND '), values };
 }
 
@@ -395,6 +440,26 @@ export async function setPaused(
 	return row === null ? null : text(row, 'company');
 }
 
+export interface DayCount {
+	readonly day: string;
+	readonly openJobs: number;
+}
+
+/** A board's daily open-job counts, oldest first. */
+export async function listCounts(
+	db: D1Database,
+	source: Board['source'],
+	token: string
+): Promise<DayCount[]> {
+	const { results } = await db
+		.prepare(
+			'SELECT day, open_jobs FROM board_counts WHERE source = ?1 AND board = ?2 ORDER BY day'
+		)
+		.bind(source, token)
+		.all<Row>();
+	return results.map((row) => ({ day: text(row, 'day'), openJobs: count(row, 'open_jobs') }));
+}
+
 /**
  * Renames a board's company, on the board and on every posting stored for it,
  * in one transaction. Returns the old name, or null if the board isn't on the list.
@@ -437,7 +502,10 @@ export async function removeBoard(
 			.bind(source, token),
 		db
 			.prepare('DELETE FROM boards WHERE source = ?1 AND token = ?2 RETURNING company')
-			.bind(source, token)
+			.bind(source, token),
+		// History and tags have no foreign key to boards (migrations 0007, 0008), so they go explicitly.
+		db.prepare('DELETE FROM board_counts WHERE source = ?1 AND board = ?2').bind(source, token),
+		db.prepare('DELETE FROM board_interests WHERE source = ?1 AND board = ?2').bind(source, token)
 	]);
 	const row = removed?.results[0];
 	if (row === undefined) return null;

@@ -38,6 +38,38 @@ test.describe('filtering the jobs page', () => {
 		await expect(page.getByRole('link', { name: 'Clear filters' })).toHaveCount(0);
 	});
 
+	test('filters by interest, and says on each job why it matched', async ({ page }) => {
+		const interest = page.getByRole('combobox', { name: 'Interest' });
+		await expect(interest.getByRole('option')).toHaveText([
+			'Any interest',
+			'Accessibility',
+			'Civic tech'
+		]);
+
+		await interest.selectOption({ label: 'Accessibility' });
+		await page.getByRole('button', { name: 'Show jobs' }).click();
+		await expect(page).toHaveURL(/[?&]interest=1/);
+		await expect(page.getByText('2 of 45 open jobs match, newest first.')).toBeVisible();
+		await expect(page.getByText('Accessibility: title has “accessibility”')).toHaveCount(2);
+		await expect(
+			page.getByRole('article', { name: /^Senior Software Engineer, Accessibility/ })
+		).toContainText("Why it's listed: Accessibility: title has “accessibility”");
+
+		await interest.selectOption({ label: 'Civic tech' });
+		await page.getByRole('button', { name: 'Show jobs' }).click();
+		await expect(page.getByText('1 of 45 open jobs match, newest first.')).toBeVisible();
+		await expect(page.getByRole('heading', { level: 2 })).toHaveText([
+			/^Software Engineer, Benefits Access/
+		]);
+		await expect(page.getByText('Civic tech: company tag')).toBeVisible();
+	});
+
+	test('ignores an interest that is not on the list', async ({ page }) => {
+		await page.goto('/jobs?interest=999');
+		await expect(page.getByText('45 open jobs from 4 job boards, newest first.')).toBeVisible();
+		await expect(page.getByRole('combobox', { name: 'Interest' })).toHaveValue('');
+	});
+
 	test('says so when nothing matches', async ({ page }) => {
 		await page.goto('/jobs?q=zzzz-no-such-job');
 		await expect(page.getByText('0 of 45 open jobs match, newest first.')).toBeVisible();
@@ -63,7 +95,7 @@ test.describe('filtering the jobs page', () => {
 	for (const colorScheme of ['light', 'dark'] as const) {
 		test(`has no WCAG 2.2 AA violations with filters on (${colorScheme})`, async ({ page }) => {
 			await page.emulateMedia({ colorScheme });
-			await page.goto('/jobs?q=engineer&workplace=remote&new=1');
+			await page.goto('/jobs?q=engineer&workplace=remote&interest=1');
 			expect(
 				(await new AxeBuilder({ page }).withTags(WCAG).analyze()).violations.map(
 					(v) => `${v.id}: ${v.help}`

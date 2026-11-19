@@ -1,4 +1,5 @@
 import { NO_FILTER } from '#lib/jobs/filter.ts';
+import { whyMatched, type InterestMatch } from '#lib/jobs/interest-match.ts';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Board, Posting } from '#lib/jobs/posting.ts';
 import { planSync, type StoredPosting } from '#lib/jobs/sync.ts';
@@ -385,6 +386,69 @@ describe('listOpenPostings and countOpenPostings with a filter', () => {
 		expect(await ids({ workplace: 'on-site' })).toEqual(['ux']);
 		await db.prepare("UPDATE postings SET seen_at = ?1 WHERE id = 'fw'").bind(DAY2).run();
 		expect(await ids({ onlyNew: true })).toEqual(['o1', 'pm', 'ux']);
+	});
+
+	it('filters by interest: a tagged company, or a keyword as a whole word', async () => {
+		await db.prepare('DELETE FROM board_interests').run();
+		await db.prepare("INSERT INTO interests (id, name) VALUES (1, 'Hardware')").run();
+		await db
+			.prepare(
+				"INSERT INTO board_interests (source, board, interest_id) VALUES ('ashby', 'other', 1)"
+			)
+			.run();
+		const hardware: InterestMatch = { id: 1, name: 'Hardware', keywords: [], boards: [] };
+		expect(await ids({ interest: hardware })).toEqual(['o1']);
+		expect(await ids({ interest: { ...hardware, keywords: ['hardware'] } })).toEqual(['fw', 'o1']);
+		expect(await ids({ interest: { ...hardware, keywords: ['design'] } })).toEqual(['o1']);
+		// "Product_Design" holds "product", but not as a whole word.
+		expect(await ids({ interest: { ...hardware, keywords: ['product', 'travel'] } })).toEqual([
+			'o1',
+			'pm'
+		]);
+		expect(await countOpenPostings(db, { ...NO_FILTER, interest: hardware })).toBe(1);
+	});
+
+	it('agrees with the "why it matched" line on tricky titles', async () => {
+		const titles = [
+			'Robotics Engineer',
+			'Engineer (Robot)',
+			'Robot/Arm Lead',
+			'Across the ROS stack',
+			'ROS 2 Developer',
+			'C++ Engineer',
+			'C Engineer',
+			'Engineer – .NET',
+			'Lead, R&D',
+			'Full-stack Engineer',
+			'Full Stack Engineer',
+			'Senior Engineer, Machine Learning',
+			'Machine-learning engineer',
+			'Robot.',
+			'%robot_',
+			'ROBOT'
+		];
+		await sync(
+			db,
+			example,
+			titles.map((title, i) => posting(`t${String(i)}`, { title, department: null })),
+			DAY2
+		);
+		const interest: InterestMatch = {
+			id: 9,
+			name: 'Test',
+			keywords: ['robot', 'ros', 'c++', '.net', 'r&d', 'full-stack', 'machine learning'],
+			boards: []
+		};
+		const fromSql = await ids({ interest });
+		const fromJs = titles
+			.map((title, i) => ({ id: `t${String(i)}`, title }))
+			.filter(({ title }) =>
+				whyMatched(interest, { source: 'ashby', board: 'example', title, department: null })
+			)
+			.map(({ id }) => id)
+			.sort();
+		expect(fromSql).toEqual(fromJs);
+		expect(fromJs.length).toBeGreaterThan(5);
 	});
 
 	it('counts all matches even when the list stops at its limit', async () => {

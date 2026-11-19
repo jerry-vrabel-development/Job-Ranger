@@ -8,6 +8,7 @@
  */
 import { isSource, type Board, type Pay, type Workplace } from '#lib/jobs/posting.ts';
 import { NO_FILTER, type JobFilter } from '#lib/jobs/filter.ts';
+import { normalizeSql } from '#lib/jobs/interest-match.ts';
 import type { StoredPosting, SyncPlan } from '#lib/jobs/sync.ts';
 
 /** At most this many postings per write statement, to keep each statement small. */
@@ -279,6 +280,10 @@ export async function recordFetch(
 const ACTIVE = `EXISTS (SELECT 1 FROM boards b
 	WHERE b.source = p.source AND b.token = p.board AND b.paused = 0)`;
 
+/** Title and team, ready for whole-word matching (see interest-match.ts). */
+const TITLE_WORDS = normalizeSql('p.title');
+const TEAM_WORDS = normalizeSql('p.department');
+
 /** LIKE treats % and _ as wildcards; a search for "50%" means the characters 50%. */
 function likePattern(word: string): string {
 	return `%${word.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
@@ -309,6 +314,21 @@ function openWhere(filter: JobFilter): { sql: string; values: unknown[] } {
 	}
 	if (filter.workplace) clauses.push(`p.workplace = ${bind(filter.workplace)}`);
 	if (filter.onlyNew) clauses.push('p.seen_at IS NULL');
+	if (filter.interest) {
+		const id = bind(filter.interest.id);
+		const either = [
+			`EXISTS (SELECT 1 FROM board_interests t WHERE t.interest_id = ${id}` +
+				' AND t.source = p.source AND t.board = p.board)'
+		];
+		for (const keyword of filter.interest.keywords) {
+			const like = bind(likePattern(` ${keyword} `));
+			either.push(
+				`${TITLE_WORDS} LIKE ${like} ESCAPE '\\'`,
+				`${TEAM_WORDS} LIKE ${like} ESCAPE '\\'`
+			);
+		}
+		clauses.push(`(${either.join(' OR ')})`);
+	}
 	return { sql: clauses.join(' AND '), values };
 }
 

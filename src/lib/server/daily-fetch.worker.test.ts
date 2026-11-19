@@ -93,23 +93,29 @@ describe('runDailyFetch', () => {
 		expect((await listBoardStatus(db))[0]?.lastFetchNote).toMatch(/^The board's format changed/);
 	});
 
-	it('reads one board per request, and at most the per-run limit', async () => {
-		const boards = Array.from({ length: MAX_BOARDS_PER_RUN + 2 }, (_, i) => ({
-			source: 'ashby' as const,
-			token: `board-${String(i).padStart(3, '0')}`,
-			company: `Company ${String(i).padStart(3, '0')}`
-		}));
-		for (const board of boards) await addBoard(db, board);
-		const fetcher = network({});
-		const summary = await runDailyFetch(db, fetcher, DAY1);
-		expect(summary.boards).toBe(MAX_BOARDS_PER_RUN);
-		expect(fetcher).toHaveBeenCalledTimes(MAX_BOARDS_PER_RUN);
-		// The two left out go first tomorrow.
-		const tomorrow = network({});
-		await runDailyFetch(db, tomorrow, DAY2);
-		const [first] = tomorrow.mock.calls[0] ?? [];
-		expect(first).toBe(ADAPTERS.ashby.boardUrl(`board-${String(MAX_BOARDS_PER_RUN)}`));
-	});
+	// The heaviest test: 202 boards and two full runs. CI machines are slower
+	// than a laptop, so it gets more than the default 5 seconds.
+	it(
+		'reads one board per request, and at most the per-run limit',
+		{ timeout: 30_000 },
+		async () => {
+			const boards = Array.from({ length: MAX_BOARDS_PER_RUN + 2 }, (_, i) => ({
+				source: 'ashby' as const,
+				token: `board-${String(i).padStart(3, '0')}`,
+				company: `Company ${String(i).padStart(3, '0')}`
+			}));
+			for (const board of boards) await addBoard(db, board);
+			const fetcher = network({});
+			const summary = await runDailyFetch(db, fetcher, DAY1);
+			expect(summary.boards).toBe(MAX_BOARDS_PER_RUN);
+			expect(fetcher).toHaveBeenCalledTimes(MAX_BOARDS_PER_RUN);
+			// The two left out go first tomorrow.
+			const tomorrow = network({});
+			await runDailyFetch(db, tomorrow, DAY2);
+			const [first] = tomorrow.mock.calls[0] ?? [];
+			expect(first).toBe(ADAPTERS.ashby.boardUrl(`board-${String(MAX_BOARDS_PER_RUN)}`));
+		}
+	);
 
 	it('stops starting boards when the time budget runs out, and goes on tomorrow', async () => {
 		for (const token of ['a', 'b', 'c', 'd']) {

@@ -14,7 +14,6 @@ import {
 	markAllSeen,
 	recordFetch,
 	listCounts,
-	recordCount,
 	removeBoard,
 	setPaused,
 	StoredDataError,
@@ -261,8 +260,9 @@ describe('boards', () => {
 	});
 
 	it('removes a company’s count history with it, and only its own', async () => {
-		await recordCount(db, example, DAY1, 3);
-		await recordCount(db, other, DAY1, 5);
+		await recordFetch(db, example, DAY1, true, '3 open', 3);
+		await recordFetch(db, other, DAY1, true, '5 open', 5);
+		await recordFetch(db, other, DAY1, false, 'Board not found (404)', 9);
 		await removeBoard(db, 'ashby', 'example');
 		expect(await listCounts(db, 'ashby', 'example')).toEqual([]);
 		expect(await listCounts(db, 'ashby', 'other')).toEqual([{ day: '2026-11-16', openJobs: 5 }]);

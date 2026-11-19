@@ -233,21 +233,39 @@ export async function writePlan(
 	if (statements.length > 0) await db.batch(statements);
 }
 
-/** Records how a board's fetch went. The note is ours (counts or an error kind), never page text. */
+/**
+ * Records how a board's fetch went. The note is ours (counts or an error
+ * kind), never page text. After a good read, pass `openJobs` to record the
+ * day's open-job count too, in the same round trip (last of the day wins).
+ * A failed read records no count: unknown is not zero.
+ */
 export async function recordFetch(
 	db: D1Database,
 	board: Board,
 	now: string,
 	ok: boolean,
-	note: string
+	note: string,
+	openJobs?: number
 ): Promise<void> {
-	await db
-		.prepare(
-			`UPDATE boards SET last_fetched_at = ?1, last_fetch_ok = ?2, last_fetch_note = ?3
-			 WHERE source = ?4 AND token = ?5`
-		)
-		.bind(now, ok ? 1 : 0, note, board.source, board.token)
-		.run();
+	const statements = [
+		db
+			.prepare(
+				`UPDATE boards SET last_fetched_at = ?1, last_fetch_ok = ?2, last_fetch_note = ?3
+				 WHERE source = ?4 AND token = ?5`
+			)
+			.bind(now, ok ? 1 : 0, note, board.source, board.token)
+	];
+	if (ok && openJobs !== undefined) {
+		statements.push(
+			db
+				.prepare(
+					`INSERT INTO board_counts (source, board, day, open_jobs) VALUES (?1, ?2, ?3, ?4)
+					 ON CONFLICT (source, board, day) DO UPDATE SET open_jobs = excluded.open_jobs`
+				)
+				.bind(board.source, board.token, now.slice(0, 10), openJobs)
+		);
+	}
+	await db.batch(statements);
 }
 
 /** Postings on boards that aren't paused. */
@@ -393,25 +411,6 @@ export async function setPaused(
 		.bind(paused ? 1 : 0, source, token)
 		.first<Row>();
 	return row === null ? null : text(row, 'company');
-}
-
-/**
- * Records a board's open-job count for one UTC day (the day of `now`). A
- * later check on the same day replaces it, so the day keeps its last count.
- */
-export async function recordCount(
-	db: D1Database,
-	board: Board,
-	now: string,
-	openJobs: number
-): Promise<void> {
-	await db
-		.prepare(
-			`INSERT INTO board_counts (source, board, day, open_jobs) VALUES (?1, ?2, ?3, ?4)
-			 ON CONFLICT (source, board, day) DO UPDATE SET open_jobs = excluded.open_jobs`
-		)
-		.bind(board.source, board.token, now.slice(0, 10), openJobs)
-		.run();
 }
 
 export interface DayCount {

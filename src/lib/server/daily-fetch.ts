@@ -17,14 +17,7 @@ import {
 	type JobSource,
 	type SkipReason
 } from '#lib/sources/source.ts';
-import {
-	listBoardsToFetch,
-	loadBoard,
-	recordCount,
-	recordFetch,
-	StoredDataError,
-	writePlan
-} from './db.ts';
+import { listBoardsToFetch, loadBoard, recordFetch, StoredDataError, writePlan } from './db.ts';
 
 export const ADAPTERS: Readonly<Record<Source, JobSource>> = { ashby, greenhouse, lever, breezy };
 
@@ -106,8 +99,7 @@ export async function storeResult(
 	await writePlan(db, board, plan, now);
 	const open = plan.insert.length + plan.update.length + plan.touch.length;
 	const note = successNote(open, plan.insert.length, plan.close.length, result.skipped);
-	await recordFetch(db, board, now, true, note);
-	await recordCount(db, board, now, open);
+	await recordFetch(db, board, now, true, note, open);
 	return { ok: true, open, added: plan.insert.length, closed: plan.close.length, note };
 }
 

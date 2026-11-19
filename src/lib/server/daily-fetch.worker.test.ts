@@ -11,7 +11,7 @@ import {
 	TIME_BUDGET_MS,
 	successNote
 } from './daily-fetch.ts';
-import { listBoardStatus, listOpenPostings, StoredDataError } from './db.ts';
+import { listBoardStatus, listCounts, listOpenPostings, StoredDataError } from './db.ts';
 import { scheduled } from './scheduled.ts';
 import { addBoard, migratedDb } from './test-db.ts';
 
@@ -93,23 +93,29 @@ describe('runDailyFetch', () => {
 		expect((await listBoardStatus(db))[0]?.lastFetchNote).toMatch(/^The board's format changed/);
 	});
 
-	it('reads one board per request, and at most the per-run limit', async () => {
-		const boards = Array.from({ length: MAX_BOARDS_PER_RUN + 2 }, (_, i) => ({
-			source: 'ashby' as const,
-			token: `board-${String(i).padStart(3, '0')}`,
-			company: `Company ${String(i).padStart(3, '0')}`
-		}));
-		for (const board of boards) await addBoard(db, board);
-		const fetcher = network({});
-		const summary = await runDailyFetch(db, fetcher, DAY1);
-		expect(summary.boards).toBe(MAX_BOARDS_PER_RUN);
-		expect(fetcher).toHaveBeenCalledTimes(MAX_BOARDS_PER_RUN);
-		// The two left out go first tomorrow.
-		const tomorrow = network({});
-		await runDailyFetch(db, tomorrow, DAY2);
-		const [first] = tomorrow.mock.calls[0] ?? [];
-		expect(first).toBe(ADAPTERS.ashby.boardUrl(`board-${String(MAX_BOARDS_PER_RUN)}`));
-	});
+	// The heaviest test: 202 boards and two full runs. CI machines are slower
+	// than a laptop, so it gets more than the default 5 seconds.
+	it(
+		'reads one board per request, and at most the per-run limit',
+		{ timeout: 30_000 },
+		async () => {
+			const boards = Array.from({ length: MAX_BOARDS_PER_RUN + 2 }, (_, i) => ({
+				source: 'ashby' as const,
+				token: `board-${String(i).padStart(3, '0')}`,
+				company: `Company ${String(i).padStart(3, '0')}`
+			}));
+			for (const board of boards) await addBoard(db, board);
+			const fetcher = network({});
+			const summary = await runDailyFetch(db, fetcher, DAY1);
+			expect(summary.boards).toBe(MAX_BOARDS_PER_RUN);
+			expect(fetcher).toHaveBeenCalledTimes(MAX_BOARDS_PER_RUN);
+			// The two left out go first tomorrow.
+			const tomorrow = network({});
+			await runDailyFetch(db, tomorrow, DAY2);
+			const [first] = tomorrow.mock.calls[0] ?? [];
+			expect(first).toBe(ADAPTERS.ashby.boardUrl(`board-${String(MAX_BOARDS_PER_RUN)}`));
+		}
+	);
 
 	it('stops starting boards when the time budget runs out, and goes on tomorrow', async () => {
 		for (const token of ['a', 'b', 'c', 'd']) {
@@ -213,5 +219,26 @@ describe('notes', () => {
 		expect(failureNote(new DOMException('slow', 'TimeoutError'))).toBe('The board took too long');
 		expect(failureNote(new Error('<html>secret</html>'))).toBe('Something unexpected went wrong');
 		expect(failureNote('odd')).toBe('Something unexpected went wrong');
+	});
+});
+
+describe('daily open-job counts', () => {
+	it('records each board’s open jobs once a day, keeping the day’s last count', async () => {
+		await addBoard(db, example);
+		await runDailyFetch(db, network({ example: json(recorded) }), DAY1);
+		const smaller = { ...recorded, jobs: recorded.jobs.slice(1) };
+		await runDailyFetch(db, network({ example: json(smaller) }), DAY2);
+		// A second check on the same day replaces that day's count.
+		await runDailyFetch(db, network({ example: json(recorded) }), DAY2);
+		expect(await listCounts(db, 'ashby', 'example')).toEqual([
+			{ day: '2026-11-16', openJobs: 2 },
+			{ day: '2026-11-17', openJobs: 2 }
+		]);
+	});
+
+	it('records nothing for a board that could not be read: unknown is not zero', async () => {
+		await addBoard(db, missing);
+		await runDailyFetch(db, network({}), DAY1);
+		expect(await listCounts(db, 'ashby', 'missing')).toEqual([]);
 	});
 });

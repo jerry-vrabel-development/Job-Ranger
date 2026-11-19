@@ -1,8 +1,20 @@
 import { applyD1Migrations } from 'cloudflare:test';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { MIGRATIONS, scratchDb as db } from './test-db.ts';
 
 const first = (sql: string) => db.prepare(sql).first();
+
+/** Every test starts from an empty scratch database: all tables dropped, whatever they are. */
+beforeEach(async () => {
+	const { results } = await db
+		.prepare(
+			"SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%'"
+		)
+		.all<{ name: string }>();
+	await db.prepare('PRAGMA foreign_keys = OFF').run();
+	for (const { name } of results) await db.prepare(`DROP TABLE IF EXISTS "${name}"`).run();
+	await db.prepare('PRAGMA foreign_keys = ON').run();
+});
 
 describe('migration 0002: Greenhouse boards', () => {
 	it('keeps every board and posting, and then accepts Greenhouse', async () => {
@@ -89,11 +101,6 @@ describe('migration 0003: paused boards', () => {
 describe('migration 0004: Lever boards', () => {
 	it('keeps every board, its pause and its postings, and then accepts Lever', async () => {
 		// The database as it is in production before this migration: 0001 to 0003.
-		await db.batch([
-			db.prepare('DROP TABLE IF EXISTS postings'),
-			db.prepare('DROP TABLE IF EXISTS boards'),
-			db.prepare('DROP TABLE IF EXISTS d1_migrations')
-		]);
 		await applyD1Migrations(db, MIGRATIONS.slice(0, 3));
 		await db.batch([
 			db.prepare(
@@ -143,11 +150,6 @@ describe('migration 0004: Lever boards', () => {
 
 describe('migration 0005: Lever board names keep their case', () => {
 	it('accepts a mixed-case Lever name, still lowercases the others, and keeps every row', async () => {
-		await db.batch([
-			db.prepare('DROP TABLE IF EXISTS postings'),
-			db.prepare('DROP TABLE IF EXISTS boards'),
-			db.prepare('DROP TABLE IF EXISTS d1_migrations')
-		]);
 		await applyD1Migrations(db, MIGRATIONS.slice(0, 4));
 		await db.batch([
 			db.prepare(
@@ -196,11 +198,6 @@ describe('migration 0005: Lever board names keep their case', () => {
 
 describe('migration 0006: Breezy boards', () => {
 	it('keeps every row, still keeps Lever names’ case, and then accepts Breezy', async () => {
-		await db.batch([
-			db.prepare('DROP TABLE IF EXISTS postings'),
-			db.prepare('DROP TABLE IF EXISTS boards'),
-			db.prepare('DROP TABLE IF EXISTS d1_migrations')
-		]);
 		await applyD1Migrations(db, MIGRATIONS.slice(0, 5));
 		await db
 			.prepare(
@@ -231,5 +228,23 @@ describe('migration 0006: Breezy boards', () => {
 				"SELECT COUNT(*) AS n FROM sqlite_master WHERE name IN ('boards_new', 'postings_new')"
 			)
 		).toEqual({ n: 0 });
+	});
+});
+
+describe('migration 0007: daily open-job counts', () => {
+	it('keeps one count per board per day, and only sensible values', async () => {
+		await applyD1Migrations(db, [...MIGRATIONS]);
+		const insert = (day: string, n: number) =>
+			db
+				.prepare(
+					"INSERT INTO board_counts (source, board, day, open_jobs) VALUES ('ashby', 'x', ?1, ?2)"
+				)
+				.bind(day, n)
+				.run();
+		await insert('2026-11-18', 4);
+		await expect(insert('2026-11-18', 5)).rejects.toThrow();
+		await expect(insert('yesterday', 1)).rejects.toThrow();
+		await expect(insert('2026-11-19', -1)).rejects.toThrow();
+		expect(await first('SELECT COUNT(*) AS n FROM board_counts')).toEqual({ n: 1 });
 	});
 });

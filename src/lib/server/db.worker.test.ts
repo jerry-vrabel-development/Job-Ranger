@@ -13,6 +13,7 @@ import {
 	loadBoard,
 	markAllSeen,
 	recordFetch,
+	listCounts,
 	removeBoard,
 	setPaused,
 	StoredDataError,
@@ -256,6 +257,15 @@ describe('boards', () => {
 		expect(await findBoard(db, 'ashby', 'example')).toBeNull();
 		expect(await findBoard(db, 'ashby', 'other')).not.toBeNull();
 		expect(await removeBoard(db, 'ashby', 'example')).toBeNull();
+	});
+
+	it('removes a company’s count history with it, and only its own', async () => {
+		await recordFetch(db, example, DAY1, true, '3 open', 3);
+		await recordFetch(db, other, DAY1, true, '5 open', 5);
+		await recordFetch(db, other, DAY1, false, 'Board not found (404)', 9);
+		await removeBoard(db, 'ashby', 'example');
+		expect(await listCounts(db, 'ashby', 'example')).toEqual([]);
+		expect(await listCounts(db, 'ashby', 'other')).toEqual([{ day: '2026-11-16', openJobs: 5 }]);
 	});
 
 	it('fails loudly on a stored pause flag it does not know', async () => {

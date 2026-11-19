@@ -233,21 +233,39 @@ export async function writePlan(
 	if (statements.length > 0) await db.batch(statements);
 }
 
-/** Records how a board's fetch went. The note is ours (counts or an error kind), never page text. */
+/**
+ * Records how a board's fetch went. The note is ours (counts or an error
+ * kind), never page text. After a good read, pass `openJobs` to record the
+ * day's open-job count too, in the same round trip (last of the day wins).
+ * A failed read records no count: unknown is not zero.
+ */
 export async function recordFetch(
 	db: D1Database,
 	board: Board,
 	now: string,
 	ok: boolean,
-	note: string
+	note: string,
+	openJobs?: number
 ): Promise<void> {
-	await db
-		.prepare(
-			`UPDATE boards SET last_fetched_at = ?1, last_fetch_ok = ?2, last_fetch_note = ?3
-			 WHERE source = ?4 AND token = ?5`
-		)
-		.bind(now, ok ? 1 : 0, note, board.source, board.token)
-		.run();
+	const statements = [
+		db
+			.prepare(
+				`UPDATE boards SET last_fetched_at = ?1, last_fetch_ok = ?2, last_fetch_note = ?3
+				 WHERE source = ?4 AND token = ?5`
+			)
+			.bind(now, ok ? 1 : 0, note, board.source, board.token)
+	];
+	if (ok && openJobs !== undefined) {
+		statements.push(
+			db
+				.prepare(
+					`INSERT INTO board_counts (source, board, day, open_jobs) VALUES (?1, ?2, ?3, ?4)
+					 ON CONFLICT (source, board, day) DO UPDATE SET open_jobs = excluded.open_jobs`
+				)
+				.bind(board.source, board.token, now.slice(0, 10), openJobs)
+		);
+	}
+	await db.batch(statements);
 }
 
 /** Postings on boards that aren't paused. */
@@ -395,6 +413,26 @@ export async function setPaused(
 	return row === null ? null : text(row, 'company');
 }
 
+export interface DayCount {
+	readonly day: string;
+	readonly openJobs: number;
+}
+
+/** A board's daily open-job counts, oldest first. */
+export async function listCounts(
+	db: D1Database,
+	source: Board['source'],
+	token: string
+): Promise<DayCount[]> {
+	const { results } = await db
+		.prepare(
+			'SELECT day, open_jobs FROM board_counts WHERE source = ?1 AND board = ?2 ORDER BY day'
+		)
+		.bind(source, token)
+		.all<Row>();
+	return results.map((row) => ({ day: text(row, 'day'), openJobs: count(row, 'open_jobs') }));
+}
+
 /**
  * Renames a board's company, on the board and on every posting stored for it,
  * in one transaction. Returns the old name, or null if the board isn't on the list.
@@ -437,7 +475,9 @@ export async function removeBoard(
 			.bind(source, token),
 		db
 			.prepare('DELETE FROM boards WHERE source = ?1 AND token = ?2 RETURNING company')
-			.bind(source, token)
+			.bind(source, token),
+		// The history has no foreign key (see migration 0007), so it goes explicitly.
+		db.prepare('DELETE FROM board_counts WHERE source = ?1 AND board = ?2').bind(source, token)
 	]);
 	const row = removed?.results[0];
 	if (row === undefined) return null;

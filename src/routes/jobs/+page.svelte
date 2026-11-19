@@ -54,6 +54,17 @@
 			/>
 			<span class="hint" id="q-hint">Words in the title, team, location or company.</span>
 		</div>
+		{#if data.interests.length > 0}
+			<div class="field">
+				<label for="interest">Interest</label>
+				<select id="interest" name="interest" value={data.filter.interest}>
+					<option value="">Any interest</option>
+					{#each data.interests as interest (interest.id)}
+						<option value={interest.id}>{interest.name}</option>
+					{/each}
+				</select>
+			</div>
+		{/if}
 		<div class="field">
 			<label for="company">Company</label>
 			<select id="company" name="company" value={data.filter.company}>
@@ -129,6 +140,9 @@
 							{job.title}{#if job.isNew}<span class="tag">New</span>{/if}
 						</h2>
 						<p class="company">{job.company}</p>
+						{#if job.why}
+							<p class="why"><span class="visually-hidden">Why it's listed:</span> {job.why}</p>
+						{/if}
 						<dl>
 							<div>
 								<dt>Where</dt>
@@ -221,6 +235,12 @@
 		padding: 0.4rem 1rem;
 		min-height: 44px;
 		cursor: pointer;
+	}
+
+	.why {
+		margin: 0.25rem 0 0;
+		font-size: 0.9rem;
+		font-style: italic;
 	}
 
 	.filters {

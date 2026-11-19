@@ -2,6 +2,7 @@ import { error } from '@sveltejs/kit';
 import { env } from 'cloudflare:workers';
 import { toJobCard } from '#lib/jobs/display.ts';
 import { boardKeyOf, isFiltered, NO_FILTER, parseFilter } from '#lib/jobs/filter.ts';
+import { whyMatched, type InterestMatch } from '#lib/jobs/interest-match.ts';
 import {
 	countOpenPostings,
 	LIST_LIMIT,
@@ -9,6 +10,7 @@ import {
 	listOpenPostings,
 	markAllSeen
 } from '#lib/server/db.ts';
+import { listInterests } from '#lib/server/interests.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 // SvelteKit 3's Cloudflare adapter has no `platform`: bindings come from
@@ -22,7 +24,17 @@ function database(): D1Database {
 export const load: PageServerLoad = async ({ url }) => {
 	const db = database();
 	const now = new Date().toISOString();
-	const filter = parseFilter(url.searchParams);
+	// Paused interests are hidden here; the Interests page lists them.
+	const interests: InterestMatch[] = (await listInterests(db))
+		.filter((interest) => !interest.paused)
+		.map((interest) => ({
+			id: interest.id,
+			name: interest.name,
+			keywords: interest.keywords,
+			boards: interest.companies.map((company) => company.key)
+		}));
+	const filter = parseFilter(url.searchParams, interests);
+	const { interest } = filter;
 	const filtered = isFiltered(filter);
 	const [postings, matching, allOpen, newOpen, boards] = await Promise.all([
 		listOpenPostings(db, filter),
@@ -32,7 +44,10 @@ export const load: PageServerLoad = async ({ url }) => {
 		listBoardStatus(db)
 	]);
 	return {
-		jobs: postings.map((posting) => toJobCard(posting, now)),
+		jobs: postings.map((posting) => ({
+			...toJobCard(posting, now),
+			why: interest ? whyMatched(interest, posting) : null
+		})),
 		/** Real counts: the list stops at LIST_LIMIT, the page says so. */
 		counts: { matching, all: allOpen ?? matching, new: newOpen, limit: LIST_LIMIT },
 		filter: {
@@ -40,8 +55,10 @@ export const load: PageServerLoad = async ({ url }) => {
 			company: filter.board ? boardKeyOf(filter.board) : '',
 			workplace: filter.workplace ?? '',
 			onlyNew: filter.onlyNew,
+			interest: interest ? String(interest.id) : '',
 			active: filtered
 		},
+		interests: interests.map(({ id, name }) => ({ id: String(id), name })),
 		// Paused companies are hidden here; the Companies page lists them.
 		boards: boards
 			.filter((board) => !board.paused)

@@ -146,7 +146,13 @@ part of what the scoring model reads.
    now". (This replaces the terminal commands.) _Built._
 2. **Interests:** create, edit, pause, remove; tag companies. _Built._
 3. **Jobs by interest:** the filter, keyword matches, and the "why it
-   matched" line.
+   matched" line. _Built._ As built, the filter is a select (like the
+   other filters), not buttons with counts. "Whole word" means separated
+   by spaces or punctuation like `, / ( ) :`; `+ # . & ' -` stay part of
+   a word so C++, C#, .NET, R&D and full-stack work. So "robot" doesn't
+   match "Robot-arm" or "Robot." at the end of a title. One rule, in
+   `interest-match.ts`, builds both the SQL and the "why" line, and a test
+   checks the two agree.
 4. **Later:** company suggestions through the MCP server; interests feed
    scoring.
 

@@ -4,6 +4,7 @@
  * Everything read from the address is checked here; anything odd is ignored,
  * never passed on.
  */
+import type { InterestMatch } from './interest-match.ts';
 import { isSource, type Source, type Workplace } from './posting.ts';
 
 export const WORKPLACES: readonly Workplace[] = ['remote', 'hybrid', 'on-site', 'unknown'];
@@ -19,9 +20,17 @@ export interface JobFilter {
 	readonly board: { readonly source: Source; readonly token: string } | null;
 	readonly workplace: Workplace | null;
 	readonly onlyNew: boolean;
+	/** One active interest, or null for all jobs. */
+	readonly interest: InterestMatch | null;
 }
 
-export const NO_FILTER: JobFilter = { words: [], board: null, workplace: null, onlyNew: false };
+export const NO_FILTER: JobFilter = {
+	words: [],
+	board: null,
+	workplace: null,
+	onlyNew: false,
+	interest: null
+};
 
 function isWorkplace(value: unknown): value is Workplace {
 	return typeof value === 'string' && (WORKPLACES as readonly string[]).includes(value);
@@ -52,18 +61,31 @@ function parseBoard(value: string | null): JobFilter['board'] {
 	return { source, token };
 }
 
-export function parseFilter(params: URLSearchParams): JobFilter {
+/**
+ * The filter in the address. `interests` are the active ones: an interest id
+ * that isn't among them (paused, removed, or made up) is ignored.
+ */
+export function parseFilter(
+	params: URLSearchParams,
+	interests: readonly InterestMatch[] = []
+): JobFilter {
 	const workplace = params.get('workplace');
+	const interest = params.get('interest');
 	return {
 		words: searchWords(params.get('q') ?? ''),
 		board: parseBoard(params.get('company')),
 		workplace: isWorkplace(workplace) ? workplace : null,
-		onlyNew: params.get('new') === '1'
+		onlyNew: params.get('new') === '1',
+		interest: interests.find((each) => String(each.id) === interest) ?? null
 	};
 }
 
 export function isFiltered(filter: JobFilter): boolean {
 	return (
-		filter.words.length > 0 || filter.board !== null || filter.workplace !== null || filter.onlyNew
+		filter.words.length > 0 ||
+		filter.board !== null ||
+		filter.workplace !== null ||
+		filter.onlyNew ||
+		filter.interest !== null
 	);
 }

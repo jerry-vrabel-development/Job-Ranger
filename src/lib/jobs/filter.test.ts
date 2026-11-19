@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { InterestMatch } from './interest-match.ts';
 import {
 	boardKeyOf,
 	isFiltered,
@@ -19,8 +20,18 @@ describe('parseFilter', () => {
 			words: ['firmware', 'remote'],
 			board: { source: 'lever', token: 'BluesInc' },
 			workplace: 'hybrid',
-			onlyNew: true
+			onlyNew: true,
+			interest: null
 		});
+	});
+
+	it('reads an interest only when it is one of the active ones', () => {
+		const drones: InterestMatch = { id: 7, name: 'Drones', keywords: ['uav'], boards: [] };
+		expect(parseFilter(params('interest=7'), [drones]).interest).toBe(drones);
+		for (const query of ['interest=8', 'interest=', 'interest=07', 'interest=x']) {
+			expect(parseFilter(params(query), [drones])).toEqual(NO_FILTER);
+		}
+		expect(parseFilter(params('interest=7'))).toEqual(NO_FILTER);
 	});
 
 	it('means no filter when the address has none', () => {
@@ -45,6 +56,9 @@ describe('parseFilter', () => {
 		expect(isFiltered({ ...NO_FILTER, board: { source: 'ashby', token: 'suno' } })).toBe(true);
 		expect(isFiltered({ ...NO_FILTER, workplace: 'remote' })).toBe(true);
 		expect(isFiltered({ ...NO_FILTER, onlyNew: true })).toBe(true);
+		expect(
+			isFiltered({ ...NO_FILTER, interest: { id: 1, name: 'A', keywords: [], boards: [] } })
+		).toBe(true);
 		expect(isFiltered(NO_FILTER)).toBe(false);
 	});
 });

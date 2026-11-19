@@ -17,7 +17,9 @@ record of each company's open-job count, all behind sign-in. The rest of the fea
 planned, not shipped yet. The plan is in
 [design note 0001](docs/design/0001-job-ranger.md), and how it connects to
 email, documents and AI assistants is in
-[design note 0002](docs/design/0002-connectors-company-insight-dashboards.md).
+[design note 0002](docs/design/0002-connectors-company-insight-dashboards.md). How applying will work (answers, tailored
+resumes and cover letters, never applying for you) is in
+[design note 0004](docs/design/0004-applying-resumes-cover-letters.md).
 
 ## What makes it different
 

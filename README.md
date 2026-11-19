@@ -10,7 +10,9 @@ each with the evidence behind the flag.
 boards,
 dedupe and closing of postings that leave a board, a jobs page with each
 job's real apply link and filters (search, company, workplace, new), and a companies page to add (by pasting job-board
-links, up to 25 at once), check, rename, pause and remove companies, all behind sign-in. The rest of the features below are
+links, up to 25 at once), check, rename, pause and remove companies, an interests page to name what
+you're looking for (with keywords) and tag companies with it, and a daily
+record of each company's open-job count, all behind sign-in. The rest of the features below are
 planned, not shipped yet. The plan is in
 [design note 0001](docs/design/0001-job-ranger.md), and how it connects to
 email, documents and AI assistants is in

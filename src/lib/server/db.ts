@@ -23,7 +23,8 @@ export class StoredDataError extends Error {
 
 type Row = Record<string, unknown>;
 
-function text(row: Row, column: string): string {
+/** A text column, checked: a bad row fails loudly. */
+export function text(row: Row, column: string): string {
 	const value = row[column];
 	if (typeof value !== 'string') throw new StoredDataError(`${column} is not text`);
 	return value;
@@ -48,6 +49,12 @@ export function count(row: Row | null | undefined, column: string): number {
 	const value = row?.[column];
 	if (typeof value !== 'number') throw new StoredDataError(`${column} is not a count`);
 	return value;
+}
+
+/** The rows of one statement in a batch (D1 gives one result per statement). */
+export function rowsOf(result: D1Result<Row> | undefined): Row[] {
+	if (result === undefined) throw new StoredDataError('a query in the batch gave no result');
+	return result.results;
 }
 
 const WORKPLACES: readonly string[] = ['remote', 'hybrid', 'on-site', 'unknown'];
@@ -476,8 +483,9 @@ export async function removeBoard(
 		db
 			.prepare('DELETE FROM boards WHERE source = ?1 AND token = ?2 RETURNING company')
 			.bind(source, token),
-		// The history has no foreign key (see migration 0007), so it goes explicitly.
-		db.prepare('DELETE FROM board_counts WHERE source = ?1 AND board = ?2').bind(source, token)
+		// History and tags have no foreign key to boards (migrations 0007, 0008), so they go explicitly.
+		db.prepare('DELETE FROM board_counts WHERE source = ?1 AND board = ?2').bind(source, token),
+		db.prepare('DELETE FROM board_interests WHERE source = ?1 AND board = ?2').bind(source, token)
 	]);
 	const row = removed?.results[0];
 	if (row === undefined) return null;

@@ -100,8 +100,11 @@ An interest is a short name ("Robotics"), an optional note in your words
 
 - `interests`: id, name (unique), note, keywords (JSON list), paused,
   created and updated times.
-- `board_interests`: board and interest, both foreign keys with
-  `ON DELETE CASCADE`.
+- `board_interests`: board and interest. _As built (migration 0008):_ only the
+  interest is a foreign key (`ON DELETE CASCADE`). The board is not, because
+  changing a `CHECK` on `boards` means rebuilding that table, and a rebuild
+  would cascade-delete every tag. Removing a company deletes its tags in the
+  same batch instead. `board_counts` (migration 0007) follows the same rule.
 - `boards` gains `paused`. No table rebuild: adding a column is a plain
   `ALTER TABLE`.
 - Keyword matches are worked out when the page loads, not stored, so editing
@@ -111,6 +114,8 @@ An interest is a short name ("Robotics"), an optional note in your words
 ### Pages and forms
 
 - **Interests** and **Companies** pages, linked from the jobs page.
+  _As built:_ companies are tagged from each interest's Edit form (a
+  checkbox per company), so tagging lives in one place.
 - **Jobs page:** a filter by interest (a set of labeled buttons with a count
   each, the selected one marked with a check and text, not color alone), plus
   the existing list.
@@ -139,7 +144,7 @@ part of what the scoring model reads.
 
 1. **Companies page:** add by link with the check, pause, remove, and "Check
    now". (This replaces the terminal commands.) _Built._
-2. **Interests:** create, edit, pause, remove; tag companies.
+2. **Interests:** create, edit, pause, remove; tag companies. _Built._
 3. **Jobs by interest:** the filter, keyword matches, and the "why it
    matched" line.
 4. **Later:** company suggestions through the MCP server; interests feed

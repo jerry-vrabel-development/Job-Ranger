@@ -1,7 +1,16 @@
 -- Browser-test data for the local D1 (npm run e2e:seed). Safe to run again:
 -- it starts from empty. Real-sized: long text, many jobs, every kind of card.
+DELETE FROM board_interests;
+DELETE FROM interests;
+DELETE FROM board_counts;
 DELETE FROM postings;
 DELETE FROM boards;
+
+-- Interests: one with keywords, one tagged on a company.
+INSERT INTO interests (id, name, note, keywords) VALUES
+	(1, 'Accessibility', 'Inclusive design and the people it serves', '["accessibility", "a11y"]'),
+	(2, 'Civic tech', '', '[]');
+INSERT INTO board_interests (source, board, interest_id) VALUES ('greenhouse', 'civic', 2);
 
 INSERT INTO boards (source, token, company, last_fetched_at, last_fetch_ok, last_fetch_note) VALUES
 	('ashby', 'example', 'Example Co', '2026-11-17T11:23:00.000Z', 1, '44 open, 3 new, 1 closed.'),

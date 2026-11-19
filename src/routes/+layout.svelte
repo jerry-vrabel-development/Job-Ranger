@@ -29,6 +29,10 @@
 				href={resolve('/companies')}
 				aria-current={page.url.pathname === '/companies' ? 'page' : undefined}>Companies</a
 			>
+			<a
+				href={resolve('/interests')}
+				aria-current={page.url.pathname === '/interests' ? 'page' : undefined}>Interests</a
+			>
 		</nav>
 	</div>
 </header>

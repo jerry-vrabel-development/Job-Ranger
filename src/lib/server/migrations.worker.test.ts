@@ -248,3 +248,24 @@ describe('migration 0007: daily open-job counts', () => {
 		expect(await first('SELECT COUNT(*) AS n FROM board_counts')).toEqual({ n: 1 });
 	});
 });
+
+describe('migration 0008: interests', () => {
+	it('keeps names unique in any case, keywords a JSON list, and tags tied to their interest', async () => {
+		await applyD1Migrations(db, [...MIGRATIONS]);
+		await db.prepare("INSERT INTO interests (id, name) VALUES (1, 'Robotics')").run();
+		await expect(
+			db.prepare("INSERT INTO interests (name) VALUES ('robotics')").run()
+		).rejects.toThrow();
+		await expect(
+			db.prepare("INSERT INTO interests (name, keywords) VALUES ('X', '{}')").run()
+		).rejects.toThrow();
+		await expect(
+			db.prepare("INSERT INTO interests (name, keywords) VALUES ('Y', 'not json')").run()
+		).rejects.toThrow();
+		await db
+			.prepare("INSERT INTO board_interests (source, board, interest_id) VALUES ('ashby', 'x', 1)")
+			.run();
+		await db.prepare('DELETE FROM interests WHERE id = 1').run();
+		expect(await first('SELECT COUNT(*) AS n FROM board_interests')).toEqual({ n: 0 });
+	});
+});

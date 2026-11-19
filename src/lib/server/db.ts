@@ -396,6 +396,45 @@ export async function setPaused(
 }
 
 /**
+ * Records a board's open-job count for one UTC day (the day of `now`). A
+ * later check on the same day replaces it, so the day keeps its last count.
+ */
+export async function recordCount(
+	db: D1Database,
+	board: Board,
+	now: string,
+	openJobs: number
+): Promise<void> {
+	await db
+		.prepare(
+			`INSERT INTO board_counts (source, board, day, open_jobs) VALUES (?1, ?2, ?3, ?4)
+			 ON CONFLICT (source, board, day) DO UPDATE SET open_jobs = excluded.open_jobs`
+		)
+		.bind(board.source, board.token, now.slice(0, 10), openJobs)
+		.run();
+}
+
+export interface DayCount {
+	readonly day: string;
+	readonly openJobs: number;
+}
+
+/** A board's daily open-job counts, oldest first. */
+export async function listCounts(
+	db: D1Database,
+	source: Board['source'],
+	token: string
+): Promise<DayCount[]> {
+	const { results } = await db
+		.prepare(
+			'SELECT day, open_jobs FROM board_counts WHERE source = ?1 AND board = ?2 ORDER BY day'
+		)
+		.bind(source, token)
+		.all<Row>();
+	return results.map((row) => ({ day: text(row, 'day'), openJobs: count(row, 'open_jobs') }));
+}
+
+/**
  * Renames a board's company, on the board and on every posting stored for it,
  * in one transaction. Returns the old name, or null if the board isn't on the list.
  */
@@ -437,7 +476,9 @@ export async function removeBoard(
 			.bind(source, token),
 		db
 			.prepare('DELETE FROM boards WHERE source = ?1 AND token = ?2 RETURNING company')
-			.bind(source, token)
+			.bind(source, token),
+		// The history has no foreign key (see migration 0007), so it goes explicitly.
+		db.prepare('DELETE FROM board_counts WHERE source = ?1 AND board = ?2').bind(source, token)
 	]);
 	const row = removed?.results[0];
 	if (row === undefined) return null;

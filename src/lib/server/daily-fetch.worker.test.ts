@@ -11,7 +11,7 @@ import {
 	TIME_BUDGET_MS,
 	successNote
 } from './daily-fetch.ts';
-import { listBoardStatus, listOpenPostings, StoredDataError } from './db.ts';
+import { listBoardStatus, listCounts, listOpenPostings, StoredDataError } from './db.ts';
 import { scheduled } from './scheduled.ts';
 import { addBoard, migratedDb } from './test-db.ts';
 
@@ -213,5 +213,26 @@ describe('notes', () => {
 		expect(failureNote(new DOMException('slow', 'TimeoutError'))).toBe('The board took too long');
 		expect(failureNote(new Error('<html>secret</html>'))).toBe('Something unexpected went wrong');
 		expect(failureNote('odd')).toBe('Something unexpected went wrong');
+	});
+});
+
+describe('daily open-job counts', () => {
+	it('records each board’s open jobs once a day, keeping the day’s last count', async () => {
+		await addBoard(db, example);
+		await runDailyFetch(db, network({ example: json(recorded) }), DAY1);
+		const smaller = { ...recorded, jobs: recorded.jobs.slice(1) };
+		await runDailyFetch(db, network({ example: json(smaller) }), DAY2);
+		// A second check on the same day replaces that day's count.
+		await runDailyFetch(db, network({ example: json(recorded) }), DAY2);
+		expect(await listCounts(db, 'ashby', 'example')).toEqual([
+			{ day: '2026-11-16', openJobs: 2 },
+			{ day: '2026-11-17', openJobs: 2 }
+		]);
+	});
+
+	it('records nothing for a board that could not be read: unknown is not zero', async () => {
+		await addBoard(db, missing);
+		await runDailyFetch(db, network({}), DAY1);
+		expect(await listCounts(db, 'ashby', 'missing')).toEqual([]);
 	});
 });

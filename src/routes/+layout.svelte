@@ -33,6 +33,9 @@
 				href={resolve('/interests')}
 				aria-current={page.url.pathname === '/interests' ? 'page' : undefined}>Interests</a
 			>
+			<a href={resolve('/facts')} aria-current={page.url.pathname === '/facts' ? 'page' : undefined}
+				>Facts</a
+			>
 		</nav>
 	</div>
 </header>

@@ -269,3 +269,24 @@ describe('migration 0008: interests', () => {
 		expect(await first('SELECT COUNT(*) AS n FROM board_interests')).toEqual({ n: 0 });
 	});
 });
+
+describe('migration 0009: facts', () => {
+	it('keeps kinds, experience and sources to the known words, and text within limits', async () => {
+		await applyD1Migrations(db, [...MIGRATIONS]);
+		const insert = (kind: string, experience: string, source: string, text: string) =>
+			db
+				.prepare('INSERT INTO facts (kind, experience, source, text) VALUES (?1, ?2, ?3, ?4)')
+				.bind(kind, experience, source, text)
+				.run();
+		await insert('skill', 'side', 'gap', 'Kubernetes, in a home lab');
+		expect(await first('SELECT confirmed_at, retired_at FROM facts')).toEqual({
+			confirmed_at: null,
+			retired_at: null
+		});
+		await expect(insert('job', 'side', 'gap', 'x')).rejects.toThrow();
+		await expect(insert('skill', 'expert', 'gap', 'x')).rejects.toThrow();
+		await expect(insert('skill', 'side', 'magic', 'x')).rejects.toThrow();
+		await expect(insert('skill', 'side', 'gap', '')).rejects.toThrow();
+		await expect(insert('skill', 'side', 'gap', 'x'.repeat(501))).rejects.toThrow();
+	});
+});

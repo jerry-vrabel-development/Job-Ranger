@@ -11,6 +11,7 @@
 		type Question
 	} from '#lib/answers.ts';
 	import { countLabel } from '#lib/jobs/display.ts';
+	import { letterText } from '#lib/kit/letter.ts';
 	import { pageTitle } from '#lib/site.ts';
 	import type { PageProps } from './$types';
 
@@ -59,6 +60,35 @@
 			copied = `Copied your answer for “${question}”. Paste it into the form.`;
 		} catch {
 			copied = 'Couldn’t copy here. Select the answer’s text and copy it instead.';
+		}
+		await tick();
+		status?.focus();
+	}
+
+	type Draft = (typeof data.drafting.drafts)[number];
+
+	/** The problem numbers (from 1) found in one sentence. */
+	function flags(draft: Draft, p: number, s: number): number[] {
+		return draft.problems.flatMap((problem, i) =>
+			problem.paragraph === p && problem.sentence === s ? [i + 1] : []
+		);
+	}
+
+	/** A paragraph as one string, with "[Check n]" after each sentence the checks flagged. */
+	function paragraphText(draft: Draft, p: number): string {
+		return (draft.paragraphs[p] ?? [])
+			.map((sentence, s) =>
+				[sentence.text, ...flags(draft, p, s).map((n) => `[Check ${String(n)}]`)].join(' ')
+			)
+			.join(' ');
+	}
+
+	async function copyLetter(draft: Draft) {
+		try {
+			await navigator.clipboard.writeText(letterText(draft.paragraphs, data.drafting.name));
+			copied = 'Copied the letter. Read it once more in the form before you send it.';
+		} catch {
+			copied = 'Couldn’t copy here. Select the letter’s text and copy it instead.';
 		}
 		await tick();
 		status?.focus();
@@ -341,6 +371,81 @@
 			</ul>
 		{/if}
 	</section>
+
+	<section aria-labelledby="letter-heading">
+		<h2 id="letter-heading">Cover letter</h2>
+		{#if kit.aiRule === 'forbids'}
+			<p>
+				This posting forbids AI-written answers, so Job Ranger won’t draft a letter for it. Write it
+				in your own words, from your facts.
+			</p>
+		{:else if !data.drafting.ready}
+			<p>Drafting isn’t set up yet: the Worker has no API key. The README says how to add one.</p>
+		{:else}
+			<p>
+				Claude drafts from the facts picked for this job. Each sentence names the facts it uses, and
+				code checks it against them. Spent today: {data.drafting.spent} of {data.drafting.cap}.
+			</p>
+			<form method="POST" action="?/draft" use:enhance={afterAction} class="buttons">
+				<button type="submit" name="kind" value="letter_full">Draft a full letter</button>
+				<button type="submit" name="kind" value="letter_short">Draft a short letter</button>
+			</form>
+		{/if}
+		{#each data.drafting.drafts as draft (draft.kind)}
+			<article class="letter" aria-labelledby="draft-{draft.kind}">
+				<h3 id="draft-{draft.kind}">
+					{draft.kind === 'letter_full' ? 'Full letter' : 'Short letter'}
+				</h3>
+				<p class="meta">Drafted {draft.created} · {draft.cost}</p>
+				{#if draft.problems.length > 0}
+					<div class="problems">
+						<p><strong>Check before using ({String(draft.problems.length)}):</strong></p>
+						<ol>
+							{#each draft.problems as problem, i (i)}
+								<li>
+									{problem.paragraph < 0
+										? 'The letter'
+										: `Paragraph ${String(problem.paragraph + 1)}, sentence ${String(problem.sentence + 1)}`}:
+									{problem.problem}
+								</li>
+							{/each}
+						</ol>
+					</div>
+				{:else}
+					<p><strong>Checks passed:</strong> every sentence is backed by the facts it names.</p>
+				{/if}
+				<div class="text">
+					<p>Dear hiring team,</p>
+					{#each draft.paragraphs.map((_, p) => paragraphText(draft, p)) as paragraph, p (p)}
+						<p>{paragraph}</p>
+					{/each}
+					<p>Sincerely,<br />{data.drafting.name === '' ? '[Your name]' : data.drafting.name}</p>
+				</div>
+				{#if browser}
+					<button type="button" onclick={() => copyLetter(draft)}
+						>Copy the {draft.kind === 'letter_full' ? 'full' : 'short'} letter</button
+					>
+				{/if}
+				<details>
+					<summary>Facts each sentence uses…</summary>
+					<ol>
+						{#each draft.paragraphs as paragraph, p (p)}
+							{#each paragraph as sentence, s (s)}
+								<li>
+									<p>{sentence.text}</p>
+									<ul>
+										{#each draft.used[p]?.[s] ?? [] as used, u (u)}<li>{used}</li>{:else}<li>
+												No facts: framing only.
+											</li>{/each}
+									</ul>
+								</li>
+							{/each}
+						{/each}
+					</ol>
+				</details>
+			</article>
+		{/each}
+	</section>
 {/if}
 
 <section aria-labelledby="applied-heading">
@@ -512,6 +617,20 @@
 
 	details {
 		margin: 1rem 0;
+	}
+
+	.letter {
+		background: var(--surface);
+		border: 1px solid var(--rule);
+		border-radius: 6px;
+		padding: 0.75rem 1.25rem;
+		margin: 1rem 0;
+		overflow-wrap: anywhere;
+	}
+
+	.problems {
+		border-left: 6px double var(--accent);
+		padding-left: 0.75rem;
 	}
 
 	.gaps {

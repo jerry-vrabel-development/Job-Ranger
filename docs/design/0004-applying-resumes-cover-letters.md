@@ -233,7 +233,22 @@ Each step is one PR with unit, database and browser tests, including axe.
    on Facts and are never sent to a model. The posting's text is read from
    Greenhouse or pasted in, and the AI-rule check reads it too.
 4. **Model drafts:** summary, cover letter, job-specific answers, with fact
-   citations and the code checks; the daily cost cap.
+   citations and the code checks; the daily cost cap. _Cover letters
+   built (4a)._ As built: Sonnet 5.5 ($2 / $10 per million tokens, about two
+   cents a letter) drafts full (up to 450 words) or short (up to 170)
+   letters from the facts the resume picked; the model returns sentences
+   with fact ids through a tool, with tool choice left to the model
+   because the docs don't say forcing it works with adaptive thinking.
+   Code checks: cited facts must be confirmed ones given; framing
+   sentences without facts are limited (3 or 2) and may not hold numbers;
+   every number must appear in the cited facts; side or learning facts may
+   not be worded as professional; another company on my list may not be
+   named unless a cited fact is about it; the posting's company must be
+   named; length. Problems are listed in words and marked "[Check n]" after
+   the sentence. Greeting and name are added by code. Daily cap from
+   DRAFT_DAILY_CAP_USD (default $1), usage kept per day and model. Drafted
+   answers to single questions (4b) and the summary come next, on the same
+   checks.
 5. **Final review** (code checks first, then model suggestions).
 6. **Evals script** and the saved set of postings.
 7. **Write together** list and the good day pile.

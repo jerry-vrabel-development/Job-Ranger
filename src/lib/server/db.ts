@@ -503,11 +503,12 @@ export async function removeBoard(
 		db
 			.prepare('DELETE FROM boards WHERE source = ?1 AND token = ?2 RETURNING company')
 			.bind(source, token),
-		// History, tags and kits have no foreign key to boards (migrations 0007, 0008, 0011), so they go explicitly.
+		// History, tags, kits and drafts have no foreign key to boards (migrations 0007, 0008, 0011, 0013), so they go explicitly.
 		db.prepare('DELETE FROM board_counts WHERE source = ?1 AND board = ?2').bind(source, token),
 		db.prepare('DELETE FROM board_interests WHERE source = ?1 AND board = ?2').bind(source, token),
 		// Kits go with the company; applications stay as my history (migration 0011).
-		db.prepare('DELETE FROM kits WHERE source = ?1 AND board = ?2').bind(source, token)
+		db.prepare('DELETE FROM kits WHERE source = ?1 AND board = ?2').bind(source, token),
+		db.prepare('DELETE FROM drafts WHERE source = ?1 AND board = ?2').bind(source, token)
 	]);
 	const row = removed?.results[0];
 	if (row === undefined) return null;

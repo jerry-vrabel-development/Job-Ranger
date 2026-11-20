@@ -197,6 +197,33 @@ export async function addFact(db: D1Database, input: FactInput): Promise<Result>
 	return { ok: true, message: `Added “${shortText(input.text)}”.` };
 }
 
+/**
+ * Adds a skill from a gap question on the apply kit: my own answer, so it is
+ * confirmed, and labeled with the kind of experience I gave.
+ */
+export async function addGapFact(
+	db: D1Database,
+	skill: string,
+	experience: Experience
+): Promise<Result> {
+	await db
+		.prepare(
+			`INSERT INTO facts (kind, experience, text, source, confirmed_at)
+			 VALUES ('skill', ?1, ?2, 'gap', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`
+		)
+		.bind(experience, skill)
+		.run();
+	const how = {
+		professional: 'professional',
+		side: 'side project or hobby',
+		learning: 'learning now'
+	}[experience];
+	return {
+		ok: true,
+		message: `Added ${skill} to your facts (${how}). Add where and when on Facts.`
+	};
+}
+
 /** Adds pasted facts, unconfirmed. A fact already in the bank (same words, any case) is skipped. */
 export async function pasteFacts(db: D1Database, facts: readonly FactInput[]): Promise<Result> {
 	const existing = new Set(

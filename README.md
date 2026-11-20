@@ -16,7 +16,9 @@ by interest that says why each job matched, a fact bank of everything
 true about your work (pasted facts wait to be confirmed), an answer bank
 of ready answers to common form questions with a Copy button, an apply kit
 per job (the form's questions with your saved answers lined up, an AI-rule
-check, and "I applied"), and a daily
+check, and "I applied"), a printable resume per job picked from confirmed
+facts, with skills the posting names that you haven't added asked about, not
+assumed, and a daily
 record of each company's open-job count, all behind sign-in. The rest of the features below are
 planned, not shipped yet. The plan is in
 [design note 0001](docs/design/0001-job-ranger.md), and how it connects to

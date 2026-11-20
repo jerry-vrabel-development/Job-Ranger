@@ -10,7 +10,9 @@ import {
 	markApplied,
 	parseJobKey,
 	prepareKit,
+	dismissGap,
 	savePasted,
+	savePostingText,
 	setAiRule,
 	unmarkApplied,
 	type JobKey
@@ -114,7 +116,9 @@ describe('prepareKit', () => {
 			readNote: 'Read the form from Greenhouse: 2 questions beyond name, contact and files.',
 			aiRule: 'forbids',
 			aiSentence: 'Please do not use AI to write answers.',
-			aiDecidedBy: 'check'
+			aiDecidedBy: 'check',
+			postingText: 'Please do not use AI to write answers.',
+			dismissed: []
 		});
 	});
 
@@ -268,5 +272,78 @@ describe('applications', () => {
 		expect(await appliedDates(db)).toEqual(
 			new Map([['lever:Flight:abc', '2026-11-20T15:00:00.000Z']])
 		);
+	});
+});
+
+describe('posting text and gaps', () => {
+	it('saves pasted posting text, and lets the AI check read it', async () => {
+		await prepareKit(db, vi.fn<typeof fetch>(), leverJob);
+		expect(
+			await savePostingText(db, leverJob, '  We build drones.\n\nNo AI-written answers, please.  ')
+		).toEqual({
+			ok: true,
+			message: 'Saved the posting text.'
+		});
+		expect(await getKit(db, leverJob)).toMatchObject({
+			postingText: 'We build drones. No AI-written answers, please.',
+			aiRule: 'forbids',
+			aiSentence: 'No AI-written answers, please.',
+			aiDecidedBy: 'check'
+		});
+		await savePostingText(db, leverJob, 'We build drones.');
+		expect(await getKit(db, leverJob)).toMatchObject({ aiRule: 'none', aiSentence: '' });
+	});
+
+	it('keeps my AI call over new text, and clearing the text leaves the rule alone', async () => {
+		await prepareKit(db, vi.fn<typeof fetch>(), leverJob);
+		await setAiRule(db, leverJob, 'none', '');
+		await savePostingText(db, leverJob, 'Do not use AI tools to answer.');
+		expect(await getKit(db, leverJob)).toMatchObject({ aiRule: 'none', aiDecidedBy: 'me' });
+		await setAiRule(db, leverJob, 'forbids', 'Mine.');
+		expect((await savePostingText(db, leverJob, ' ')).message).toBe('Cleared the posting text.');
+		expect(await getKit(db, leverJob)).toMatchObject({
+			postingText: '',
+			aiRule: 'forbids',
+			aiSentence: 'Mine.'
+		});
+	});
+
+	it('keeps pasted text when a board read gives none, and refuses a huge paste', async () => {
+		await prepareKit(
+			db,
+			failing(() => new Response('', { status: 500 })),
+			greenhouseJob
+		);
+		await savePostingText(db, greenhouseJob, 'Pasted words.');
+		await prepareKit(
+			db,
+			failing(() => new Response('', { status: 500 })),
+			greenhouseJob
+		);
+		expect((await getKit(db, greenhouseJob))?.postingText).toBe('Pasted words.');
+		expect(await savePostingText(db, greenhouseJob, 'x'.repeat(30_001))).toEqual({
+			ok: false,
+			message: 'That posting is too long to keep; paste the main part.'
+		});
+		expect(await savePostingText(db, leverJob, 'x')).toEqual({
+			ok: false,
+			message: 'Prepare the kit first.'
+		});
+	});
+
+	it('remembers skills I said I do not have', async () => {
+		await prepareKit(db, vi.fn<typeof fetch>(), leverJob);
+		expect(await dismissGap(db, leverJob, 'Kubernetes')).toEqual({
+			ok: true,
+			message: 'Noted: no Kubernetes. It stays off this resume, which is honest.'
+		});
+		await dismissGap(db, leverJob, 'Terraform');
+		expect((await getKit(db, leverJob))?.dismissed).toEqual(['Kubernetes', 'Terraform']);
+		expect(await dismissGap(db, greenhouseJob, 'Go')).toEqual({
+			ok: false,
+			message: 'Prepare the kit first.'
+		});
+		await db.prepare(`UPDATE kits SET dismissed = '[1]'`).run();
+		await expect(getKit(db, leverJob)).rejects.toThrow(StoredDataError);
 	});
 });

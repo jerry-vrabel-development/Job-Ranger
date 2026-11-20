@@ -1,17 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Board } from '#lib/jobs/posting.ts';
 import { removeBoard, StoredDataError } from './db.ts';
+import { listAnswers } from './answers.ts';
 import {
 	capMicros,
 	dollars,
+	draftAnswer,
 	draftLetter,
+	getAnswerDrafts,
 	getDrafts,
+	keepAnswerDraft,
 	recordUsage,
 	spentOn,
 	type DraftSettings
 } from './drafts.ts';
 import { addFact, pasteFacts } from './facts.ts';
-import { prepareKit, setAiRule, type JobKey } from './kits.ts';
+import { prepareKit, savePasted, setAiRule, type JobKey } from './kits.ts';
 import { anthropic } from './models/anthropic.ts';
 import type { Setup } from './models/model.ts';
 import { addBoard, migratedDb } from './test-db.ts';
@@ -53,6 +57,8 @@ beforeEach(async () => {
 	db = await migratedDb();
 	await db.batch([
 		db.prepare('DELETE FROM drafts'),
+		db.prepare('DELETE FROM answer_drafts'),
+		db.prepare('DELETE FROM answers'),
 		db.prepare('DELETE FROM model_usage'),
 		db.prepare('DELETE FROM kits'),
 		db.prepare('DELETE FROM facts'),
@@ -243,5 +249,147 @@ describe('stored drafts', () => {
 		await db.prepare('PRAGMA ignore_check_constraints = OFF').run();
 		await removeBoard(db, 'lever', 'Flight');
 		expect(await db.prepare('SELECT COUNT(*) AS n FROM drafts').first()).toEqual({ n: 0 });
+	});
+});
+
+describe('answer drafts', () => {
+	const WHY = 'Why do you want to join Flight Co?';
+	const LEAD = 'Tell us about a time you led a team.';
+	const PAY = 'What are your salary expectations?';
+
+	beforeEach(async () => {
+		await savePasted(db, job, [WHY, LEAD, PAY, 'x'.repeat(100)].join('\n'));
+	});
+
+	it('drafts an answer to a kit question, checks it, and keeps it', async () => {
+		const fetcher = letter([
+			[{ text: 'I led a 12-person flight security team.', facts: [factId] }]
+		]);
+		expect(await draftAnswer(db, using(fetcher), job, LEAD)).toEqual({
+			ok: true,
+			message:
+				'Drafted an answer ($0.01). Every sentence is backed by its facts. Read it, and make it yours.'
+		});
+		const sent = JSON.parse(fetcher.mock.calls[0]?.[1]?.body as string) as {
+			system: string;
+			messages: { content: string }[];
+		};
+		expect(sent.system).toMatch(/one question on a job application/);
+		expect(sent.messages[0]?.content).toMatch(/"question":"Tell us about a time you led a team\."/);
+		const [draft] = await getAnswerDrafts(db, job);
+		expect(draft).toMatchObject({
+			question: LEAD,
+			problems: [],
+			model: 'claude-sonnet-5-5',
+			costMicros: 7000
+		});
+	});
+
+	it('asks a why-this-company answer to name the company', async () => {
+		await draftAnswer(
+			db,
+			using(letter([[{ text: 'I led a 12-person flight security team.', facts: [factId] }]])),
+			job,
+			WHY
+		);
+		expect((await getAnswerDrafts(db, job))[0]?.problems).toEqual([
+			{ paragraph: -1, sentence: -1, problem: 'Never names Flight Co.' }
+		]);
+	});
+
+	it('won’t draft situation questions, questions not on the kit, or for no-AI postings', async () => {
+		const fetcher = vi.fn<typeof fetch>();
+		expect((await draftAnswer(db, using(fetcher), job, PAY)).message).toMatch(
+			/about your situation/
+		);
+		expect((await draftAnswer(db, using(fetcher), job, 'Not asked?')).message).toBe(
+			'That question isn’t on this kit any more.'
+		);
+		await setAiRule(db, job, 'forbids', '');
+		expect((await draftAnswer(db, using(fetcher), job, LEAD)).message).toBe(
+			'This posting forbids AI-written answers, so Job Ranger won’t draft an answer for it.'
+		);
+		await db.prepare('DELETE FROM kits').run();
+		expect((await draftAnswer(db, using(fetcher), job, LEAD)).message).toBe(
+			'That question isn’t on this kit any more.'
+		);
+		expect(fetcher).not.toHaveBeenCalled();
+		expect((await draftAnswer(db, using(letter('nonsense')), job, 'x'.repeat(100))).message).toBe(
+			'That question isn’t on this kit any more.'
+		);
+	});
+
+	it('drafts the form’s own questions too, but not its name and contact fields', async () => {
+		await db
+			.prepare(
+				`UPDATE kits SET questions = '[{"label":"Why us?","required":true,"basic":false},{"label":"Email","required":true,"basic":true}]'`
+			)
+			.run();
+		const fetcher = letter([[{ text: 'Flight Co, because I led a team.', facts: [factId] }]]);
+		expect((await draftAnswer(db, using(fetcher), job, 'Why us?')).ok).toBe(true);
+		expect((await draftAnswer(db, using(fetcher), job, 'Email')).message).toBe(
+			'That question isn’t on this kit any more.'
+		);
+	});
+
+	it('says when the model’s answer isn’t the shape asked for', async () => {
+		expect((await draftAnswer(db, using(letter('nonsense')), job, LEAD)).message).toBe(
+			'The model didn’t return an answer in the shape asked for ($0.01 spent). Try again.'
+		);
+	});
+
+	it('keeps my edited answer in the answer bank, labeled and noted, and drops the draft', async () => {
+		await draftAnswer(db, using(letter([[{ text: 'I led a team.', facts: [factId] }]])), job, LEAD);
+		expect(await keepAnswerDraft(db, job, LEAD, '  I led a team. ', NOW)).toEqual({
+			ok: false,
+			message:
+				'Make it yours first: change at least a word. It’s saved as “AI draft, edited by me”, so it should be.'
+		});
+		expect(await keepAnswerDraft(db, job, LEAD, 'x'.repeat(5001), NOW)).toEqual({
+			ok: false,
+			message: 'Keep an answer under 5000 characters.'
+		});
+		expect(
+			await keepAnswerDraft(db, job, LEAD, 'I led a twelve-person team in the Air Force.', NOW)
+		).toEqual({
+			ok: true,
+			message: 'Saved your edited answer to Answers, labeled “AI draft, edited by me”.'
+		});
+		expect(await listAnswers(db)).toMatchObject([
+			{
+				question: 'leadership',
+				label: LEAD,
+				text: 'I led a twelve-person team in the Air Force.',
+				origin: 'ai_edited',
+				notes:
+					'Drafted by claude-sonnet-5-5 for Pilot at Flight Co on 2026-11-20, then edited by me.'
+			}
+		]);
+		expect(await getAnswerDrafts(db, job)).toEqual([]);
+		expect(await keepAnswerDraft(db, job, LEAD, 'Again.', NOW)).toEqual({
+			ok: false,
+			message: 'That draft is no longer here.'
+		});
+	});
+
+	it('shortens a long question into the answer’s name, files unmatched ones under Other, and copes with a gone posting', async () => {
+		const long = `Describe your favorite ${'very '.repeat(20)}long story.`;
+		await savePasted(db, job, long);
+		await draftAnswer(db, using(letter([[{ text: 'A story.', facts: [factId] }]])), job, long);
+		await db.prepare('DELETE FROM postings').run();
+		await keepAnswerDraft(db, job, long, 'My story, my words.', NOW);
+		const [saved] = await listAnswers(db);
+		expect(saved?.question).toBe('other');
+		expect(saved?.label).toHaveLength(80);
+		expect(saved?.label.endsWith('…')).toBe(true);
+		expect(saved?.notes).toMatch(/for a job on/);
+	});
+
+	it('fails loudly on a stored answer draft it doesn’t recognise, and drops drafts with the company', async () => {
+		await draftAnswer(db, using(letter([[{ text: 'I led a team.', facts: [factId] }]])), job, LEAD);
+		await db.prepare(`UPDATE answer_drafts SET problems = '[1]'`).run();
+		await expect(getAnswerDrafts(db, job)).rejects.toThrow(StoredDataError);
+		await removeBoard(db, 'lever', 'Flight');
+		expect(await db.prepare('SELECT COUNT(*) AS n FROM answer_drafts').first()).toEqual({ n: 0 });
 	});
 });

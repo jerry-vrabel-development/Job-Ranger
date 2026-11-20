@@ -4,17 +4,24 @@
  * daily spending cap.
  */
 import { buildResume, jobTextOf } from '#lib/kit/resume.ts';
+import { LABEL_MAX } from '#lib/answers.ts';
 import {
+	answerSystemPrompt,
 	checkLetter,
+	draftable,
 	LETTER_TOOL,
 	parseLetter,
+	plainText,
 	systemPrompt,
 	userPrompt,
 	type LetterFact,
+	type LetterJob,
 	type LetterKind,
 	type Paragraph,
 	type Problem
 } from '#lib/kit/letter.ts';
+import { matchQuestion } from '#lib/kit/match.ts';
+import { addAnswer, checkAnswer } from './answers.ts';
 import { costMicros, ModelError, type Setup, type Usage } from './models/model.ts';
 import { count, StoredDataError, text } from './db.ts';
 import { listFacts } from './facts.ts';
@@ -128,13 +135,26 @@ export interface DraftSettings {
 	readonly now: string;
 }
 
-/** Drafts a cover letter for the job, checks it, and keeps it. */
-export async function draftLetter(
+interface Ready {
+	readonly ok: true;
+	readonly setup: Extract<Setup, { ok: true }>;
+	readonly day: string;
+	readonly chosen: LetterFact[];
+	readonly job: LetterJob;
+	readonly title: string;
+}
+
+/**
+ * Everything that must hold before a model is asked, so nothing is spent on
+ * a draft that can't be made: set up, the job and kit exist, the posting
+ * allows AI, today's cap isn't reached, and there are confirmed facts.
+ */
+async function ready(
 	db: D1Database,
 	settings: DraftSettings,
 	key: JobKey,
-	kind: LetterKind
-): Promise<Result> {
+	what: string
+): Promise<Ready | Result> {
 	const { setup } = settings;
 	if (!setup.ok) return { ok: false, message: setup.message };
 	const posting = await getPosting(db, key);
@@ -144,7 +164,7 @@ export async function draftLetter(
 	if (kit.aiRule === 'forbids') {
 		return {
 			ok: false,
-			message: 'This posting forbids AI-written answers, so Job Ranger won’t draft a letter for it.'
+			message: `This posting forbids AI-written answers, so Job Ranger won’t draft ${what} for it.`
 		};
 	}
 	const day = settings.now.slice(0, 10);
@@ -160,50 +180,92 @@ export async function draftLetter(
 		return { ok: false, message: 'There are no confirmed facts to draft from yet.' };
 	}
 	const resume = buildResume(confirmed, jobTextOf(posting, kit));
-	const chosen: LetterFact[] = [
-		...resume.summary,
-		...resume.roles.flatMap((r) => [r.role, ...r.accomplishments]),
-		...resume.projects.flatMap((p) => [p.project, ...p.accomplishments]),
-		...resume.skills
-	];
-	const job = {
-		title: posting.title,
-		company: posting.company,
-		department: posting.department,
-		postingText: kit.postingText
+	return {
+		ok: true,
+		setup,
+		day,
+		chosen: [
+			...resume.summary,
+			...resume.roles.flatMap((r) => [r.role, ...r.accomplishments]),
+			...resume.projects.flatMap((p) => [p.project, ...p.accomplishments]),
+			...resume.skills
+		],
+		job: {
+			title: posting.title,
+			company: posting.company,
+			department: posting.department,
+			postingText: kit.postingText
+		},
+		title: `${posting.title} at ${posting.company}`
 	};
+}
 
-	let input: unknown;
+type Written =
+	{ readonly ok: true; readonly paragraphs: Paragraph[]; readonly cost: number } | Result;
+
+/** Asks the model, records what it cost, and reads its answer as paragraphs. */
+async function write(
+	db: D1Database,
+	go: Ready,
+	system: string,
+	user: string,
+	what: string
+): Promise<Written> {
+	let output: unknown;
 	let cost: number;
 	try {
-		const answer = await setup.provider.structured({
-			model: setup.model,
-			system: systemPrompt(kind),
-			user: userPrompt(job, chosen),
+		const answer = await go.setup.provider.structured({
+			model: go.setup.model,
+			system,
+			user,
 			schema: LETTER_TOOL,
 			maxTokens: 4000
 		});
-		cost = await recordUsage(db, day, setup.model, answer.usage);
-		input = answer.output;
+		cost = await recordUsage(db, go.day, go.setup.model, answer.usage);
+		output = answer.output;
 	} catch (error) {
 		if (error instanceof ModelError) return { ok: false, message: error.message };
 		throw error;
 	}
-	const letter = parseLetter(input);
-	if (letter === null) {
+	const paragraphs = parseLetter(output);
+	if (paragraphs === null) {
 		return {
 			ok: false,
-			message: `The model didn’t return a letter in the shape asked for (${dollars(cost)} spent). Try again.`
+			message: `The model didn’t return ${what} in the shape asked for (${dollars(cost)} spent). Try again.`
 		};
 	}
+	return { ok: true, paragraphs, cost };
+}
+
+async function companies(db: D1Database): Promise<string[]> {
 	const { results } = await db.prepare('SELECT company FROM boards').all<Row>();
-	const problems = checkLetter(
-		kind,
-		letter,
-		chosen,
-		job,
-		results.map((row) => text(row, 'company'))
+	return results.map((row) => text(row, 'company'));
+}
+
+function drafted(what: string, cost: number, problems: readonly Problem[]): string {
+	return problems.length === 0
+		? `Drafted ${what} (${dollars(cost)}). Every sentence is backed by its facts. Read it, and make it yours.`
+		: `Drafted ${what} (${dollars(cost)}), but the checks found ${String(problems.length)} ${problems.length === 1 ? 'problem' : 'problems'}. Fix or cut those sentences before you use it.`;
+}
+
+/** Drafts a cover letter for the job, checks it, and keeps it. */
+export async function draftLetter(
+	db: D1Database,
+	settings: DraftSettings,
+	key: JobKey,
+	kind: LetterKind
+): Promise<Result> {
+	const go = await ready(db, settings, key, 'a letter');
+	if (!('setup' in go)) return go;
+	const written = await write(
+		db,
+		go,
+		systemPrompt(kind),
+		userPrompt(go.job, go.chosen),
+		'a letter'
 	);
+	if (!('paragraphs' in written)) return written;
+	const problems = checkLetter(kind, written.paragraphs, go.chosen, go.job, await companies(db));
 	await db
 		.prepare(
 			`INSERT INTO drafts (source, board, posting_id, kind, paragraphs, problems, model, cost_micros)
@@ -217,18 +279,164 @@ export async function draftLetter(
 			key.board,
 			key.id,
 			kind,
-			JSON.stringify(letter),
+			JSON.stringify(written.paragraphs),
 			JSON.stringify(problems),
-			setup.model,
-			cost
+			go.setup.model,
+			written.cost
 		)
 		.run();
-	const length = kind === 'letter_full' ? 'full' : 'short';
 	return {
 		ok: true,
-		message:
-			problems.length === 0
-				? `Drafted a ${length} letter (${dollars(cost)}). Every sentence is backed by its facts. Read it, and make it yours.`
-				: `Drafted a ${length} letter (${dollars(cost)}), but the checks found ${String(problems.length)} ${problems.length === 1 ? 'problem' : 'problems'}. Fix or cut those sentences before you use it.`
+		message: drafted(
+			`a ${kind === 'letter_full' ? 'full' : 'short'} letter`,
+			written.cost,
+			problems
+		)
+	};
+}
+
+/** The questions a kit has: the form's (beyond basics) and the pasted ones. */
+async function kitQuestions(db: D1Database, key: JobKey): Promise<string[]> {
+	const kit = await getKit(db, key);
+	return kit === null
+		? []
+		: [...kit.questions.filter((q) => !q.basic).map((q) => q.label), ...kit.pasted];
+}
+
+/** Drafts an answer to one of the kit's questions, from facts, and keeps it. */
+export async function draftAnswer(
+	db: D1Database,
+	settings: DraftSettings,
+	key: JobKey,
+	question: string
+): Promise<Result> {
+	const type = matchQuestion(question);
+	if (!draftable(type)) {
+		return {
+			ok: false,
+			message:
+				'That question is about your situation, not your experience, so answer it yourself on Answers.'
+		};
+	}
+	if (!(await kitQuestions(db, key)).includes(question)) {
+		return { ok: false, message: 'That question isn’t on this kit any more.' };
+	}
+	const go = await ready(db, settings, key, 'an answer');
+	if (!('setup' in go)) return go;
+	const written = await write(
+		db,
+		go,
+		answerSystemPrompt(),
+		userPrompt(go.job, go.chosen, question),
+		'an answer'
+	);
+	if (!('paragraphs' in written)) return written;
+	const problems = checkLetter(
+		'answer',
+		written.paragraphs,
+		go.chosen,
+		go.job,
+		await companies(db),
+		type === 'why_company'
+	);
+	await db
+		.prepare(
+			`INSERT INTO answer_drafts (source, board, posting_id, question, paragraphs, problems, model, cost_micros)
+			 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+			 ON CONFLICT (source, board, posting_id, question) DO UPDATE SET paragraphs = excluded.paragraphs,
+			 problems = excluded.problems, model = excluded.model, cost_micros = excluded.cost_micros,
+			 created_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`
+		)
+		.bind(
+			key.source,
+			key.board,
+			key.id,
+			question,
+			JSON.stringify(written.paragraphs),
+			JSON.stringify(problems),
+			go.setup.model,
+			written.cost
+		)
+		.run();
+	return { ok: true, message: drafted('an answer', written.cost, problems) };
+}
+
+export interface AnswerDraft {
+	readonly question: string;
+	readonly paragraphs: readonly Paragraph[];
+	readonly problems: readonly Problem[];
+	readonly model: string;
+	readonly costMicros: number;
+	readonly createdAt: string;
+}
+
+export async function getAnswerDrafts(db: D1Database, key: JobKey): Promise<AnswerDraft[]> {
+	const { results } = await db
+		.prepare(
+			`SELECT * FROM answer_drafts WHERE source = ?1 AND board = ?2 AND posting_id = ?3 ORDER BY question`
+		)
+		.bind(key.source, key.board, key.id)
+		.all<Row>();
+	return results.map((row) => {
+		const paragraphs: unknown = JSON.parse(text(row, 'paragraphs'));
+		const problems: unknown = JSON.parse(text(row, 'problems'));
+		if (!isParagraphs(paragraphs) || !isProblems(problems)) {
+			throw new StoredDataError('a stored answer draft is not the shape we keep');
+		}
+		return {
+			question: text(row, 'question'),
+			paragraphs,
+			problems,
+			model: text(row, 'model'),
+			costMicros: count(row, 'cost_micros'),
+			createdAt: text(row, 'created_at')
+		};
+	});
+}
+
+/**
+ * Saves my edited version of a drafted answer to the answer bank, labeled
+ * "AI draft, edited by me" (so it's never offered where AI is forbidden),
+ * with a note of where it came from. It must differ from the draft: the
+ * label says I edited it.
+ */
+export async function keepAnswerDraft(
+	db: D1Database,
+	key: JobKey,
+	question: string,
+	edited: string,
+	now: string
+): Promise<Result> {
+	const draft = (await getAnswerDrafts(db, key)).find((d) => d.question === question);
+	if (!draft) return { ok: false, message: 'That draft is no longer here.' };
+	const tidy = (value: string) => value.replace(/\s+/g, ' ').trim();
+	if (tidy(edited) === tidy(plainText(draft.paragraphs))) {
+		return {
+			ok: false,
+			message:
+				'Make it yours first: change at least a word. It’s saved as “AI draft, edited by me”, so it should be.'
+		};
+	}
+	const posting = await getPosting(db, key);
+	const where = posting === null ? 'a job' : `${posting.title} at ${posting.company}`;
+	const checked = checkAnswer({
+		question: matchQuestion(question) ?? 'other',
+		label:
+			question.length <= LABEL_MAX ? question : `${question.slice(0, LABEL_MAX - 1).trimEnd()}…`,
+		text: edited,
+		origin: 'ai_edited',
+		notes: `Drafted by ${draft.model} for ${where} on ${now.slice(0, 10)}, then edited by me.`
+	});
+	if (!checked.ok) return { ok: false, message: checked.message };
+	await addAnswer(db, checked.input);
+	await db
+		.prepare(
+			'DELETE FROM answer_drafts WHERE source = ?1 AND board = ?2 AND posting_id = ?3 AND question = ?4'
+		)
+		.bind(key.source, key.board, key.id, question)
+		.run();
+	return {
+		ok: true,
+		message: 'Saved your edited answer to Answers, labeled “AI draft, edited by me”.'
 	};
 }

@@ -60,7 +60,8 @@ test.describe('a cover letter draft', () => {
 		test(`has no WCAG 2.2 AA violations (${colorScheme})`, async ({ page }) => {
 			await page.emulateMedia({ colorScheme });
 			await page.goto(KIT);
-			await page.getByText('Facts each sentence uses…').click();
+			for (const panel of await page.getByText('Facts each sentence uses…').all())
+				await panel.click();
 			expect(
 				(await new AxeBuilder({ page }).withTags(WCAG).analyze()).violations.map(
 					(v) => `${v.id}: ${v.help}`
@@ -72,7 +73,8 @@ test.describe('a cover letter draft', () => {
 	test('reflows at 320 pixels wide', async ({ page }) => {
 		await page.setViewportSize({ width: 320, height: 640 });
 		await page.goto(KIT);
-		await page.getByText('Facts each sentence uses…').click();
+		for (const panel of await page.getByText('Facts each sentence uses…').all())
+			await panel.click();
 		const overflow = await page.evaluate(
 			() => document.documentElement.scrollWidth - document.documentElement.clientWidth
 		);

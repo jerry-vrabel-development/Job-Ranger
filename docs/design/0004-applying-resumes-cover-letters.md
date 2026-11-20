@@ -246,9 +246,17 @@ Each step is one PR with unit, database and browser tests, including axe.
    named unless a cited fact is about it; the posting's company must be
    named; length. Problems are listed in words and marked "[Check n]" after
    the sentence. Greeting and name are added by code. Daily cap from
-   DRAFT_DAILY_CAP_USD (default $1), usage kept per day and model. Drafted
-   answers to single questions (4b) and the summary come next, on the same
-   checks.
+   DRAFT_DAILY_CAP_USD (default $1), usage kept per day and model. _Answer
+   drafts built (4b)._ Only questions facts can answer are drafted (about
+   me, why this company or role, strengths, a challenge, a mistake,
+   leadership, AI use, other, and unmatched ones); work authorization,
+   start date, location, pay and "how did you hear" are about my situation,
+   so they are never drafted. Same checks as letters (one framing sentence
+   allowed; the company must be named only for "why this company"). A
+   draft is kept only by editing it: saving it unchanged is refused,
+   because it's saved to the answer bank as "AI draft, edited by me", with
+   a note of the model, job and date; the draft is then deleted. The
+   resume summary is still to do.
 5. **Final review** (code checks first, then model suggestions).
 6. **Evals script** and the saved set of postings.
 7. **Write together** list and the good day pile.

@@ -27,6 +27,8 @@
 	const result = $derived(form && 'result' in form ? form.result : undefined);
 	const pastedBack = $derived(form && 'pasted' in form ? form.pasted : undefined);
 	const postingBack = $derived(form && 'posting' in form ? form.posting : undefined);
+	/** An edited answer that couldn't be saved, to put back in its box. */
+	const keptBack = $derived(form && 'kept' in form ? form.kept : undefined);
 	const GAP_ANSWERS = [
 		{ value: 'professional', label: 'Professional' },
 		{ value: 'side', label: 'Side project or hobby' },
@@ -68,14 +70,16 @@
 	type Draft = (typeof data.drafting.drafts)[number];
 
 	/** The problem numbers (from 1) found in one sentence. */
-	function flags(draft: Draft, p: number, s: number): number[] {
+	function flags(draft: Checked, p: number, s: number): number[] {
 		return draft.problems.flatMap((problem, i) =>
 			problem.paragraph === p && problem.sentence === s ? [i + 1] : []
 		);
 	}
 
+	type Checked = Pick<Draft, 'paragraphs' | 'problems'>;
+
 	/** A paragraph as one string, with "[Check n]" after each sentence the checks flagged. */
-	function paragraphText(draft: Draft, p: number): string {
+	function paragraphText(draft: Checked, p: number): string {
 		return (draft.paragraphs[p] ?? [])
 			.map((sentence, s) =>
 				[sentence.text, ...flags(draft, p, s).map((n) => `[Check ${String(n)}]`)].join(' ')
@@ -228,6 +232,80 @@
 								.filter((part) => part !== '')
 								.join(' · ')}
 						</p>
+						{#if item.draftable && kit.aiRule !== 'forbids'}
+							{#if item.draft}
+								<div class="answer draft">
+									<p class="meta">
+										<strong>Drafted answer</strong> · {item.draft.created} · {item.draft.cost}
+									</p>
+									{#if item.draft.problems.length > 0}
+										<div class="problems">
+											<p>
+												<strong>Check before using ({String(item.draft.problems.length)}):</strong>
+											</p>
+											<ol>
+												{#each item.draft.problems as problem, i (i)}
+													<li>
+														{problem.paragraph < 0
+															? 'The answer'
+															: `Paragraph ${String(problem.paragraph + 1)}, sentence ${String(problem.sentence + 1)}`}:
+														{problem.problem}
+													</li>
+												{/each}
+											</ol>
+										</div>
+									{:else}
+										<p><strong>Checks passed:</strong> every sentence is backed by its facts.</p>
+									{/if}
+									{#each item.draft.paragraphs.map( (_, p) => paragraphText(item.draft ?? { paragraphs: [], problems: [] }, p) ) as paragraph, p (p)}
+										<p class="text">{paragraph}</p>
+									{/each}
+									<details>
+										<summary>Facts each sentence uses…</summary>
+										<ul>
+											{#each item.draft.used.flat() as used, u (u)}
+												<li>{used.length === 0 ? 'No facts: framing only.' : used.join('; ')}</li>
+											{/each}
+										</ul>
+									</details>
+									<form method="POST" action="?/keepAnswer" use:enhance={afterAction} class="stack">
+										<input type="hidden" name="question" value={item.label} />
+										<label for="keep-{index}">Make it yours, then save it to Answers</label>
+										<p class="hint" id="keep-{index}-hint">
+											It’s saved as “AI draft, edited by me”, so it’s never offered where a posting
+											forbids AI.
+										</p>
+										<textarea
+											id="keep-{index}"
+											name="text"
+											rows="6"
+											aria-describedby="keep-{index}-hint"
+											value={browser
+												? undefined
+												: keptBack?.question === item.label
+													? keptBack.edited
+													: item.draft.text}
+											defaultValue={keptBack?.question === item.label
+												? keptBack.edited
+												: item.draft.text}></textarea>
+										<button type="submit"
+											>Save to Answers<span class="visually-hidden">{` ${item.label}`}</span
+											></button
+										>
+									</form>
+								</div>
+							{/if}
+							{#if data.drafting.ready}
+								<form method="POST" action="?/draftAnswer" use:enhance={afterAction}>
+									<input type="hidden" name="question" value={item.label} />
+									<button type="submit"
+										>{item.draft ? 'Draft again' : 'Draft an answer'}<span class="visually-hidden"
+											>{` for ${item.label}`}</span
+										></button
+									>
+								</form>
+							{/if}
+						{/if}
 						{#if item.type !== null}
 							{#if item.answers.length === 0}
 								<p>
@@ -632,6 +710,10 @@
 	.problems {
 		border-left: 6px double var(--accent);
 		padding-left: 0.75rem;
+	}
+
+	.draft {
+		border-style: dashed;
 	}
 
 	.gaps {

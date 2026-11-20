@@ -15,7 +15,7 @@ import {
 	type Paragraph,
 	type Problem
 } from '#lib/kit/letter.ts';
-import { callTool, ClaudeError, costMicros, DRAFT_MODEL, type Usage } from './claude.ts';
+import { costMicros, ModelError, type Setup, type Usage } from './models/model.ts';
 import { count, StoredDataError, text } from './db.ts';
 import { listFacts } from './facts.ts';
 import { getKit, getPosting, type JobKey, type Result } from './kits.ts';
@@ -39,7 +39,9 @@ export async function recordUsage(
 	model: string,
 	usage: Usage
 ): Promise<number> {
+	// chooseModel only allows priced models, so a missing price is a bug: fail loudly.
 	const cost = costMicros(model, usage);
+	if (cost === null) throw new Error(`No price on file for ${model}`);
 	await db
 		.prepare(
 			`INSERT INTO model_usage (day, model, calls, input_tokens, output_tokens, cost_micros)
@@ -120,7 +122,8 @@ export async function getDrafts(db: D1Database, key: JobKey): Promise<Draft[]> {
 }
 
 export interface DraftSettings {
-	readonly apiKey: string;
+	/** Which provider and model to draft with, or why drafting isn't set up. */
+	readonly setup: Setup;
 	readonly capMicros: number;
 	readonly now: string;
 }
@@ -128,14 +131,12 @@ export interface DraftSettings {
 /** Drafts a cover letter for the job, checks it, and keeps it. */
 export async function draftLetter(
 	db: D1Database,
-	fetcher: typeof fetch,
 	settings: DraftSettings,
 	key: JobKey,
 	kind: LetterKind
 ): Promise<Result> {
-	if (settings.apiKey === '') {
-		return { ok: false, message: 'Drafting isn’t set up yet: the Worker has no API key.' };
-	}
+	const { setup } = settings;
+	if (!setup.ok) return { ok: false, message: setup.message };
 	const posting = await getPosting(db, key);
 	if (!posting) return { ok: false, message: 'That job is no longer in Job Ranger.' };
 	const kit = await getKit(db, key);
@@ -175,17 +176,17 @@ export async function draftLetter(
 	let input: unknown;
 	let cost: number;
 	try {
-		const answer = await callTool(fetcher, settings.apiKey, {
-			model: DRAFT_MODEL,
+		const answer = await setup.provider.structured({
+			model: setup.model,
 			system: systemPrompt(kind),
 			user: userPrompt(job, chosen),
-			tool: LETTER_TOOL,
+			schema: LETTER_TOOL,
 			maxTokens: 4000
 		});
-		cost = await recordUsage(db, day, DRAFT_MODEL, answer.usage);
-		input = answer.input;
+		cost = await recordUsage(db, day, setup.model, answer.usage);
+		input = answer.output;
 	} catch (error) {
-		if (error instanceof ClaudeError) return { ok: false, message: error.message };
+		if (error instanceof ModelError) return { ok: false, message: error.message };
 		throw error;
 	}
 	const letter = parseLetter(input);
@@ -218,7 +219,7 @@ export async function draftLetter(
 			kind,
 			JSON.stringify(letter),
 			JSON.stringify(problems),
-			DRAFT_MODEL,
+			setup.model,
 			cost
 		)
 		.run();

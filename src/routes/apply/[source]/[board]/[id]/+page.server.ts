@@ -8,6 +8,8 @@ import { buildResume, jobTextOf } from '#lib/kit/resume.ts';
 import { SKILLS } from '#lib/kit/skills.ts';
 import { addGapFact, listFacts } from '#lib/server/facts.ts';
 import { capMicros, dollars, draftLetter, getDrafts, spentOn } from '#lib/server/drafts.ts';
+import { chooseModel } from '#lib/server/models/model.ts';
+import { PROVIDERS } from '#lib/server/models/providers.ts';
 import { getProfile } from '#lib/server/profile.ts';
 import { listAnswers, type Answer } from '#lib/server/answers.ts';
 import {
@@ -84,7 +86,7 @@ function itemsOf(kit: Kit, answers: readonly Answer[]): KitItem[] {
 	});
 }
 
-export const load: PageServerLoad = async ({ params }) => {
+export const load: PageServerLoad = async ({ params, fetch }) => {
 	const db = database();
 	const key = keyOf(params);
 	const posting = await getPosting(db, key);
@@ -133,7 +135,7 @@ export const load: PageServerLoad = async ({ params }) => {
 		applied: application === null ? null : dateLabel(application.appliedAt),
 		factCount: usable.length,
 		drafting: {
-			ready: setting('ANTHROPIC_API_KEY') !== '',
+			...describe(chooseModel(PROVIDERS, setting, fetch)),
 			spent: dollars(spent),
 			cap: dollars(capMicros(setting('DRAFT_DAILY_CAP_USD'))),
 			name: profile.name,
@@ -153,6 +155,13 @@ export const load: PageServerLoad = async ({ params }) => {
 		}
 	};
 };
+
+/** What the page shows about drafting: the model's name, or why it isn't set up. */
+function describe(setup: ReturnType<typeof chooseModel>) {
+	return setup.ok
+		? { ready: true, label: setup.label, notReady: '' }
+		: { ready: false, label: '', notReady: setup.message };
+}
 
 function reply(result: Result) {
 	return result.ok ? { result } : fail(400, { result });
@@ -178,9 +187,8 @@ export const actions: Actions = {
 		return reply(
 			await draftLetter(
 				database(),
-				fetch,
 				{
-					apiKey: setting('ANTHROPIC_API_KEY'),
+					setup: chooseModel(PROVIDERS, setting, fetch),
 					capMicros: capMicros(setting('DRAFT_DAILY_CAP_USD')),
 					now: new Date().toISOString()
 				},

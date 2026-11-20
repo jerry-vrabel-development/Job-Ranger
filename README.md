@@ -123,7 +123,7 @@ npx wrangler secret put ACCESS_AUD             # the AUD tag (comma-separate sev
 npx wrangler secret put ACCESS_ALLOWED_EMAILS  # your email (comma-separate several)
 ```
 
-### Cover letter drafts (Claude API)
+### Cover letter drafts (Claude API, or another model)
 
 Drafting a cover letter on an apply kit calls the Claude API (Sonnet) from
 the Worker. Without a key, everything else works and the kit says drafting
@@ -143,6 +143,12 @@ npx wrangler secret put ANTHROPIC_API_KEY
 ```sh
 npx wrangler secret put DRAFT_DAILY_CAP_USD   # for example 2.50
 ```
+
+Drafting goes through one small model interface
+(`src/lib/server/models/`), so the provider and model are settings, not code:
+`MODEL_PROVIDER` (default `anthropic`) and `DRAFT_MODEL` (default
+`claude-sonnet-5-5`). Only models with a price in `models/model.ts` can be
+used, so the daily cap always holds.
 
 Each draft costs about two cents. The model gets the job and the facts
 picked for it, never your name or contact details, and every sentence it

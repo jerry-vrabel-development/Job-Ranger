@@ -1,33 +1,19 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-	API_URL,
-	API_VERSION,
-	callTool,
-	ClaudeError,
-	costMicros,
-	type ToolCall
-} from './claude.ts';
+import { anthropic, ANTHROPIC, API_URL, API_VERSION } from './anthropic.ts';
+import { ModelError, type StructuredCall } from './model.ts';
 
-const call: ToolCall = {
+const call: StructuredCall = {
 	model: 'claude-sonnet-5-5',
 	system: 'Be brief.',
 	user: '{"job":{}}',
-	tool: { name: 'write_letter', description: 'd', input_schema: { type: 'object' } },
+	schema: { name: 'write_letter', description: 'd', input_schema: { type: 'object' } },
 	maxTokens: 100
 };
 
 const answering = (body: unknown, init?: ResponseInit) =>
 	vi.fn<typeof fetch>(() => Promise.resolve(Response.json(body, init)));
 
-describe('costMicros', () => {
-	it('prices tokens in millionths of a dollar, rounding up', () => {
-		expect(costMicros('claude-sonnet-5-5', { inputTokens: 1000, outputTokens: 500 })).toBe(7000);
-		expect(costMicros('claude-haiku-5-5', { inputTokens: 1000, outputTokens: 1 })).toBe(101);
-		expect(costMicros('some-new-model', { inputTokens: 1, outputTokens: 0 })).toBe(2);
-	});
-});
-
-describe('callTool', () => {
+describe('the Anthropic adapter', () => {
 	it('sends one request with the key, version, prompt and tool, and returns the tool input', async () => {
 		const fetcher = answering({
 			content: [
@@ -37,8 +23,8 @@ describe('callTool', () => {
 			],
 			usage: { input_tokens: 10, output_tokens: 20 }
 		});
-		expect(await callTool(fetcher, 'sk-test', call)).toEqual({
-			input: { paragraphs: [] },
+		expect(await anthropic(fetcher, 'sk-test').structured(call)).toEqual({
+			output: { paragraphs: [] },
 			usage: { inputTokens: 10, outputTokens: 20 }
 		});
 		const [url, init] = fetcher.mock.calls[0] ?? [];
@@ -58,23 +44,19 @@ describe('callTool', () => {
 		});
 	});
 
-	it('returns no input when the model answers without the tool, and counts odd usage as zero', async () => {
-		expect(
-			await callTool(answering({ content: [{ type: 'text', text: 'Hi' }] }), 'k', call)
-		).toEqual({
-			input: null,
+	it('returns no output when the model answers without the tool, and counts odd usage as zero', async () => {
+		const ask = (body: unknown) => anthropic(answering(body), 'k').structured(call);
+		expect(await ask({ content: [{ type: 'text', text: 'Hi' }] })).toEqual({
+			output: null,
 			usage: { inputTokens: 0, outputTokens: 0 }
 		});
 		expect(
-			(
-				await callTool(
-					answering({ content: 'x', usage: { input_tokens: -1, output_tokens: '5' } }),
-					'k',
-					call
-				)
-			).usage
-		).toEqual({ inputTokens: 0, outputTokens: 0 });
-		expect((await callTool(answering(null), 'k', call)).input).toBeNull();
+			(await ask({ content: 'x', usage: { input_tokens: -1, output_tokens: '5' } })).usage
+		).toEqual({
+			inputTokens: 0,
+			outputTokens: 0
+		});
+		expect((await ask(null)).output).toBeNull();
 	});
 
 	it('says why a call failed, without the key or prompt', async () => {
@@ -95,10 +77,21 @@ describe('callTool', () => {
 			]
 		];
 		for (const [fetcher, message] of cases) {
-			const error = await callTool(fetcher, 'sk-secret', call).catch((e: unknown) => e);
-			expect(error).toBeInstanceOf(ClaudeError);
+			const error = await anthropic(fetcher, 'sk-secret')
+				.structured(call)
+				.catch((e: unknown) => e);
+			expect(error).toBeInstanceOf(ModelError);
 			expect((error as Error).message).toBe(message);
 			expect((error as Error).message).not.toMatch(/sk-secret/);
 		}
+	});
+
+	it('describes itself for the provider list', () => {
+		expect(ANTHROPIC).toMatchObject({
+			label: 'Claude (Anthropic)',
+			keySetting: 'ANTHROPIC_API_KEY',
+			defaultModel: 'claude-sonnet-5-5'
+		});
+		expect(ANTHROPIC.make(vi.fn<typeof fetch>(), 'k')).toHaveProperty('structured');
 	});
 });

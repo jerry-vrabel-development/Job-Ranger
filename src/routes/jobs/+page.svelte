@@ -140,6 +140,9 @@
 							{job.title}{#if job.isNew}<span class="tag">New</span>{/if}
 						</h2>
 						<p class="company">{job.company}</p>
+						{#if job.applied}
+							<p class="applied"><strong>Applied</strong> {job.applied}</p>
+						{/if}
 						{#if job.why}
 							<p class="why"><span class="visually-hidden">Why it's listed:</span> {job.why}</p>
 						{/if}
@@ -176,6 +179,16 @@
 							<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- the employer's own apply page -->
 							<a class="apply" href={job.applyUrl}
 								>Apply<span class="visually-hidden">{` for ${job.title} at ${job.company}`}</span
+								></a
+							>
+							<a
+								href={resolve('/apply/[source]/[board]/[id]', {
+									source: job.source,
+									board: job.board,
+									id: job.id
+								})}
+								>Apply kit<span class="visually-hidden"
+									>{` for ${job.title} at ${job.company}`}</span
 								></a
 							>
 							{#if job.jobUrl}
@@ -235,6 +248,10 @@
 		padding: 0.4rem 1rem;
 		min-height: 44px;
 		cursor: pointer;
+	}
+
+	.applied {
+		margin: 0.25rem 0 0;
 	}
 
 	.why {

@@ -31,6 +31,9 @@ export function postedLabel(postedAt: string | null, now: string): string {
 /** What the list page sends to the browser: only what a card shows. */
 export interface JobCard {
 	readonly key: string;
+	readonly source: StoredPosting['source'];
+	readonly board: string;
+	readonly id: string;
 	readonly title: string;
 	readonly company: string;
 	readonly isNew: boolean;
@@ -47,6 +50,9 @@ export interface JobCard {
 export function toJobCard(posting: StoredPosting, now: string): JobCard {
 	return {
 		key: `${posting.source}:${posting.board}:${posting.id}`,
+		source: posting.source,
+		board: posting.board,
+		id: posting.id,
 		title: posting.title,
 		company: posting.company,
 		isNew: posting.seenAt === null,
@@ -81,4 +87,17 @@ export function latest(dates: readonly (string | null)[]): string | null {
 		(best, date) => (date && (!best || date > best) ? date : best),
 		null
 	);
+}
+
+/** Dates I act on (applying) are shown in my own time zone. */
+export const TIME_ZONE = 'America/Chicago';
+
+/** "Nov 20, 2026", in my time zone. */
+export function dateLabel(iso: string): string {
+	return new Date(iso).toLocaleDateString('en-US', {
+		month: 'short',
+		day: 'numeric',
+		year: 'numeric',
+		timeZone: TIME_ZONE
+	});
 }

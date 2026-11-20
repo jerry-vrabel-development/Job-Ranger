@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { env } from 'cloudflare:workers';
-import { toJobCard } from '#lib/jobs/display.ts';
 import { boardKeyOf, isFiltered, NO_FILTER, parseFilter } from '#lib/jobs/filter.ts';
+import { dateLabel, toJobCard } from '#lib/jobs/display.ts';
 import { whyMatched, type InterestMatch } from '#lib/jobs/interest-match.ts';
 import {
 	countOpenPostings,
@@ -11,6 +11,7 @@ import {
 	markAllSeen
 } from '#lib/server/db.ts';
 import { listInterests } from '#lib/server/interests.ts';
+import { appliedDates } from '#lib/server/kits.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 // SvelteKit 3's Cloudflare adapter has no `platform`: bindings come from
@@ -36,18 +37,24 @@ export const load: PageServerLoad = async ({ url }) => {
 	const filter = parseFilter(url.searchParams, interests);
 	const { interest } = filter;
 	const filtered = isFiltered(filter);
-	const [postings, matching, allOpen, newOpen, boards] = await Promise.all([
+	const [postings, matching, allOpen, newOpen, boards, applications] = await Promise.all([
 		listOpenPostings(db, filter),
 		countOpenPostings(db, filter),
 		filtered ? countOpenPostings(db) : null,
 		countOpenPostings(db, { ...NO_FILTER, onlyNew: true }),
-		listBoardStatus(db)
+		listBoardStatus(db),
+		appliedDates(db)
 	]);
 	return {
-		jobs: postings.map((posting) => ({
-			...toJobCard(posting, now),
-			why: interest ? whyMatched(interest, posting) : null
-		})),
+		jobs: postings.map((posting) => {
+			const card = toJobCard(posting, now);
+			const applied = applications.get(card.key);
+			return {
+				...card,
+				why: interest ? whyMatched(interest, posting) : null,
+				applied: applied === undefined ? null : dateLabel(applied)
+			};
+		}),
 		/** Real counts: the list stops at LIST_LIMIT, the page says so. */
 		counts: { matching, all: allOpen ?? matching, new: newOpen, limit: LIST_LIMIT },
 		filter: {

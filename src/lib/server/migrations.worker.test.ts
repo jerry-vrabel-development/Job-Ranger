@@ -307,3 +307,30 @@ describe('migration 0010: answers', () => {
 		await expect(insert('pay', 'own', 'x'.repeat(5001))).rejects.toThrow();
 	});
 });
+
+describe('migration 0011: kits and applications', () => {
+	it('keeps questions a JSON list, the AI rule to known words, and one row per job', async () => {
+		await applyD1Migrations(db, [...MIGRATIONS]);
+		const kit = (questions: string, rule: string) =>
+			db
+				.prepare(
+					'INSERT INTO kits (source, board, posting_id, questions, ai_rule) VALUES (?1, ?2, ?3, ?4, ?5)'
+				)
+				.bind('lever', 'Flight', String(Math.random()), questions, rule)
+				.run();
+		await kit('[]', 'unknown');
+		await expect(kit('{}', 'none')).rejects.toThrow();
+		await expect(kit('not json', 'none')).rejects.toThrow();
+		await expect(kit('[]', 'maybe')).rejects.toThrow();
+		const applied = () =>
+			db
+				.prepare(
+					`INSERT INTO applications (source, board, posting_id, company, title, applied_at)
+					 VALUES ('lever', 'Flight', 'abc', 'Flight Co', 'Pilot', '2026-11-20T00:00:00Z')`
+				)
+				.run();
+		await applied();
+		await expect(applied()).rejects.toThrow();
+		expect(await first('SELECT answer_ids FROM applications')).toEqual({ answer_ids: '[]' });
+	});
+});

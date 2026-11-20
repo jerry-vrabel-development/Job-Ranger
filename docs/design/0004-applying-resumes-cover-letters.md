@@ -270,6 +270,17 @@ Step 1 and 2 are useful on their own: copy-paste answers right away.
    eval judging; a hard daily cap, starting around $1.
 8. **After "I applied",** follow-up is tracked in Job Ranger (step 4), not
    in Quest Log.
+9. **Model-agnostic (Nov 20):** drafting goes through one small interface
+   (`src/lib/server/models/model.ts`): instructions, input and the shape to
+   fill in; structured output and token counts back. Claude (Anthropic) is
+   the first adapter. The provider and model are settings (MODEL_PROVIDER,
+   DRAFT_MODEL), each provider has its own key secret, and a model without
+   a price on file can't be used, so the daily cap always holds. The
+   honesty checks are plain code on the output, so they hold whichever
+   model writes. A second adapter is added when someone needs one (an
+   OpenAI-compatible one would cover several providers and local models);
+   per-user choice comes with accounts. The evals (step 6) compare
+   providers on the same saved postings.
 
 ## Open questions
 

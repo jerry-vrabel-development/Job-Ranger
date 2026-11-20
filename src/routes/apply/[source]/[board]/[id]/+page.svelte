@@ -380,11 +380,12 @@
 				in your own words, from your facts.
 			</p>
 		{:else if !data.drafting.ready}
-			<p>Drafting isn’t set up yet: the Worker has no API key. The README says how to add one.</p>
+			<p>{data.drafting.notReady} The README says how to set it up.</p>
 		{:else}
 			<p>
-				Claude drafts from the facts picked for this job. Each sentence names the facts it uses, and
-				code checks it against them. Spent today: {data.drafting.spent} of {data.drafting.cap}.
+				{data.drafting.label} drafts from the facts picked for this job. Each sentence names the facts
+				it uses, and code checks it against them. Spent today: {data.drafting.spent} of {data
+					.drafting.cap}.
 			</p>
 			<form method="POST" action="?/draft" use:enhance={afterAction} class="buttons">
 				<button type="submit" name="kind" value="letter_full">Draft a full letter</button>

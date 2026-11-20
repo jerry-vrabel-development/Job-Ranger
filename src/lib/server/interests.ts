@@ -240,9 +240,4 @@ export async function removeInterest(db: D1Database, id: number): Promise<Result
 	};
 }
 
-/** An interest id from a form, or null. */
-export function parseId(value: unknown): number | null {
-	if (typeof value !== 'string' || !/^[1-9][0-9]{0,15}$/.test(value)) return null;
-	const id = Number(value);
-	return Number.isSafeInteger(id) ? id : null;
-}
+export { parseId } from './db.ts';

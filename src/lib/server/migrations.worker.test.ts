@@ -290,3 +290,20 @@ describe('migration 0009: facts', () => {
 		await expect(insert('skill', 'side', 'gap', 'x'.repeat(501))).rejects.toThrow();
 	});
 });
+
+describe('migration 0010: answers', () => {
+	it('keeps questions and origins to the known words, and text within limits', async () => {
+		await applyD1Migrations(db, [...MIGRATIONS]);
+		const insert = (question: string, origin: string, text: string) =>
+			db
+				.prepare('INSERT INTO answers (question, origin, text) VALUES (?1, ?2, ?3)')
+				.bind(question, origin, text)
+				.run();
+		await insert('pay', 'own', 'Open to discussing a fair range.');
+		expect(await first('SELECT label, notes FROM answers')).toEqual({ label: '', notes: '' });
+		await expect(insert('colour', 'own', 'x')).rejects.toThrow();
+		await expect(insert('pay', 'magic', 'x')).rejects.toThrow();
+		await expect(insert('pay', 'own', '')).rejects.toThrow();
+		await expect(insert('pay', 'own', 'x'.repeat(5001))).rejects.toThrow();
+	});
+});

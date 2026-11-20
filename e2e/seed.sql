@@ -1,5 +1,6 @@
 -- Browser-test data for the local D1 (npm run e2e:seed). Safe to run again:
 -- it starts from empty. Real-sized: long text, many jobs, every kind of card.
+DELETE FROM answer_drafts;
 DELETE FROM drafts;
 DELETE FROM kits;
 DELETE FROM model_usage;
@@ -102,13 +103,22 @@ Now I build accessible web apps and test them hard.', 'together', 'From voice no
 
 -- A prepared kit with a made-up letter draft, so the letter view is tested without an API key.
 -- The second sentence's number isn't in its fact, so the checks flagged it.
-INSERT INTO kits (source, board, posting_id, read_note, ai_rule, ai_decided_by) VALUES
+INSERT INTO kits (source, board, posting_id, read_note, ai_rule, ai_decided_by, pasted) VALUES
 	('ashby', 'example', 'newest', 'Ashby doesn''t share a form''s questions. Paste them in from the form.',
-		'none', 'me');
+		'none', 'me', 'Tell us about a time you led a team.
+What are your salary expectations?');
 INSERT INTO drafts (source, board, posting_id, kind, paragraphs, problems, model, cost_micros,
 	created_at) VALUES
 	('ashby', 'example', 'newest', 'letter_full',
 		'[[{"text":"I would like to join Example Co.","facts":[]}],[{"text":"I led the checkout rebuild that cut page load time in half.","facts":[1]},{"text":"It served 40 stores.","facts":[1]}]]',
 		'[{"paragraph":1,"sentence":1,"problem":"The number 40 isn’t in the facts it cites."}]',
 		'claude-sonnet-5-5', 7000, '2026-11-20T15:00:00.000Z');
+
+-- A made-up drafted answer for that kit's leadership question, one sentence flagged.
+INSERT INTO answer_drafts (source, board, posting_id, question, paragraphs, problems, model,
+	cost_micros, created_at) VALUES
+	('ashby', 'example', 'newest', 'Tell us about a time you led a team.',
+		'[[{"text":"I led the checkout rebuild.","facts":[1]},{"text":"The team had 6 people.","facts":[1]}]]',
+		'[{"paragraph":0,"sentence":1,"problem":"The number 6 isn’t in the facts it cites."}]',
+		'claude-sonnet-5-5', 3000, '2026-11-20T16:00:00.000Z');
 

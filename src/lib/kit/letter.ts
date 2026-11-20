@@ -5,9 +5,34 @@
  * added by code, so my name and contact details never go to the model.
  */
 import { wordCount } from '#lib/answers.ts';
+import type { Question } from '#lib/answers.ts';
 import type { Experience, Kind } from '#lib/facts.ts';
 
 export type LetterKind = 'letter_full' | 'letter_short';
+/** What a draft is for: a letter of either length, or one answer. */
+export type DraftKind = LetterKind | 'answer';
+
+/**
+ * Question types facts can answer. Work authorization, start date,
+ * location, pay and "how did you hear" are about my situation, not my
+ * experience, so no model guesses at them.
+ */
+export const DRAFTABLE: readonly Question[] = [
+	'about_me',
+	'why_company',
+	'why_role',
+	'strengths',
+	'challenge',
+	'mistake',
+	'leadership',
+	'ai_use',
+	'other'
+];
+
+/** True when a question (of this type, or unmatched) may be drafted from facts. */
+export function draftable(type: Question | null): boolean {
+	return type === null || DRAFTABLE.includes(type);
+}
 
 export interface Sentence {
 	readonly text: string;
@@ -33,9 +58,10 @@ export interface LetterJob {
 	readonly postingText: string;
 }
 
-export const LIMITS: Readonly<Record<LetterKind, { words: number; framing: number }>> = {
+export const LIMITS: Readonly<Record<DraftKind, { words: number; framing: number }>> = {
 	letter_full: { words: 450, framing: 3 },
-	letter_short: { words: 170, framing: 2 }
+	letter_short: { words: 170, framing: 2 },
+	answer: { words: 200, framing: 1 }
 };
 
 export const TOOL_NAME = 'write_letter';
@@ -86,9 +112,27 @@ export function systemPrompt(kind: LetterKind): string {
 	].join('\n');
 }
 
-/** The job and the facts, as the model sees them. No name or contact details. */
-export function userPrompt(job: LetterJob, facts: readonly LetterFact[]): string {
+export function answerSystemPrompt(): string {
+	return [
+		'You draft an answer to one question on a job application, for the person whose facts you are given.',
+		'Use only the facts given. Every sentence must list, in `facts`, the ids of the facts it uses.',
+		'At most one sentence may cite no facts, and only to frame the answer; it makes no claims and has no numbers.',
+		'Never add a skill, number, year, job title, employer or result that isn’t in the facts a sentence cites.',
+		'Facts whose experience is "side" are side projects or hobbies, and "learning" ones are being learned now. Never present them as professional work or as years of experience.',
+		'Answer the question asked, directly, in the first person, plainly and specifically. Avoid filler like “passionate” or “leverage”.',
+		'Write one or two short paragraphs, 50 to 150 words in all.',
+		`Answer only by calling the ${TOOL_NAME} tool.`
+	].join('\n');
+}
+
+/** The job and the facts (and the question, for an answer), as the model sees them. No name or contact details. */
+export function userPrompt(
+	job: LetterJob,
+	facts: readonly LetterFact[],
+	question?: string
+): string {
 	return JSON.stringify({
+		...(question === undefined ? {} : { question }),
 		job: {
 			title: job.title,
 			company: job.company,
@@ -149,11 +193,13 @@ const normalizeNumber = (n: string) => n.replace(/[,]/g, '').replace(/\.$/, '');
  * not dressed up as professional work, and the length.
  */
 export function checkLetter(
-	kind: LetterKind,
+	kind: DraftKind,
 	letter: readonly Paragraph[],
 	facts: readonly LetterFact[],
 	job: LetterJob,
-	otherCompanies: readonly string[]
+	otherCompanies: readonly string[],
+	/** Letters must name the company; an answer only when it's asked why this company. */
+	needsCompany = kind !== 'answer'
 ): Problem[] {
 	const byId = new Map(facts.map((fact) => [fact.id, fact]));
 	const problems: Problem[] = [];
@@ -213,7 +259,7 @@ export function checkLetter(
 		.flat()
 		.map((sentence) => sentence.text)
 		.join(' ');
-	if (!lower(whole).includes(lower(job.company))) {
+	if (needsCompany && !lower(whole).includes(lower(job.company))) {
 		problems.push({ paragraph: -1, sentence: -1, problem: `Never names ${job.company}.` });
 	}
 	const words = wordCount(whole);
@@ -227,8 +273,12 @@ export function checkLetter(
 	return problems;
 }
 
+/** A draft's text, paragraphs kept, with no greeting, markers or name. */
+export function plainText(letter: readonly Paragraph[]): string {
+	return letter.map((paragraph) => paragraph.map((s) => s.text).join(' ')).join('\n\n');
+}
+
 /** The letter as plain text to paste: greeting and name added by code. */
 export function letterText(letter: readonly Paragraph[], name: string): string {
-	const body = letter.map((paragraph) => paragraph.map((s) => s.text).join(' ')).join('\n\n');
-	return `Dear hiring team,\n\n${body}\n\nSincerely,\n${name === '' ? '[Your name]' : name}`;
+	return `Dear hiring team,\n\n${plainText(letter)}\n\nSincerely,\n${name === '' ? '[Your name]' : name}`;
 }

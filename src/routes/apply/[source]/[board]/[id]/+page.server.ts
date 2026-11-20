@@ -7,7 +7,17 @@ import { matchQuestion } from '#lib/kit/match.ts';
 import { buildResume, jobTextOf } from '#lib/kit/resume.ts';
 import { SKILLS } from '#lib/kit/skills.ts';
 import { addGapFact, listFacts } from '#lib/server/facts.ts';
-import { capMicros, dollars, draftLetter, getDrafts, spentOn } from '#lib/server/drafts.ts';
+import {
+	capMicros,
+	dollars,
+	draftAnswer,
+	draftLetter,
+	getAnswerDrafts,
+	getDrafts,
+	keepAnswerDraft,
+	spentOn
+} from '#lib/server/drafts.ts';
+import { draftable, plainText } from '#lib/kit/letter.ts';
 import { chooseModel } from '#lib/server/models/model.ts';
 import { PROVIDERS } from '#lib/server/models/providers.ts';
 import { getProfile } from '#lib/server/profile.ts';
@@ -92,15 +102,17 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 	const posting = await getPosting(db, key);
 	if (!posting) error(404, 'That job is no longer in Job Ranger.');
 	const today = new Date().toISOString().slice(0, 10);
-	const [kit, application, answers, facts, drafts, spent, profile] = await Promise.all([
-		getKit(db, key),
-		getApplication(db, key),
-		listAnswers(db),
-		listFacts(db),
-		getDrafts(db, key),
-		spentOn(db, today),
-		getProfile(db)
-	]);
+	const [kit, application, answers, facts, drafts, spent, profile, answerDrafts] =
+		await Promise.all([
+			getKit(db, key),
+			getApplication(db, key),
+			listAnswers(db),
+			listFacts(db),
+			getDrafts(db, key),
+			spentOn(db, today),
+			getProfile(db),
+			getAnswerDrafts(db, key)
+		]);
 	const factText = new Map(facts.map((fact) => [fact.id, fact.text]));
 	const usable = facts.filter((fact) => fact.confirmed && !fact.retired);
 	const gaps =
@@ -128,7 +140,31 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 						postingText: kit.postingText,
 						gaps,
 						basics: kit.questions.filter((q) => q.basic).map((q) => q.label),
-						items: itemsOf(kit, answers)
+						items: itemsOf(kit, answers).map((item) => {
+							const draft = answerDrafts.find((d) => d.question === item.label);
+							return {
+								...item,
+								draftable: draftable(item.type),
+								draft:
+									draft === undefined
+										? null
+										: {
+												created: dateLabel(draft.createdAt),
+												cost: dollars(draft.costMicros),
+												problems: draft.problems,
+												paragraphs: draft.paragraphs,
+												text: plainText(draft.paragraphs),
+												used: draft.paragraphs.map((paragraph) =>
+													paragraph.map((sentence) =>
+														sentence.facts.map(
+															(id) =>
+																factText.get(id) ?? `Fact ${String(id)} (no longer in your bank)`
+														)
+													)
+												)
+											}
+							};
+						})
 					},
 		/** Every saved answer, to browse for a question no type matched. */
 		answers,
@@ -196,6 +232,34 @@ export const actions: Actions = {
 				kind
 			)
 		);
+	},
+	draftAnswer: async ({ params, request, fetch }) => {
+		const question = value(await request.formData(), 'question', 500);
+		return reply(
+			await draftAnswer(
+				database(),
+				{
+					setup: chooseModel(PROVIDERS, setting, fetch),
+					capMicros: capMicros(setting('DRAFT_DAILY_CAP_USD')),
+					now: new Date().toISOString()
+				},
+				keyOf(params),
+				question
+			)
+		);
+	},
+	keepAnswer: async ({ params, request }) => {
+		const form = await request.formData();
+		const question = value(form, 'question', 500);
+		const edited = value(form, 'text', 20_000);
+		const result = await keepAnswerDraft(
+			database(),
+			keyOf(params),
+			question,
+			edited,
+			new Date().toISOString()
+		);
+		return result.ok ? { result } : fail(400, { result, kept: { question, edited } });
 	},
 	posting: async ({ params, request }) => {
 		const pasted = value(await request.formData(), 'posting', 120_000);

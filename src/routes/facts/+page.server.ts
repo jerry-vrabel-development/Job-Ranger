@@ -15,6 +15,13 @@ import {
 	type Field,
 	type Result
 } from '#lib/server/facts.ts';
+import {
+	checkProfile,
+	getProfile,
+	PROFILE_MAX,
+	saveProfile,
+	type ProfileField
+} from '#lib/server/profile.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 function database(): D1Database {
@@ -23,7 +30,11 @@ function database(): D1Database {
 	return db;
 }
 
-export const load: PageServerLoad = async () => ({ facts: await listFacts(database()) });
+export const load: PageServerLoad = async () => {
+	const db = database();
+	const [facts, profile] = await Promise.all([listFacts(db), getProfile(db)]);
+	return { facts, profile };
+};
 
 function value(form: FormData, name: string, max: number): string {
 	const raw = form.get(name);
@@ -54,6 +65,20 @@ async function onFact(
 }
 
 export const actions: Actions = {
+	profile: async ({ request }) => {
+		const form = await request.formData();
+		const values = Object.fromEntries(
+			(Object.keys(PROFILE_MAX) as ProfileField[]).map((name) => [
+				name,
+				value(form, name, PROFILE_MAX[name] * 4)
+			])
+		) as Record<ProfileField, string>;
+		const checked = checkProfile(values);
+		if (!checked.ok) {
+			return fail(400, { details: { field: checked.field, message: checked.message, values } });
+		}
+		return { result: await saveProfile(database(), checked.profile) };
+	},
 	add: async ({ request }) => {
 		const values = fields(await request.formData());
 		const checked = checkFact(values);

@@ -4,8 +4,12 @@ import { QUESTION_LABELS, type Question } from '#lib/answers.ts';
 import { dateLabel, toJobCard } from '#lib/jobs/display.ts';
 import { SOURCE_NAMES } from '#lib/jobs/posting.ts';
 import { matchQuestion } from '#lib/kit/match.ts';
+import { buildResume, jobTextOf } from '#lib/kit/resume.ts';
+import { SKILLS } from '#lib/kit/skills.ts';
+import { addGapFact, listFacts } from '#lib/server/facts.ts';
 import { listAnswers, type Answer } from '#lib/server/answers.ts';
 import {
+	dismissGap,
 	getApplication,
 	getKit,
 	getPosting,
@@ -13,6 +17,7 @@ import {
 	parseJobKey,
 	prepareKit,
 	savePasted,
+	savePostingText,
 	setAiRule,
 	unmarkApplied,
 	type JobKey,
@@ -76,11 +81,19 @@ export const load: PageServerLoad = async ({ params }) => {
 	const key = keyOf(params);
 	const posting = await getPosting(db, key);
 	if (!posting) error(404, 'That job is no longer in Job Ranger.');
-	const [kit, application, answers] = await Promise.all([
+	const [kit, application, answers, facts] = await Promise.all([
 		getKit(db, key),
 		getApplication(db, key),
-		listAnswers(db)
+		listAnswers(db),
+		listFacts(db)
 	]);
+	const usable = facts.filter((fact) => fact.confirmed && !fact.retired);
+	const gaps =
+		kit === null
+			? []
+			: buildResume(usable, jobTextOf(posting, kit)).gaps.filter(
+					(skill) => !kit.dismissed.includes(skill)
+				);
 	return {
 		job: {
 			...toJobCard(posting, new Date().toISOString()),
@@ -97,12 +110,15 @@ export const load: PageServerLoad = async ({ params }) => {
 						aiSentence: kit.aiSentence,
 						aiDecidedBy: kit.aiDecidedBy,
 						pasted: kit.pasted.join('\n'),
+						postingText: kit.postingText,
+						gaps,
 						basics: kit.questions.filter((q) => q.basic).map((q) => q.label),
 						items: itemsOf(kit, answers)
 					},
 		/** Every saved answer, to browse for a question no type matched. */
 		answers,
-		applied: application === null ? null : dateLabel(application.appliedAt)
+		applied: application === null ? null : dateLabel(application.appliedAt),
+		factCount: usable.length
 	};
 };
 
@@ -121,6 +137,26 @@ export const actions: Actions = {
 		const pasted = value(await request.formData(), 'pasted', 40_000);
 		const result = await savePasted(database(), keyOf(params), pasted);
 		return result.ok ? { result } : fail(400, { result, pasted });
+	},
+	posting: async ({ params, request }) => {
+		const pasted = value(await request.formData(), 'posting', 120_000);
+		const result = await savePostingText(database(), keyOf(params), pasted);
+		return result.ok ? { result } : fail(400, { result, posting: pasted });
+	},
+	gap: async ({ params, request }) => {
+		const form = await request.formData();
+		const skill = value(form, 'skill', 100);
+		const answer = form.get('answer');
+		if (skill === '' || !SKILLS.includes(skill)) {
+			return fail(400, {
+				result: { ok: false, message: 'That skill isn’t one the kit asks about.' }
+			});
+		}
+		if (answer === 'professional' || answer === 'side' || answer === 'learning') {
+			return reply(await addGapFact(database(), skill, answer));
+		}
+		if (answer === 'no') return reply(await dismissGap(database(), keyOf(params), skill));
+		return fail(400, { result: { ok: false, message: 'Say whether you have used it.' } });
 	},
 	rule: async ({ params, request }) => {
 		const form = await request.formData();

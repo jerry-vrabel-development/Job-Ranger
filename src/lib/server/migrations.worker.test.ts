@@ -334,3 +334,24 @@ describe('migration 0011: kits and applications', () => {
 		expect(await first('SELECT answer_ids FROM applications')).toEqual({ answer_ids: '[]' });
 	});
 });
+
+describe('migration 0012: profile and kit text', () => {
+	it('keeps one profile row, and adds posting text and dismissed skills to kits', async () => {
+		await applyD1Migrations(db, [...MIGRATIONS]);
+		await db.prepare("INSERT INTO profile (id, name) VALUES (1, 'Jane')").run();
+		await expect(
+			db.prepare("INSERT INTO profile (id, name) VALUES (2, 'Two')").run()
+		).rejects.toThrow();
+		await db
+			.prepare("INSERT INTO kits (source, board, posting_id) VALUES ('lever', 'f', '1')")
+			.run();
+		expect(await first('SELECT posting_text, dismissed FROM kits')).toEqual({
+			posting_text: '',
+			dismissed: '[]'
+		});
+		await expect(db.prepare("UPDATE kits SET dismissed = '{}'").run()).rejects.toThrow();
+		await expect(
+			db.prepare(`UPDATE kits SET posting_text = '${'x'.repeat(30_001)}'`).run()
+		).rejects.toThrow();
+	});
+});

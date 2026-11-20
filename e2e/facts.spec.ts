@@ -14,9 +14,10 @@ test.describe('the facts page', () => {
 	test('has a clear title, counts in words, and puts facts to check first', async ({ page }) => {
 		await expect(page).toHaveTitle('Facts · Job Ranger');
 		await expect(page.getByRole('heading', { level: 1 })).toHaveText('Facts');
-		await expect(page.getByText('2 facts: 1 confirmed, 1 to check, 0 retired.')).toBeVisible();
+		await expect(page.getByText('3 facts: 2 confirmed, 1 to check, 0 retired.')).toBeVisible();
 		await expect(page.getByRole('heading', { level: 2 })).toHaveText([
 			'To check (1)',
+			'Your details',
 			'Add a fact',
 			'Confirmed facts'
 		]);
@@ -28,7 +29,10 @@ test.describe('the facts page', () => {
 			pasted.getByRole('button', { name: 'Confirm Raspberry Pi and Home Assistant' })
 		).toBeVisible();
 		const typed = page.getByRole('article', { name: /^Led the checkout rebuild/ });
-		await expect(page.getByRole('heading', { level: 3 })).toHaveText(['Accomplishment (1)']);
+		await expect(page.getByRole('heading', { level: 3 })).toHaveText([
+			'Role (1)',
+			'Accomplishment (1)'
+		]);
 		await expect(typed.getByText('Professional · Example Co · 2019–2021')).toBeVisible();
 		await expect(typed.getByRole('button', { name: /^Confirm/ })).toHaveCount(0);
 	});
@@ -55,7 +59,19 @@ test.describe('the facts page', () => {
 			/Nothing was added\. Line 2 needs five parts separated by \|\./
 		);
 		await expect(box).toHaveValue('skill | side | | | Fine line\njust words');
-		await expect(page.getByText('2 facts: 1 confirmed, 1 to check, 0 retired.')).toBeVisible();
+		await expect(page.getByText('3 facts: 2 confirmed, 1 to check, 0 retired.')).toBeVisible();
+	});
+
+	test('asks for your details, and checks the email next to its field', async ({ page }) => {
+		await expect(page.getByText('Add your details…')).toBeVisible();
+		const email = page.getByRole('textbox', { name: 'Email (optional)' });
+		await email.fill('jane@example');
+		await page.getByRole('textbox', { name: 'Name (optional)' }).fill('Jane Doe');
+		await page.getByRole('button', { name: 'Save your details' }).click();
+		await expect(email).toBeFocused();
+		await expect(email).toHaveAttribute('aria-invalid', 'true');
+		await expect(email).toHaveAccessibleDescription(/doesn’t look complete/);
+		await expect(page.getByRole('textbox', { name: 'Name (optional)' })).toHaveValue('Jane Doe');
 	});
 
 	test('is in the main navigation, marked when you are on it', async ({ page }) => {

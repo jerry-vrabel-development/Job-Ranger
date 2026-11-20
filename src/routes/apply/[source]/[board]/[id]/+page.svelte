@@ -25,6 +25,13 @@
 
 	const result = $derived(form && 'result' in form ? form.result : undefined);
 	const pastedBack = $derived(form && 'pasted' in form ? form.pasted : undefined);
+	const postingBack = $derived(form && 'posting' in form ? form.posting : undefined);
+	const GAP_ANSWERS = [
+		{ value: 'professional', label: 'Professional' },
+		{ value: 'side', label: 'Side project or hobby' },
+		{ value: 'learning', label: 'Learning now' },
+		{ value: 'no', label: 'No' }
+	] as const;
 	const kit = $derived(data.kit);
 	const job = $derived(data.job);
 	const forbids = $derived(kit?.aiRule === 'forbids');
@@ -264,6 +271,76 @@
 			</form>
 		{/if}
 	</section>
+
+	<section aria-labelledby="resume-heading">
+		<h2 id="resume-heading">Resume</h2>
+		{#if data.factCount === 0}
+			<p>
+				Your resume is built from confirmed facts, and none are confirmed yet. <a
+					href={resolve('/facts')}>Add or confirm facts</a
+				>.
+			</p>
+		{:else}
+			<p>
+				<a
+					href={resolve('/apply/[source]/[board]/[id]/resume', {
+						source: job.source,
+						board: job.board,
+						id: job.id
+					})}>Open the resume for this job</a
+				>: picked from your {countLabel(data.factCount, 'confirmed fact')}, ready to print or save
+				as a PDF.
+			</p>
+		{/if}
+		<details open={postingBack !== undefined}>
+			<summary
+				>{kit.postingText === ''
+					? 'Paste the posting’s text…'
+					: 'Change the posting’s text…'}</summary
+			>
+			<form method="POST" action="?/posting" use:enhance={afterAction} class="stack">
+				<label for="posting">The posting’s text</label>
+				<p class="hint" id="posting-hint">
+					Helps pick the facts that fit and find skills you haven’t added. The AI-rule check reads
+					it too, unless you’ve decided that yourself.
+				</p>
+				<textarea
+					id="posting"
+					name="posting"
+					rows="6"
+					aria-describedby="posting-hint"
+					value={browser ? undefined : (postingBack ?? kit.postingText)}
+					defaultValue={postingBack ?? kit.postingText}></textarea>
+				<button type="submit">Save the posting’s text</button>
+			</form>
+		</details>
+		{#if kit.gaps.length > 0}
+			<h3>Skills the posting names that aren’t in your facts</h3>
+			<p>
+				Have you used them? A yes becomes a fact, labeled the way you say, so it’s never claimed as
+				more than it was.
+			</p>
+			<ul class="gaps">
+				{#each kit.gaps as skill (skill)}
+					<li>
+						<form method="POST" action="?/gap" use:enhance={afterAction}>
+							<input type="hidden" name="skill" value={skill} />
+							<fieldset>
+								<legend>{skill}</legend>
+								<div class="buttons">
+									{#each GAP_ANSWERS as answer (answer.value)}
+										<button type="submit" name="answer" value={answer.value}
+											>{answer.label}<span class="visually-hidden">{` ${skill}`}</span></button
+										>
+									{/each}
+								</div>
+							</fieldset>
+						</form>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	</section>
 {/if}
 
 <section aria-labelledby="applied-heading">
@@ -435,6 +512,23 @@
 
 	details {
 		margin: 1rem 0;
+	}
+
+	.gaps {
+		list-style: none;
+		padding: 0;
+	}
+
+	fieldset {
+		border: 1px solid var(--rule);
+		border-radius: 6px;
+		margin: 0 0 0.75rem;
+		padding: 0.5rem 1rem 0.75rem;
+	}
+
+	legend {
+		font-weight: 600;
+		padding: 0 0.25rem;
 	}
 
 	summary {

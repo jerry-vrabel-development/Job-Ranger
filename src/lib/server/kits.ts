@@ -36,6 +36,10 @@ export interface Kit {
 	readonly aiRule: AiRule;
 	readonly aiSentence: string;
 	readonly aiDecidedBy: 'check' | 'me' | null;
+	/** The posting's words, read from the board or pasted in. */
+	readonly postingText: string;
+	/** Skills the posting names that I said I don't have. */
+	readonly dismissed: readonly string[];
 }
 
 export interface Result {
@@ -79,6 +83,14 @@ function aiRuleOf(value: string): AiRule {
 	throw new StoredDataError('kit ai_rule is not one we know');
 }
 
+function dismissedOf(value: string): string[] {
+	const parsed: unknown = JSON.parse(value);
+	if (!Array.isArray(parsed) || !parsed.every((item) => typeof item === 'string')) {
+		throw new StoredDataError('kit dismissed is not a list of words');
+	}
+	return parsed;
+}
+
 export async function getKit(db: D1Database, key: JobKey): Promise<Kit | null> {
 	const row = await db
 		.prepare(`SELECT * FROM kits WHERE ${WHERE}`)
@@ -93,13 +105,17 @@ export async function getKit(db: D1Database, key: JobKey): Promise<Kit | null> {
 		readNote: text(row, 'read_note'),
 		aiRule: aiRuleOf(text(row, 'ai_rule')),
 		aiSentence: text(row, 'ai_sentence'),
-		aiDecidedBy: decidedBy === 'check' || decidedBy === 'me' ? decidedBy : null
+		aiDecidedBy: decidedBy === 'check' || decidedBy === 'me' ? decidedBy : null,
+		postingText: text(row, 'posting_text'),
+		dismissed: dismissedOf(text(row, 'dismissed'))
 	};
 }
 
 interface Read {
 	readonly questions: readonly FormQuestion[];
 	readonly note: string;
+	/** The posting's words, or empty when the board doesn't share them. */
+	readonly text: string;
 	/** The check's finding, or null when the posting's text couldn't be read. */
 	readonly rule: { readonly rule: 'none' | 'forbids'; readonly sentence: string } | null;
 }
@@ -109,6 +125,7 @@ async function readForm(fetcher: typeof fetch, key: JobKey): Promise<Read> {
 		return {
 			questions: [],
 			note: `${SOURCE_NAMES[key.source]} doesn't share a form's questions. Paste them in from the form.`,
+			text: '',
 			rule: null
 		};
 	}
@@ -118,6 +135,7 @@ async function readForm(fetcher: typeof fetch, key: JobKey): Promise<Read> {
 		const asked = job.questions.filter((question) => !question.basic).length;
 		return {
 			questions: job.questions,
+			text: job.text.slice(0, POSTING_TEXT_MAX),
 			note: `Read the form from Greenhouse: ${String(asked)} ${asked === 1 ? 'question' : 'questions'} beyond name, contact and files.`,
 			rule: sentence === null ? { rule: 'none', sentence: '' } : { rule: 'forbids', sentence }
 		};
@@ -131,6 +149,7 @@ async function readForm(fetcher: typeof fetch, key: JobKey): Promise<Read> {
 		return {
 			questions: [],
 			note: `Couldn't read the form from Greenhouse (${why}). Paste the questions in from the form.`,
+			text: '',
 			rule: null
 		};
 	}
@@ -151,10 +170,11 @@ export async function prepareKit(
 	const decidedBy = read.rule === null ? null : 'check';
 	await db
 		.prepare(
-			`INSERT INTO kits (source, board, posting_id, questions, read_note, ai_rule, ai_sentence, ai_decided_by)
-			 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+			`INSERT INTO kits (source, board, posting_id, questions, read_note, ai_rule, ai_sentence, ai_decided_by, posting_text)
+			 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
 			 ON CONFLICT (source, board, posting_id) DO UPDATE SET
 				questions = excluded.questions,
+				posting_text = CASE WHEN excluded.posting_text = '' THEN kits.posting_text ELSE excluded.posting_text END,
 				read_note = excluded.read_note,
 				ai_rule = CASE WHEN kits.ai_decided_by = 'me' THEN kits.ai_rule ELSE excluded.ai_rule END,
 				ai_sentence = CASE WHEN kits.ai_decided_by = 'me' THEN kits.ai_sentence ELSE excluded.ai_sentence END,
@@ -169,13 +189,69 @@ export async function prepareKit(
 			read.note,
 			rule,
 			sentence,
-			decidedBy
+			decidedBy,
+			read.text
 		)
 		.run();
 	return { ok: true, message: read.note };
 }
 
 const NO_KIT: Result = { ok: false, message: 'Prepare the kit first.' };
+
+export const POSTING_TEXT_MAX = 30_000;
+
+/**
+ * Saves the posting's words, pasted in. Unless I've decided the AI rule
+ * myself, the check reads the new text.
+ */
+export async function savePostingText(
+	db: D1Database,
+	key: JobKey,
+	pasted: string
+): Promise<Result> {
+	const kept = pasted.replace(/\s+/g, ' ').trim();
+	if (kept.length > POSTING_TEXT_MAX) {
+		return { ok: false, message: 'That posting is too long to keep; paste the main part.' };
+	}
+	const sentence = kept === '' ? null : findAiRule(kept);
+	const row = await db
+		.prepare(
+			`UPDATE kits SET posting_text = ?4,
+				ai_rule = CASE WHEN ai_decided_by = 'me' OR ?4 = '' THEN ai_rule ELSE ?5 END,
+				ai_sentence = CASE WHEN ai_decided_by = 'me' OR ?4 = '' THEN ai_sentence ELSE ?6 END,
+				ai_decided_by = CASE WHEN ai_decided_by = 'me' OR ?4 = '' THEN ai_decided_by ELSE 'check' END,
+				updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+			 WHERE ${WHERE} RETURNING ai_rule`
+		)
+		.bind(
+			key.source,
+			key.board,
+			key.id,
+			kept,
+			sentence === null ? 'none' : 'forbids',
+			sentence ?? ''
+		)
+		.first<Row>();
+	if (row === null) return NO_KIT;
+	return {
+		ok: true,
+		message: kept === '' ? 'Cleared the posting text.' : 'Saved the posting text.'
+	};
+}
+
+/** "I don't have it": the kit stops asking about this skill for this job. */
+export async function dismissGap(db: D1Database, key: JobKey, skill: string): Promise<Result> {
+	const row = await db
+		.prepare(
+			`UPDATE kits SET dismissed = json_insert(dismissed, '$[#]', ?4),
+			 updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE ${WHERE} RETURNING dismissed`
+		)
+		.bind(key.source, key.board, key.id, skill)
+		.first<Row>();
+	return row === null
+		? NO_KIT
+		: { ok: true, message: `Noted: no ${skill}. It stays off this resume, which is honest.` };
+}
 
 export const PASTED_LINE_MAX = 500;
 

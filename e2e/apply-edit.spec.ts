@@ -90,4 +90,28 @@ test('prepares a kit, lines up saved answers, records the AI rule, and records a
 	await page.getByRole('button', { name: "Undo: I haven't applied" }).click();
 	await expect(status).toHaveText('Removed the application record.');
 	await expect(page.getByRole('button', { name: 'I applied' })).toBeVisible();
+
+	// The posting's words find skills the facts don't have: each is a question, not a verdict.
+	await page.getByText('Paste the posting’s text…').click();
+	await page
+		.getByRole('textbox', { name: 'The posting’s text' })
+		.fill('You will write Rust and manage it with Terraform.');
+	await page.getByRole('button', { name: 'Save the posting’s text' }).click();
+	await expect(status).toHaveText('Saved the posting text.');
+	await expect(page.getByRole('group', { name: 'Rust', exact: true })).toBeVisible();
+	await expect(page.getByRole('group', { name: 'Terraform', exact: true })).toBeVisible();
+	await page.getByRole('button', { name: 'Learning now Terraform' }).click();
+	await expect(status).toHaveText(
+		'Added Terraform to your facts (learning now). Add where and when on Facts.'
+	);
+	await page.getByRole('button', { name: 'No Rust' }).click();
+	await expect(status).toHaveText('Noted: no Rust. It stays off this resume, which is honest.');
+	await expect(page.getByRole('heading', { name: /Skills the posting names/ })).toHaveCount(0);
+
+	await page.getByRole('link', { name: 'Open the resume for this job' }).click();
+	await expect(page.getByRole('heading', { name: 'Skills' })).toBeVisible();
+	await expect(
+		page.getByRole('listitem').filter({ hasText: 'Terraform (learning)' })
+	).toBeVisible();
+	await expect(page.getByText('Rust', { exact: true })).toHaveCount(0);
 });

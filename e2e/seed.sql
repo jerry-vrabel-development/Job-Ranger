@@ -1,5 +1,6 @@
 -- Browser-test data for the local D1 (npm run e2e:seed). Safe to run again:
 -- it starts from empty. Real-sized: long text, many jobs, every kind of card.
+DELETE FROM facts;
 DELETE FROM board_interests;
 DELETE FROM interests;
 DELETE FROM board_counts;
@@ -76,3 +77,11 @@ SELECT 'ashby', 'example', 'job-' || i, 'Example Co', 'Software Engineer ' || i,
 	CASE WHEN i % 3 = 0 THEN NULL ELSE '$120K - $140K' END,
 	'2026-10-01T11:23:00.000Z', '2026-11-17T11:23:00.000Z', '2026-10-02T00:00:00.000Z'
 FROM n;
+
+-- Facts (made up): one confirmed, one pasted and waiting to be checked.
+INSERT INTO facts (id, kind, experience, organization, period, text, source, confirmed_at) VALUES
+	(1, 'accomplishment', 'professional', 'Example Co', '2019–2021',
+		'Led the checkout rebuild that cut page load time in half.', 'typed',
+		'2026-11-18T12:00:00.000Z'),
+	(2, 'skill', 'side', 'Home lab', 'around 2015', 'Raspberry Pi and Home Assistant', 'pasted',
+		NULL);

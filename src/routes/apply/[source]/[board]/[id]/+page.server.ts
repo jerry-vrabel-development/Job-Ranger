@@ -18,8 +18,7 @@ import {
 	spentOn
 } from '#lib/server/drafts.ts';
 import { draftable, plainText } from '#lib/kit/letter.ts';
-import { chooseModel } from '#lib/server/models/model.ts';
-import { PROVIDERS } from '#lib/server/models/providers.ts';
+import { chooseModel, PROVIDERS } from '#lib/server/models/model.ts';
 import { getProfile } from '#lib/server/profile.ts';
 import { listAnswers, type Answer } from '#lib/server/answers.ts';
 import {

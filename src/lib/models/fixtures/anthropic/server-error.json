@@ -1,0 +1,6 @@
+{
+	"note": "Built from Anthropic's error shape, not recorded live.",
+	"status": 500,
+	"headers": {},
+	"body": { "type": "error", "error": { "type": "api_error", "message": "Internal error." } }
+}

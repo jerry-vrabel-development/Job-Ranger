@@ -1,61 +1,12 @@
 /**
- * The one seam between Job Ranger and any language model (design note 0004,
- * decision 9). Drafting asks a provider for structured output through this
- * interface; the honesty checks run in plain code on whatever comes back, so
- * they hold whichever model writes. Add a provider by adding an adapter and
- * listing it in PROVIDERS, with its models' prices.
+ * Which model Job Ranger drafts with, from the Worker's settings
+ * (design note 0004, decision 9). The calls themselves go through the
+ * runtime-neutral module in src/lib/models; this file only reads settings
+ * and keeps the key out of everything but the call.
  */
-
-/** Instructions, input and the shape the answer must fill. */
-export interface StructuredCall {
-	readonly model: string;
-	readonly system: string;
-	readonly user: string;
-	readonly schema: {
-		readonly name: string;
-		readonly description: string;
-		readonly input_schema: unknown;
-	};
-	readonly maxTokens: number;
-}
-
-export interface Usage {
-	readonly inputTokens: number;
-	readonly outputTokens: number;
-}
-
-export interface StructuredResult {
-	/** The filled-in shape, or null when the model answered some other way. */
-	readonly output: unknown;
-	readonly usage: Usage;
-}
-
-export interface ModelProvider {
-	structured(call: StructuredCall): Promise<StructuredResult>;
-}
-
-/** The call failed; the message is safe to show (no key, no prompt). */
-export class ModelError extends Error {
-	override readonly name = 'ModelError';
-}
-
-/**
- * Prices in millionths of a dollar per token. A model without a price can't
- * be used, because the daily cap couldn't be kept. Anthropic's pricing page,
- * checked Nov 20, 2026: Sonnet 5.5 $2 in / $10 out per million tokens; Haiku
- * 5.5 $0.10 / $0.50 for prompts up to 100,000 tokens.
- */
-export const PRICES: Readonly<Record<string, { input: number; output: number }>> = {
-	'claude-sonnet-5-5': { input: 2, output: 10 },
-	'claude-haiku-5-5': { input: 0.1, output: 0.5 }
-};
-
-/** What a call cost, in millionths of a dollar, rounded up; null for a model with no price. */
-export function costMicros(model: string, usage: Usage): number | null {
-	const price = PRICES[model];
-	if (price === undefined) return null;
-	return Math.ceil(usage.inputTokens * price.input + usage.outputTokens * price.output);
-}
+import { anthropic } from '#lib/models/anthropic.ts';
+import { priceOf, PRICES } from '#lib/models/prices.ts';
+import type { Adapter } from '#lib/models/types.ts';
 
 export interface ProviderInfo {
 	/** Shown on the page: "Claude (Anthropic)". */
@@ -63,22 +14,32 @@ export interface ProviderInfo {
 	/** The Worker secret holding this provider's key. */
 	readonly keySetting: string;
 	readonly defaultModel: string;
-	make(fetcher: typeof fetch, apiKey: string): ModelProvider;
+	make(fetcher: typeof fetch): Adapter;
 }
+
+export const PROVIDERS: Readonly<Record<string, ProviderInfo>> = {
+	anthropic: {
+		label: 'Claude (Anthropic)',
+		keySetting: 'ANTHROPIC_API_KEY',
+		defaultModel: 'claude-sonnet-5-5',
+		make: (fetcher) => anthropic(fetcher)
+	}
+};
 
 export type Setup =
 	| {
 			readonly ok: true;
-			readonly provider: ModelProvider;
+			readonly adapter: Adapter;
 			readonly model: string;
+			/** Passed to each call; never stored elsewhere or logged. */
+			readonly apiKey: string;
 			readonly label: string;
 	  }
 	| { readonly ok: false; readonly message: string };
 
 /**
- * Which provider and model drafting uses, from the Worker's settings:
  * MODEL_PROVIDER (default "anthropic"), DRAFT_MODEL (default the provider's
- * own), and the provider's key secret.
+ * own; it must be in the price table), and the provider's key secret.
  */
 export function chooseModel(
 	providers: Readonly<Record<string, ProviderInfo>>,
@@ -98,16 +59,11 @@ export function chooseModel(
 		return { ok: false, message: 'Drafting isn’t set up yet: the Worker has no API key.' };
 	}
 	const model = setting('DRAFT_MODEL') || info.defaultModel;
-	if (!Object.hasOwn(PRICES, model)) {
+	if (priceOf(PRICES, model) === null) {
 		return {
 			ok: false,
 			message: `Drafting isn’t set up: there’s no price on file for the model “${model}”, so the daily cap couldn’t be kept.`
 		};
 	}
-	return {
-		ok: true,
-		provider: info.make(fetcher, apiKey),
-		model,
-		label: `${info.label}, ${model}`
-	};
+	return { ok: true, adapter: info.make(fetcher), model, apiKey, label: `${info.label}, ${model}` };
 }

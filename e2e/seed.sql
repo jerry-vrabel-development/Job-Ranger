@@ -1,5 +1,6 @@
 -- Browser-test data for the local D1 (npm run e2e:seed). Safe to run again:
 -- it starts from empty. Real-sized: long text, many jobs, every kind of card.
+DELETE FROM profile;
 DELETE FROM answers;
 DELETE FROM facts;
 DELETE FROM board_interests;
@@ -85,7 +86,9 @@ INSERT INTO facts (id, kind, experience, organization, period, text, source, con
 		'Led the checkout rebuild that cut page load time in half.', 'typed',
 		'2026-11-18T12:00:00.000Z'),
 	(2, 'skill', 'side', 'Home lab', 'around 2015', 'Raspberry Pi and Home Assistant', 'pasted',
-		NULL);
+		NULL),
+	(3, 'role', 'professional', 'Example Co', '2019–2021', 'Senior Developer', 'typed',
+		'2026-11-18T12:00:00.000Z');
 
 -- Answers (made up): a short one in my own words, and a longer one written together.
 INSERT INTO answers (id, question, label, text, origin, notes) VALUES

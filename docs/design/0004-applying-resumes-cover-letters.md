@@ -220,8 +220,18 @@ Each step is one PR with unit, database and browser tests, including axe.
    unmatched question can browse any type, the AI-rule check quotes the
    sentence it found and my say overrides it (and survives a re-read), and
    "I applied" records the date and the answers offered (applications keep
-   company and title, and stay if the company is removed). **3b (next):**
-   the resume picked from confirmed facts, and gap questions.
+   company and title, and stay if the company is removed). **3b (built):**
+   a printable resume per job, picked by code from confirmed facts: every
+   professional role newest first with its four best-fitting
+   accomplishments, the three best-fitting projects, every skill (side and
+   learning ones labeled), education and links, and "picked for" words. A
+   fact ranks by the job's words it shares (title 3, team 2, posting 1;
+   filler and generic title words skipped). Skills the posting names that
+   no fact mentions are gap questions (from a list of about 150 skills);
+   an answer adds a confirmed fact at the level I gave, and "No" stops the
+   question for that job. Name and contact details live in "Your details"
+   on Facts and are never sent to a model. The posting's text is read from
+   Greenhouse or pasted in, and the AI-rule check reads it too.
 4. **Model drafts:** summary, cover letter, job-specific answers, with fact
    citations and the code checks; the daily cost cap.
 5. **Final review** (code checks first, then model suggestions).
@@ -248,9 +258,8 @@ Step 1 and 2 are useful on their own: copy-paste answers right away.
 
 ## Open questions
 
-- **Resume file:** a print-ready page saved as PDF from the browser (no new
-  code to maintain) or a PDF built in the Worker? Start with the print page;
-  revisit if uploads need something else.
+- **Resume file:** built as a print-ready page saved as PDF from the
+  browser. Revisit a PDF built in the Worker if uploads need it.
 - **Ashby and Lever:** do their public APIs give a posting's questions?
 
 ## What would change our mind

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { StoredDataError } from './db.ts';
 import {
 	addFact,
+	addGapFact,
 	confirmFact,
 	listFacts,
 	pasteFacts,
@@ -146,5 +147,23 @@ describe('reading facts', () => {
 		}
 		await db.prepare('PRAGMA ignore_check_constraints = OFF').run();
 		expect(await listFacts(db)).toHaveLength(1);
+	});
+});
+
+describe('gap answers', () => {
+	it('adds a confirmed skill from a gap question, labeled as I said', async () => {
+		expect(await addGapFact(db, 'Kubernetes', 'learning')).toEqual({
+			ok: true,
+			message: 'Added Kubernetes to your facts (learning now). Add where and when on Facts.'
+		});
+		expect((await addGapFact(db, 'Go', 'side')).message).toMatch(/\(side project or hobby\)/);
+		expect((await addGapFact(db, 'Rust', 'professional')).message).toMatch(/\(professional\)/);
+		expect(await only()).toMatchObject({
+			kind: 'skill',
+			text: 'Kubernetes',
+			experience: 'learning',
+			source: 'gap',
+			confirmed: true
+		});
 	});
 });

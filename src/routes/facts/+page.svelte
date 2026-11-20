@@ -31,6 +31,40 @@
 	const field = $derived(add?.field);
 	/** A problem with a paste, and what was pasted. */
 	const paste = $derived(form && 'paste' in form ? form.paste : undefined);
+	/** A problem with Your details, and what was typed. */
+	const details = $derived(form && 'details' in form ? form.details : undefined);
+	const detail = (name: keyof typeof data.profile) => details?.values[name] ?? data.profile[name];
+	const DETAIL_FIELDS = [
+		{
+			name: 'name',
+			label: 'Name',
+			hint: 'As it should appear on a resume.',
+			type: 'text',
+			auto: 'name'
+		},
+		{
+			name: 'headline',
+			label: 'Headline',
+			hint: 'One line under your name: “Full-stack developer”.',
+			type: 'text',
+			auto: 'off'
+		},
+		{
+			name: 'email',
+			label: 'Email',
+			hint: 'The one employers should write to.',
+			type: 'email',
+			auto: 'email'
+		},
+		{ name: 'phone', label: 'Phone', hint: '', type: 'tel', auto: 'tel' },
+		{
+			name: 'location',
+			label: 'Location',
+			hint: 'City and state is plenty.',
+			type: 'text',
+			auto: 'off'
+		}
+	] as const;
 
 	const toCheck = $derived(data.facts.filter((fact) => !fact.confirmed && !fact.retired));
 	const confirmed = $derived(data.facts.filter((fact) => fact.confirmed && !fact.retired));
@@ -49,6 +83,7 @@
 			await tick();
 			if (field) inputs[field]?.focus();
 			else if (paste) pasteBox?.focus();
+			else if (details) inputs[`detail-${details.field}`]?.focus();
 			else status?.focus();
 		};
 
@@ -193,6 +228,55 @@
 		</ul>
 	</section>
 {/if}
+
+<section aria-labelledby="details-heading">
+	<h2 id="details-heading">Your details</h2>
+	<p class="hint">
+		For the top of your resumes. They stay in Job Ranger and are never sent to a model.
+	</p>
+	<details open={details !== undefined || data.profile.name === ''}>
+		<summary
+			>{data.profile.name === ''
+				? 'Add your details…'
+				: `Edit your details (${data.profile.name})…`}</summary
+		>
+		<form method="POST" action="?/profile" use:enhance={afterAction} novalidate class="details">
+			{#each DETAIL_FIELDS as item (item.name)}
+				<div class="field">
+					<label for="detail-{item.name}"
+						>{item.label} <span class="optional">(optional)</span></label
+					>
+					{#if item.hint !== ''}
+						<p class="hint" id="detail-{item.name}-hint">{item.hint}</p>
+					{/if}
+					{#if details?.field === item.name}
+						<p class="error" id="detail-{item.name}-error">
+							<strong>Error:</strong>
+							{details.message}
+						</p>
+					{/if}
+					<input
+						id="detail-{item.name}"
+						name={item.name}
+						type={item.type}
+						autocomplete={item.auto}
+						value={browser ? undefined : detail(item.name)}
+						defaultValue={detail(item.name)}
+						aria-invalid={details?.field === item.name ? 'true' : undefined}
+						aria-describedby={[
+							details?.field === item.name ? `detail-${item.name}-error` : '',
+							item.hint !== '' ? `detail-${item.name}-hint` : ''
+						]
+							.filter((id) => id !== '')
+							.join(' ') || undefined}
+						bind:this={inputs[`detail-${item.name}`]}
+					/>
+				</div>
+			{/each}
+			<button type="submit">Save your details</button>
+		</form>
+	</details>
+</section>
 
 <section aria-labelledby="add-heading">
 	<h2 id="add-heading">Add a fact</h2>
@@ -416,6 +500,8 @@
 	}
 
 	input[type='text'],
+	input[type='email'],
+	input[type='tel'],
 	select,
 	textarea {
 		display: block;

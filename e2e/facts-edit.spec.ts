@@ -57,3 +57,12 @@ test('adds, pastes, edits, confirms, retires, restores and removes facts', async
 		page.getByRole('article', { name: 'Mentored three junior developers.' })
 	).toHaveCount(0);
 });
+
+test('saves your details', async ({ page }) => {
+	await page.goto('/facts');
+	await page.getByRole('textbox', { name: 'Name (optional)' }).fill('Jane Doe');
+	await page.getByRole('textbox', { name: 'Headline (optional)' }).fill('Full-stack developer');
+	await page.getByRole('button', { name: 'Save your details' }).click();
+	await expect(page.getByRole('status')).toHaveText('Saved your details.');
+	await expect(page.getByText('Edit your details (Jane Doe)…')).toBeVisible();
+});

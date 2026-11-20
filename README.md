@@ -18,7 +18,8 @@ of ready answers to common form questions with a Copy button, an apply kit
 per job (the form's questions with your saved answers lined up, an AI-rule
 check, and "I applied"), a printable resume per job picked from confirmed
 facts, with skills the posting names that you haven't added asked about, not
-assumed, and a daily
+assumed, cover letter drafts from Claude in which every sentence names its
+facts and code checks it, and a daily
 record of each company's open-job count, all behind sign-in. The rest of the features below are
 planned, not shipped yet. The plan is in
 [design note 0001](docs/design/0001-job-ranger.md), and how it connects to
@@ -121,6 +122,33 @@ npx wrangler secret put ACCESS_TEAM_DOMAIN     # https://<team>.cloudflareaccess
 npx wrangler secret put ACCESS_AUD             # the AUD tag (comma-separate several)
 npx wrangler secret put ACCESS_ALLOWED_EMAILS  # your email (comma-separate several)
 ```
+
+### Cover letter drafts (Claude API)
+
+Drafting a cover letter on an apply kit calls the Claude API (Sonnet) from
+the Worker. Without a key, everything else works and the kit says drafting
+isn't set up. To turn it on:
+
+1. Create an API key in the [Claude Console](https://platform.claude.com),
+   and set a monthly spending limit there as a second guard.
+2. Give it to the Worker as a secret. Wrangler asks for the value, so it
+   never lands in your shell history or the repository:
+
+```sh
+npx wrangler secret put ANTHROPIC_API_KEY
+```
+
+3. Optionally change the daily cap (default $1.00, in dollars):
+
+```sh
+npx wrangler secret put DRAFT_DAILY_CAP_USD   # for example 2.50
+```
+
+Each draft costs about two cents. The model gets the job and the facts
+picked for it, never your name or contact details, and every sentence it
+writes must name the facts it uses; code checks the draft against them and
+lists any problem in words. Postings that forbid AI-written answers are never
+drafted.
 
 ### The database and the daily fetch
 

@@ -1,5 +1,8 @@
 -- Browser-test data for the local D1 (npm run e2e:seed). Safe to run again:
 -- it starts from empty. Real-sized: long text, many jobs, every kind of card.
+DELETE FROM drafts;
+DELETE FROM kits;
+DELETE FROM model_usage;
 DELETE FROM profile;
 DELETE FROM answers;
 DELETE FROM facts;
@@ -96,3 +99,16 @@ INSERT INTO answers (id, question, label, text, origin, notes) VALUES
 	(2, 'about_me', '50 words', 'I started out hiring engineers.
 
 Now I build accessible web apps and test them hard.', 'together', 'From voice notes.');
+
+-- A prepared kit with a made-up letter draft, so the letter view is tested without an API key.
+-- The second sentence's number isn't in its fact, so the checks flagged it.
+INSERT INTO kits (source, board, posting_id, read_note, ai_rule, ai_decided_by) VALUES
+	('ashby', 'example', 'newest', 'Ashby doesn''t share a form''s questions. Paste them in from the form.',
+		'none', 'me');
+INSERT INTO drafts (source, board, posting_id, kind, paragraphs, problems, model, cost_micros,
+	created_at) VALUES
+	('ashby', 'example', 'newest', 'letter_full',
+		'[[{"text":"I would like to join Example Co.","facts":[]}],[{"text":"I led the checkout rebuild that cut page load time in half.","facts":[1]},{"text":"It served 40 stores.","facts":[1]}]]',
+		'[{"paragraph":1,"sentence":1,"problem":"The number 40 isn’t in the facts it cites."}]',
+		'claude-sonnet-5-5', 7000, '2026-11-20T15:00:00.000Z');
+

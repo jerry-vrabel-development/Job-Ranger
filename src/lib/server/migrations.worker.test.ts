@@ -355,3 +355,28 @@ describe('migration 0012: profile and kit text', () => {
 		).rejects.toThrow();
 	});
 });
+
+describe('migration 0013: drafts and usage', () => {
+	it('keeps draft kinds and JSON lists, and usage per day and model', async () => {
+		await applyD1Migrations(db, [...MIGRATIONS]);
+		const draft = (kind: string, paragraphs: string, cost: number) =>
+			db
+				.prepare(
+					`INSERT INTO drafts (source, board, posting_id, kind, paragraphs, model, cost_micros)
+					 VALUES ('lever', 'f', ?4, ?1, ?2, 'm', ?3)`
+				)
+				.bind(kind, paragraphs, cost, String(Math.random()))
+				.run();
+		await draft('letter_full', '[]', 0);
+		await expect(draft('poem', '[]', 0)).rejects.toThrow();
+		await expect(draft('letter_short', '{}', 0)).rejects.toThrow();
+		await expect(draft('letter_short', '[]', -1)).rejects.toThrow();
+		await db.prepare("INSERT INTO model_usage (day, model) VALUES ('2026-11-20', 'm')").run();
+		await expect(
+			db.prepare("INSERT INTO model_usage (day, model) VALUES ('2026-11-20', 'm')").run()
+		).rejects.toThrow();
+		await expect(
+			db.prepare("INSERT INTO model_usage (day, model) VALUES ('today', 'm')").run()
+		).rejects.toThrow();
+	});
+});

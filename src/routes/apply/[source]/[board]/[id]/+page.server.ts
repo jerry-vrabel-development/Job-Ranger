@@ -7,6 +7,8 @@ import { matchQuestion } from '#lib/kit/match.ts';
 import { buildResume, jobTextOf } from '#lib/kit/resume.ts';
 import { SKILLS } from '#lib/kit/skills.ts';
 import { addGapFact, listFacts } from '#lib/server/facts.ts';
+import { capMicros, dollars, draftLetter, getDrafts, spentOn } from '#lib/server/drafts.ts';
+import { getProfile } from '#lib/server/profile.ts';
 import { listAnswers, type Answer } from '#lib/server/answers.ts';
 import {
 	dismissGap,
@@ -25,6 +27,12 @@ import {
 	type Result
 } from '#lib/server/kits.ts';
 import type { Actions, PageServerLoad } from './$types';
+
+/** A Worker setting or secret, trimmed; empty when it isn't set. */
+function setting(name: string): string {
+	const value = (env as unknown as Record<string, unknown>)[name];
+	return typeof value === 'string' ? value.trim() : '';
+}
 
 function database(): D1Database {
 	const db = (env as Partial<Env>).DB;
@@ -81,12 +89,17 @@ export const load: PageServerLoad = async ({ params }) => {
 	const key = keyOf(params);
 	const posting = await getPosting(db, key);
 	if (!posting) error(404, 'That job is no longer in Job Ranger.');
-	const [kit, application, answers, facts] = await Promise.all([
+	const today = new Date().toISOString().slice(0, 10);
+	const [kit, application, answers, facts, drafts, spent, profile] = await Promise.all([
 		getKit(db, key),
 		getApplication(db, key),
 		listAnswers(db),
-		listFacts(db)
+		listFacts(db),
+		getDrafts(db, key),
+		spentOn(db, today),
+		getProfile(db)
 	]);
+	const factText = new Map(facts.map((fact) => [fact.id, fact.text]));
 	const usable = facts.filter((fact) => fact.confirmed && !fact.retired);
 	const gaps =
 		kit === null
@@ -118,7 +131,26 @@ export const load: PageServerLoad = async ({ params }) => {
 		/** Every saved answer, to browse for a question no type matched. */
 		answers,
 		applied: application === null ? null : dateLabel(application.appliedAt),
-		factCount: usable.length
+		factCount: usable.length,
+		drafting: {
+			ready: setting('ANTHROPIC_API_KEY') !== '',
+			spent: dollars(spent),
+			cap: dollars(capMicros(setting('DRAFT_DAILY_CAP_USD'))),
+			name: profile.name,
+			drafts: drafts.map((draft) => ({
+				...draft,
+				created: dateLabel(draft.createdAt),
+				cost: dollars(draft.costMicros),
+				/** Each sentence's cited facts, in words. */
+				used: draft.paragraphs.map((paragraph) =>
+					paragraph.map((sentence) =>
+						sentence.facts.map(
+							(id) => factText.get(id) ?? `Fact ${String(id)} (no longer in your bank)`
+						)
+					)
+				)
+			}))
+		}
 	};
 };
 
@@ -137,6 +169,25 @@ export const actions: Actions = {
 		const pasted = value(await request.formData(), 'pasted', 40_000);
 		const result = await savePasted(database(), keyOf(params), pasted);
 		return result.ok ? { result } : fail(400, { result, pasted });
+	},
+	draft: async ({ params, request, fetch }) => {
+		const kind = (await request.formData()).get('kind');
+		if (kind !== 'letter_full' && kind !== 'letter_short') {
+			return fail(400, { result: { ok: false, message: 'Say which length of letter to draft.' } });
+		}
+		return reply(
+			await draftLetter(
+				database(),
+				fetch,
+				{
+					apiKey: setting('ANTHROPIC_API_KEY'),
+					capMicros: capMicros(setting('DRAFT_DAILY_CAP_USD')),
+					now: new Date().toISOString()
+				},
+				keyOf(params),
+				kind
+			)
+		);
 	},
 	posting: async ({ params, request }) => {
 		const pasted = value(await request.formData(), 'posting', 120_000);

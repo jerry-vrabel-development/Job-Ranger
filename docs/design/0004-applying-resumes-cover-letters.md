@@ -170,8 +170,9 @@ Scoring and drafting are the portfolio centerpiece, so they are measured.
 - `answers`: id, question type, label (to tell versions apart), text,
   origin (`own`, `together`, `ai_edited`), notes (the receipts), created
   and updated times.
-- `kits`: one per job I open a kit for: posting, AI rule found (and its
-  sentence), drafts, created time.
+- `kits`: one per job I open a kit for: the form's questions, pasted
+  questions, the AI rule (and its sentence, and whether the check or I
+  decided), created time. Drafts come with step 4.
 - `applications`: posting, applied time, the versions sent, and the fact ids
   each used. Tracking (step 4) builds on this table.
 - Generated resumes and letters are stored privately in R2 only if I keep
@@ -212,7 +213,15 @@ Each step is one PR with unit, database and browser tests, including axe.
 3. **Apply kit without a model:** the job's questions (Greenhouse first),
    saved answers by type, a resume picked by code from confirmed facts, gap
    questions that add facts, the AI-rule check (code), "Open application" and
-   "I applied".
+   "I applied". _Built in two parts._ **3a (built):** a kit page per job,
+   linked from each job card. Greenhouse forms are read when I prepare the
+   kit (one GET, never in the daily fetch); other boards' questions are
+   pasted in. Questions are matched to answer types by readable rules, an
+   unmatched question can browse any type, the AI-rule check quotes the
+   sentence it found and my say overrides it (and survives a re-read), and
+   "I applied" records the date and the answers offered (applications keep
+   company and title, and stay if the company is removed). **3b (next):**
+   the resume picked from confirmed facts, and gap questions.
 4. **Model drafts:** summary, cover letter, job-specific answers, with fact
    citations and the code checks; the daily cost cap.
 5. **Final review** (code checks first, then model suggestions).

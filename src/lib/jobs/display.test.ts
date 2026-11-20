@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	dateLabel,
 	checkedLabel,
 	countLabel,
 	latest,
@@ -58,6 +59,9 @@ describe('toJobCard', () => {
 	it('carries only what a card shows, in words', () => {
 		expect(toJobCard(stored, NOW)).toEqual({
 			key: 'ashby:example:a',
+			source: 'ashby',
+			board: 'example',
+			id: 'a',
 			title: 'QA Engineer',
 			company: 'Example Co',
 			isNew: true,
@@ -109,5 +113,13 @@ describe('latest', () => {
 		);
 		expect(latest([null])).toBeNull();
 		expect(latest([])).toBeNull();
+	});
+});
+
+describe('dateLabel', () => {
+	it('shows a date in my time zone', () => {
+		expect(dateLabel('2026-11-20T15:00:00.000Z')).toBe('Nov 20, 2026');
+		// 2 a.m. UTC is still the evening before in Chicago.
+		expect(dateLabel('2026-11-21T02:00:00.000Z')).toBe('Nov 20, 2026');
 	});
 });

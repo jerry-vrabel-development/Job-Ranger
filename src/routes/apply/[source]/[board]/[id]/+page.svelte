@@ -1,0 +1,445 @@
+<script lang="ts">
+	import { tick } from 'svelte';
+	import { browser } from '$app/env';
+	import { enhance, type SubmitFunction } from '$app/forms';
+	import { resolve } from '$app/paths';
+	import {
+		ORIGIN_LABELS,
+		QUESTION_LABELS,
+		QUESTIONS,
+		wordCount,
+		type Question
+	} from '#lib/answers.ts';
+	import { countLabel } from '#lib/jobs/display.ts';
+	import { pageTitle } from '#lib/site.ts';
+	import type { PageProps } from './$types';
+
+	let { data, form }: PageProps = $props();
+
+	type Answer = (typeof data.answers)[number];
+
+	let status: HTMLElement | undefined = $state();
+	let copied = $state('');
+	/** For questions no type matched: the type I picked to browse, by question number. */
+	const picked: Record<number, Question | ''> = $state({});
+
+	const result = $derived(form && 'result' in form ? form.result : undefined);
+	const pastedBack = $derived(form && 'pasted' in form ? form.pasted : undefined);
+	const kit = $derived(data.kit);
+	const job = $derived(data.job);
+	const forbids = $derived(kit?.aiRule === 'forbids');
+
+	const afterAction: SubmitFunction =
+		() =>
+		async ({ update }) => {
+			copied = '';
+			await update({ refreshAll: true });
+			await tick();
+			status?.focus();
+		};
+
+	function pickedAnswers(index: number): Answer[] {
+		const type = picked[index];
+		if (!type) return [];
+		return data.answers.filter(
+			(answer) => answer.question === type && !(forbids && answer.origin === 'ai_edited')
+		);
+	}
+
+	async function copy(answer: Answer, question: string) {
+		try {
+			await navigator.clipboard.writeText(answer.text);
+			copied = `Copied your answer for “${question}”. Paste it into the form.`;
+		} catch {
+			copied = 'Couldn’t copy here. Select the answer’s text and copy it instead.';
+		}
+		await tick();
+		status?.focus();
+	}
+
+	function meta(answer: Answer): string {
+		return [answer.label, ORIGIN_LABELS[answer.origin], countLabel(wordCount(answer.text), 'word')]
+			.filter((part) => part !== '')
+			.join(' · ');
+	}
+</script>
+
+<svelte:head>
+	<title>{pageTitle(`Apply: ${job.title}`)}</title>
+</svelte:head>
+
+<p class="back"><a href={resolve('/jobs')}>Back to jobs</a></p>
+
+<h1>Apply: {job.title}</h1>
+<p class="company">{job.company} · {job.where} · {job.pay}</p>
+
+{#if job.closed}
+	<p class="note"><strong>Closed:</strong> this job has left {job.sourceName}'s board.</p>
+{/if}
+
+{#if copied !== ''}
+	<p class="note" role="status" tabindex="-1" bind:this={status}>{copied}</p>
+{:else if result}
+	<p class="note" class:problem={!result.ok} role="status" tabindex="-1" bind:this={status}>
+		{#if !result.ok}<strong>Not done:</strong>{/if}
+		{result.message}
+	</p>
+{/if}
+
+<p class="links">
+	<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- the employer's own apply page -->
+	<a class="apply" href={job.applyUrl} target="_blank" rel="noopener noreferrer"
+		>Open the application<span class="visually-hidden"> (opens in a new tab)</span></a
+	>
+	{#if job.jobUrl && job.jobUrl !== job.applyUrl}
+		<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- the employer's own posting -->
+		<a href={job.jobUrl} target="_blank" rel="noopener noreferrer"
+			>Read the posting<span class="visually-hidden"> (opens in a new tab)</span></a
+		>
+	{/if}
+</p>
+
+{#if kit === null}
+	<section aria-labelledby="prepare-heading">
+		<h2 id="prepare-heading">Prepare the kit</h2>
+		<p>
+			{#if job.source === 'greenhouse'}
+				Job Ranger reads this form's questions from Greenhouse, checks the posting for a rule
+				against AI-written answers, and lines up your saved answers for each question.
+			{:else}
+				{job.sourceName} doesn't share a form's questions, so you'll paste them in from the form. Your
+				saved answers are then lined up for each one.
+			{/if}
+		</p>
+		<form method="POST" action="?/prepare" use:enhance={afterAction}>
+			<button type="submit">Prepare the kit</button>
+		</form>
+	</section>
+{:else}
+	<section aria-labelledby="rule-heading">
+		<h2 id="rule-heading">AI rule</h2>
+		{#if kit.aiRule === 'forbids'}
+			<p>
+				<strong
+					>This posting forbids AI-written answers{kit.aiDecidedBy === 'me'
+						? ' (your call)'
+						: ''}.</strong
+				>
+				Only answers in your own words, or written together, are offered below.
+			</p>
+			{#if kit.aiSentence !== ''}
+				<blockquote>{kit.aiSentence}</blockquote>
+			{/if}
+		{:else if kit.aiRule === 'none'}
+			<p>
+				<strong
+					>No AI rule{kit.aiDecidedBy === 'me' ? ' (your call)' : ' found in the posting'}.</strong
+				>
+				{#if kit.aiDecidedBy === 'check'}
+					The check looks for a sentence that mentions AI with a “not”; it can miss one.
+				{/if}
+			</p>
+		{:else}
+			<p>
+				<strong>Not checked.</strong> Job Ranger couldn't read this posting's text. Look on the posting
+				for a line about AI, and say below.
+			</p>
+		{/if}
+		<details>
+			<summary
+				>{kit.aiRule === 'unknown' ? 'Say whether there is an AI rule…' : 'Change this…'}</summary
+			>
+			<form method="POST" action="?/rule" use:enhance={afterAction} class="stack">
+				<label for="sentence"
+					>The posting's line about AI <span class="optional">(optional)</span></label
+				>
+				<input
+					id="sentence"
+					name="sentence"
+					type="text"
+					autocomplete="off"
+					maxlength="500"
+					defaultValue={kit.aiSentence}
+				/>
+				<div class="buttons">
+					<button type="submit" name="rule" value="forbids">It forbids AI answers</button>
+					<button type="submit" name="rule" value="none">No AI rule</button>
+				</div>
+			</form>
+		</details>
+	</section>
+
+	<section aria-labelledby="questions-heading">
+		<h2 id="questions-heading">Questions ({String(kit.items.length)})</h2>
+		<p class="hint">{kit.readNote}</p>
+		{#if kit.basics.length > 0}
+			<p>The form also asks for: {kit.basics.join(', ')}.</p>
+		{/if}
+		{#if kit.items.length === 0}
+			<p>No questions yet. Paste them in from the form below.</p>
+		{:else}
+			<ol class="questions">
+				{#each kit.items as item, index (index)}
+					<li>
+						<h3>{item.label}</h3>
+						<p class="meta">
+							{[
+								item.required ? 'Required' : '',
+								item.from === 'pasted' ? 'Pasted in' : '',
+								item.typeLabel === null ? 'No saved type matches' : `Matches: ${item.typeLabel}`
+							]
+								.filter((part) => part !== '')
+								.join(' · ')}
+						</p>
+						{#if item.type !== null}
+							{#if item.answers.length === 0}
+								<p>
+									No saved answer for {item.typeLabel} yet{item.hidden > 0
+										? ` you can use here (${countLabel(item.hidden, 'AI-edited answer')} left out)`
+										: ''}. <a href={resolve('/answers')}>Add one on Answers</a>.
+								</p>
+							{/if}
+							{#each item.answers as answer (answer.id)}
+								<div class="answer">
+									<p class="meta">{meta(answer)}</p>
+									<p class="text">{answer.text}</p>
+									{#if browser}
+										<button type="button" onclick={() => copy(answer, item.label)}
+											>Copy<span class="visually-hidden">{` answer for ${item.label}`}</span
+											></button
+										>
+									{/if}
+								</div>
+							{/each}
+							{#if item.hidden > 0 && item.answers.length > 0}
+								<p class="hint">
+									{countLabel(item.hidden, 'AI-edited answer')} left out: this posting forbids AI answers.
+								</p>
+							{/if}
+						{:else if browser}
+							<label for="pick-{index}">Show saved answers for</label>
+							<select id="pick-{index}" bind:value={picked[index]}>
+								<option value="">Choose a question type</option>
+								{#each QUESTIONS as question (question)}
+									<option value={question}>{QUESTION_LABELS[question]}</option>
+								{/each}
+							</select>
+							{#each pickedAnswers(index) as answer (answer.id)}
+								<div class="answer">
+									<p class="meta">{meta(answer)}</p>
+									<p class="text">{answer.text}</p>
+									<button type="button" onclick={() => copy(answer, item.label)}
+										>Copy<span class="visually-hidden">{` answer for ${item.label}`}</span></button
+									>
+								</div>
+							{/each}
+						{:else}
+							<p><a href={resolve('/answers')}>Look through your saved answers</a>.</p>
+						{/if}
+					</li>
+				{/each}
+			</ol>
+		{/if}
+
+		<details open={pastedBack !== undefined}>
+			<summary>Paste questions from the form…</summary>
+			<form method="POST" action="?/pasted" use:enhance={afterAction} class="stack">
+				<label for="pasted">Questions, one per line</label>
+				<p class="hint" id="pasted-hint">
+					This replaces your earlier paste. Leave out name, email, phone and files.
+				</p>
+				<textarea
+					id="pasted"
+					name="pasted"
+					rows="6"
+					aria-describedby="pasted-hint"
+					value={browser ? undefined : (pastedBack ?? kit.pasted)}
+					defaultValue={pastedBack ?? kit.pasted}></textarea>
+				<button type="submit">Save questions</button>
+			</form>
+		</details>
+		{#if job.source === 'greenhouse'}
+			<form method="POST" action="?/prepare" use:enhance={afterAction}>
+				<button type="submit">Read the form again</button>
+			</form>
+		{/if}
+	</section>
+{/if}
+
+<section aria-labelledby="applied-heading">
+	<h2 id="applied-heading">Applied?</h2>
+	{#if data.applied}
+		<p><strong>You applied on {data.applied}.</strong></p>
+		<form method="POST" action="?/unapplied" use:enhance={afterAction}>
+			<button type="submit">Undo: I haven't applied</button>
+		</form>
+	{:else}
+		<p>
+			Open the application, paste in your answers and submit it there. Then come back and record it
+			here. Job Ranger never submits anything for you.
+		</p>
+		<form method="POST" action="?/applied" use:enhance={afterAction}>
+			<button type="submit">I applied</button>
+		</form>
+	{/if}
+</section>
+
+<style>
+	.company,
+	.hint,
+	.meta,
+	.optional {
+		color: var(--muted);
+	}
+
+	.hint {
+		font-size: 1rem;
+	}
+
+	.optional {
+		font-weight: 400;
+	}
+
+	.note {
+		background: var(--surface);
+		border: 1px solid var(--rule);
+		border-left: 4px solid var(--accent);
+		padding: 0.75rem 1rem;
+		border-radius: 4px;
+		overflow-wrap: anywhere;
+	}
+
+	/* A problem says so in words ("Not done:"); the thicker border is extra, not the signal. */
+	.note.problem {
+		border-left-width: 8px;
+	}
+
+	h1 {
+		overflow-wrap: anywhere;
+	}
+
+	section {
+		margin-top: 2rem;
+	}
+
+	h2 {
+		font-size: 1.4rem;
+	}
+
+	h3 {
+		font-size: 1.1rem;
+		margin: 0;
+		overflow-wrap: anywhere;
+	}
+
+	.links {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem 1.5rem;
+	}
+
+	.links a {
+		display: inline-block;
+		min-height: 44px;
+		padding: 0.5rem 0;
+	}
+
+	.apply {
+		font-weight: 600;
+	}
+
+	blockquote {
+		margin: 0.5rem 0;
+		padding: 0.5rem 1rem;
+		border-left: 4px double var(--accent);
+		background: var(--surface);
+		overflow-wrap: anywhere;
+	}
+
+	.questions {
+		padding-left: 1.5rem;
+	}
+
+	.questions > li {
+		margin-bottom: 1.5rem;
+	}
+
+	.meta {
+		margin: 0.25rem 0;
+	}
+
+	.answer {
+		background: var(--surface);
+		border: 1px solid var(--rule);
+		border-radius: 6px;
+		padding: 0.5rem 1rem;
+		margin: 0.5rem 0;
+		overflow-wrap: anywhere;
+	}
+
+	.text {
+		white-space: pre-wrap;
+	}
+
+	label {
+		display: block;
+		font-weight: 600;
+	}
+
+	input[type='text'],
+	select,
+	textarea {
+		display: block;
+		width: 100%;
+		font: inherit;
+		color: var(--text);
+		background: var(--surface);
+		border: 2px solid var(--muted);
+		border-radius: 4px;
+		padding: 0.5rem 0.6rem;
+		min-height: 44px;
+	}
+
+	textarea {
+		resize: vertical;
+	}
+
+	.stack {
+		display: grid;
+		gap: 0.35rem;
+		margin-bottom: 0.5rem;
+	}
+
+	.stack > button {
+		justify-self: start;
+		margin-top: 0.5rem;
+	}
+
+	.buttons {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin-top: 0.5rem;
+	}
+
+	button {
+		font: inherit;
+		color: var(--text);
+		background: var(--surface);
+		border: 2px solid var(--accent);
+		border-radius: 4px;
+		padding: 0.4rem 1rem;
+		min-height: 44px;
+		cursor: pointer;
+	}
+
+	details {
+		margin: 1rem 0;
+	}
+
+	summary {
+		cursor: pointer;
+		min-height: 44px;
+		padding: 0.5rem 0;
+	}
+</style>

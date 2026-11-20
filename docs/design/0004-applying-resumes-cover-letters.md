@@ -21,7 +21,8 @@ read.
   most of it reading and pasting. (A target to measure, not a promise.)
 - **Honest:** every claim on a resume, letter or answer traces to a fact I
   have confirmed. Hobby experience is never described as professional.
-- **In my voice:** drafts read like me, not like generic assistant prose.
+- **Plain and specific:** drafts read like a person, not like generic
+  assistant prose; my edits make them mine.
 - **Kind on hard days:** never a blank page; the slow work is done once.
 - **Respect employers' rules:** a posting that forbids AI-written answers
   gets my own words.
@@ -96,17 +97,21 @@ One click from a job card. It shows:
 ### 4. Drafting with the model
 
 The Worker calls the Claude API (option A). Drafts are built only from
-confirmed facts and my answer bank, in my voice, and the model must say which
+confirmed facts and my answer bank, plain and specific, and the model must say which
 facts each sentence uses. Code then checks it (see 7).
 
-- **Voice profile:** built from writing I did myself (emails, posts,
-  messages), not from the AI-drafted resume and letter. I approve the
-  samples it learns from.
+- **Models:** a mid-sized model (Sonnet) writes drafts; a small, fast one
+  (Haiku) runs quick checks like the AI-rule check and generic-line review;
+  the largest (Opus) only judges evals, on demand, never per kit. Prices are
+  checked when step 4 is built, not assumed here.
 - **The model never sees** my phone, email or address (code puts those on
   the resume), or anything I haven't confirmed.
 - **API key:** a Worker secret, set with `wrangler secret put`, never in the
   repository or a chat.
-- **Cost:** a few cents per kit; a daily cap stops runaway spending.
+- **Cost:** a few cents per kit. A hard daily cap in the app (starting
+  around $1, changeable) stops runaway spending; when it's reached the kit
+  says so and still works without a model. A spending limit in Anthropic's
+  Console is the second guard.
 
 ### 5. Postings that forbid AI: write together
 
@@ -159,7 +164,7 @@ Scoring and drafting are the portfolio centerpiece, so they are measured.
 
 ### Data (migrations 0009 onward)
 
-- `facts`: id, kind, text, organization, start and end (text, may be
+- `facts`: id, kind, text, organization, when (`period`, in words, may be
   approximate), experience (`professional`, `side`, `learning`), source,
   confirmed_at, retired_at, created and updated times.
 - `answers`: id, question type, text, origin (`own`, `together`,
@@ -197,14 +202,15 @@ exists.
 Each step is one PR with unit, database and browser tests, including axe.
 
 1. **Fact bank:** page, seeded from my resume and letter as unconfirmed
-   facts; confirm, edit, retire, add.
+   facts; confirm, edit, retire, add. _Built._ As built, "when" is one field
+   in words (`period`), not separate start and end.
 2. **Answer bank:** page, question types, origin labels.
 3. **Apply kit without a model:** the job's questions (Greenhouse first),
    saved answers by type, a resume picked by code from confirmed facts, gap
    questions that add facts, the AI-rule check (code), "Open application" and
    "I applied".
 4. **Model drafts:** summary, cover letter, job-specific answers, with fact
-   citations and the code checks; the voice profile; the daily cost cap.
+   citations and the code checks; the daily cost cap.
 5. **Final review** (code checks first, then model suggestions).
 6. **Evals script** and the saved set of postings.
 7. **Write together** list and the good day pile.
@@ -220,6 +226,12 @@ Step 1 and 2 are useful on their own: copy-paste answers right away.
    added yet", and my answer is recorded at the level I give it.
 4. **Full-page cover letter by default,** with a short version on hand.
 5. **Final review** on every writing field, suggestions only.
+6. **No voice profile** for now: drafts start from my confirmed facts and
+   are made mine by my edits.
+7. **Models:** Sonnet for drafts, Haiku for quick checks, Opus only for
+   eval judging; a hard daily cap, starting around $1.
+8. **After "I applied",** follow-up is tracked in Job Ranger (step 4), not
+   in Quest Log.
 
 ## Open questions
 
@@ -227,10 +239,6 @@ Step 1 and 2 are useful on their own: copy-paste answers right away.
   code to maintain) or a PDF built in the Worker? Start with the print page;
   revisit if uploads need something else.
 - **Ashby and Lever:** do their public APIs give a posting's questions?
-- **Voice samples:** which of my own writing to start from.
-- **Model and cap:** which Claude model, and the daily spending cap.
-- **After "I applied":** should it offer a follow-up quest in Quest Log
-  (tracking, step 4)?
 
 ## What would change our mind
 

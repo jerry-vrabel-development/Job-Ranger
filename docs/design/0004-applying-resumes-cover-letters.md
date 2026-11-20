@@ -167,8 +167,9 @@ Scoring and drafting are the portfolio centerpiece, so they are measured.
 - `facts`: id, kind, text, organization, when (`period`, in words, may be
   approximate), experience (`professional`, `side`, `learning`), source,
   confirmed_at, retired_at, created and updated times.
-- `answers`: id, question type, text, origin (`own`, `together`,
-  `ai_edited`), notes (the receipts), created and updated times.
+- `answers`: id, question type, label (to tell versions apart), text,
+  origin (`own`, `together`, `ai_edited`), notes (the receipts), created
+  and updated times.
 - `kits`: one per job I open a kit for: posting, AI rule found (and its
   sentence), drafts, created time.
 - `applications`: posting, applied time, the versions sent, and the fact ids
@@ -204,7 +205,10 @@ Each step is one PR with unit, database and browser tests, including axe.
 1. **Fact bank:** page, seeded from my resume and letter as unconfirmed
    facts; confirm, edit, retire, add. _Built._ As built, "when" is one field
    in words (`period`), not separate start and end.
-2. **Answer bank:** page, question types, origin labels.
+2. **Answer bank:** page, question types, origin labels. _Built._ As built:
+   13 common question types plus "Other" (including "How you use AI
+   tools"), an optional name to tell versions apart ("150 words"), a word
+   count, a Copy button, and a list of common questions not yet answered.
 3. **Apply kit without a model:** the job's questions (Greenhouse first),
    saved answers by type, a resume picked by code from confirmed facts, gap
    questions that add facts, the AI-rule check (code), "Open application" and

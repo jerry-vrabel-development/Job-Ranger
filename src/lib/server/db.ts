@@ -523,3 +523,10 @@ export async function markAllSeen(db: D1Database, now: string): Promise<number> 
 		.run();
 	return result.meta.changes;
 }
+
+/** A row id from a form, or null: digits only, no leading zero, a safe integer. */
+export function parseId(value: unknown): number | null {
+	if (typeof value !== 'string' || !/^[1-9][0-9]{0,15}$/.test(value)) return null;
+	const id = Number(value);
+	return Number.isSafeInteger(id) ? id : null;
+}

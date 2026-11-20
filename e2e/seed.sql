@@ -1,5 +1,6 @@
 -- Browser-test data for the local D1 (npm run e2e:seed). Safe to run again:
 -- it starts from empty. Real-sized: long text, many jobs, every kind of card.
+DELETE FROM answers;
 DELETE FROM facts;
 DELETE FROM board_interests;
 DELETE FROM interests;
@@ -85,3 +86,10 @@ INSERT INTO facts (id, kind, experience, organization, period, text, source, con
 		'2026-11-18T12:00:00.000Z'),
 	(2, 'skill', 'side', 'Home lab', 'around 2015', 'Raspberry Pi and Home Assistant', 'pasted',
 		NULL);
+
+-- Answers (made up): a short one in my own words, and a longer one written together.
+INSERT INTO answers (id, question, label, text, origin, notes) VALUES
+	(1, 'work_authorization', '', 'Yes. I can work in the US without sponsorship.', 'own', ''),
+	(2, 'about_me', '50 words', 'I started out hiring engineers.
+
+Now I build accessible web apps and test them hard.', 'together', 'From voice notes.');

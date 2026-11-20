@@ -13,7 +13,8 @@ job's real apply link and filters (search, company, workplace, new), and a compa
 links, up to 25 at once), check, rename, pause and remove companies, an interests page to name what
 you're looking for (with keywords) and tag companies with it, a Jobs filter
 by interest that says why each job matched, a fact bank of everything
-true about your work (pasted facts wait to be confirmed), and a daily
+true about your work (pasted facts wait to be confirmed), an answer bank
+of ready answers to common form questions with a Copy button, and a daily
 record of each company's open-job count, all behind sign-in. The rest of the features below are
 planned, not shipped yet. The plan is in
 [design note 0001](docs/design/0001-job-ranger.md), and how it connects to

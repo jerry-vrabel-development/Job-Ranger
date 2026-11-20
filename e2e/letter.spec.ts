@@ -17,7 +17,7 @@ test.describe('a cover letter draft', () => {
 	test('says drafting needs an API key', async ({ page }) => {
 		await expect(
 			page.getByText(
-				'Drafting isn’t set up yet: the Worker has no API key. The README says how to add one.'
+				'Drafting isn’t set up yet: the Worker has no API key. The README says how to set it up.'
 			)
 		).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Draft a full letter' })).toHaveCount(0);

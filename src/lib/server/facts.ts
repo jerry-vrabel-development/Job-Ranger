@@ -284,9 +284,4 @@ export async function removeFact(db: D1Database, id: number): Promise<Result> {
 	return row === null ? GONE : { ok: true, message: `Removed “${shortText(text(row, 'text'))}”.` };
 }
 
-/** A fact id from a form, or null. */
-export function parseId(value: unknown): number | null {
-	if (typeof value !== 'string' || !/^[1-9][0-9]{0,15}$/.test(value)) return null;
-	const id = Number(value);
-	return Number.isSafeInteger(id) ? id : null;
-}
+export { parseId } from './db.ts';

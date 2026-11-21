@@ -3,19 +3,21 @@ import type { Board } from '#lib/jobs/posting.ts';
 import { removeBoard, StoredDataError } from './db.ts';
 import { listAnswers } from './answers.ts';
 import {
+	appliedDraftingCost,
 	capMicros,
 	dollars,
 	draftAnswer,
 	draftLetter,
 	getAnswerDrafts,
 	getDrafts,
+	jobDraftingCost,
 	keepAnswerDraft,
 	recordUsage,
 	spentOn,
 	type DraftSettings
 } from './drafts.ts';
 import { addFact, pasteFacts } from './facts.ts';
-import { prepareKit, savePasted, setAiRule, type JobKey } from './kits.ts';
+import { getPosting, markApplied, prepareKit, savePasted, setAiRule, type JobKey } from './kits.ts';
 import { anthropic } from '#lib/models/anthropic.ts';
 import type { Setup } from './models/model.ts';
 import { addBoard, migratedDb } from './test-db.ts';
@@ -58,6 +60,8 @@ beforeEach(async () => {
 	db = await migratedDb();
 	await db.batch([
 		db.prepare('DELETE FROM drafts'),
+		db.prepare('DELETE FROM draft_costs'),
+		db.prepare('DELETE FROM applications'),
 		db.prepare('DELETE FROM answer_drafts'),
 		db.prepare('DELETE FROM answers'),
 		db.prepare('DELETE FROM model_usage'),
@@ -435,5 +439,54 @@ describe('answer drafts', () => {
 		await expect(getAnswerDrafts(db, job)).rejects.toThrow(StoredDataError);
 		await removeBoard(db, 'lever', 'Flight');
 		expect(await db.prepare('SELECT COUNT(*) AS n FROM answer_drafts').first()).toEqual({ n: 0 });
+	});
+});
+
+describe('cost per application', () => {
+	it('logs every call against its job, even ones that fail, and saves the total when I apply', async () => {
+		expect(await jobDraftingCost(db, job)).toBe(0);
+		await draftLetter(db, using(letter([[{ text: 'Flight Co.', facts: [] }]])), job, 'letter_full');
+		const refusing = vi.fn<typeof fetch>(() =>
+			Promise.resolve(
+				Response.json({
+					content: [],
+					model: 'claude-sonnet-5-5',
+					stop_reason: 'refusal',
+					usage: { input_tokens: 500, output_tokens: 0 }
+				})
+			)
+		);
+		await draftLetter(db, using(refusing), job, 'letter_short');
+		expect(await jobDraftingCost(db, job)).toBe(8000);
+		expect(
+			(await db.prepare('SELECT kind, model, price_table FROM draft_costs ORDER BY id').all())
+				.results
+		).toEqual([
+			{ kind: 'letter_full', model: 'claude-sonnet-5-5', price_table: '2026-11-20' },
+			{ kind: 'letter_short', model: 'claude-sonnet-5-5', price_table: '2026-11-20' }
+		]);
+		expect(await appliedDraftingCost(db)).toEqual({ applications: 0, micros: 0 });
+		const posting = await getPosting(db, job);
+		if (!posting) throw new Error('no posting');
+		await markApplied(db, posting, [], NOW);
+		expect(await appliedDraftingCost(db)).toEqual({ applications: 1, micros: 8000 });
+		await removeBoard(db, 'lever', 'Flight');
+		expect(await jobDraftingCost(db, job)).toBe(0);
+		// The application keeps what drafting for it cost.
+		expect(await appliedDraftingCost(db)).toEqual({ applications: 1, micros: 8000 });
+	});
+
+	it('logs answer drafts as answers', async () => {
+		await savePasted(db, job, 'Tell us about a time you led a team.');
+		await draftAnswer(
+			db,
+			using(letter([[{ text: 'I led a team.', facts: [factId] }]])),
+			job,
+			'Tell us about a time you led a team.'
+		);
+		expect(await db.prepare('SELECT kind, cost_micros FROM draft_costs').first()).toEqual({
+			kind: 'answer',
+			cost_micros: 7000
+		});
 	});
 });

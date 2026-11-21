@@ -529,6 +529,15 @@
 
 <section aria-labelledby="applied-heading">
 	<h2 id="applied-heading">Applied?</h2>
+	{#if data.drafting.thisJob}
+		<p><strong>Drafting for this application so far:</strong> {data.drafting.thisJob}.</p>
+	{/if}
+	{#if data.drafting.perApplication}
+		<p class="hint">
+			Across {countLabel(data.drafting.perApplication.applications, 'application')}: {data.drafting
+				.perApplication.total} of drafting in all, {data.drafting.perApplication.average} each on average.
+		</p>
+	{/if}
 	{#if data.applied}
 		<p><strong>You applied on {data.applied}.</strong></p>
 		<form method="POST" action="?/unapplied" use:enhance={afterAction}>

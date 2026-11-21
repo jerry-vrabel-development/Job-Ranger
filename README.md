@@ -150,7 +150,9 @@ so the provider and model are settings, not code: `MODEL_PROVIDER` (default
 `src/lib/models/prices.json`, dated and sourced; only models listed there can
 be called, so the daily cap always holds.
 
-Each draft costs about two cents. The model gets the job and the facts
+Each draft costs about two cents. The kit shows what drafting for each
+application has cost and the average per application, so you can set the cap
+from real numbers. The model gets the job and the facts
 picked for it, never your name or contact details, and every sentence it
 writes must name the facts it uses; code checks the draft against them and
 lists any problem in words. Postings that forbid AI-written answers are never

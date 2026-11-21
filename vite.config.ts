@@ -84,7 +84,8 @@ export default defineConfig({
 			provider: 'istanbul',
 			// hooks.server.ts only hands the Worker's env to src/lib/server/handle.ts.
 			include: ['src/lib/**/*.{ts,js}'],
-			exclude: ['src/**/*.{test,spec}.ts'],
+			// contract.ts is a test kit (tests any model adapter can run), not app code.
+			exclude: ['src/**/*.{test,spec}.ts', 'src/lib/models/contract.ts'],
 			reporter: ['text', 'json-summary', 'html'],
 			// Floors, like the other projects. We aim for 100%.
 			thresholds: {

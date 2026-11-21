@@ -1,0 +1,15 @@
+{
+	"note": "Built from Anthropic's stop reason docs, not recorded live.",
+	"status": 200,
+	"headers": {},
+	"body": {
+		"id": "msg_03",
+		"type": "message",
+		"role": "assistant",
+		"content": [{ "type": "text", "text": "Dear hiring team, I" }],
+		"model": "claude-sonnet-5-5",
+		"stop_reason": "max_tokens",
+		"stop_sequence": null,
+		"usage": { "input_tokens": 1000, "output_tokens": 10 }
+	}
+}

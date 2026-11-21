@@ -16,7 +16,7 @@ import {
 } from './drafts.ts';
 import { addFact, pasteFacts } from './facts.ts';
 import { prepareKit, savePasted, setAiRule, type JobKey } from './kits.ts';
-import { anthropic } from './models/anthropic.ts';
+import { anthropic } from '#lib/models/anthropic.ts';
 import type { Setup } from './models/model.ts';
 import { addBoard, migratedDb } from './test-db.ts';
 
@@ -28,7 +28,8 @@ const NOW = '2026-11-20T15:00:00.000Z';
 const using = (fetcher: typeof fetch): DraftSettings => ({
 	setup: {
 		ok: true,
-		provider: anthropic(fetcher, 'sk-test'),
+		adapter: anthropic(fetcher),
+		apiKey: 'sk-test',
 		model: 'claude-sonnet-5-5',
 		label: 'test'
 	},
@@ -105,18 +106,23 @@ beforeEach(async () => {
 describe('spending', () => {
 	it('adds up a day’s cost across calls and models, and formats dollars', async () => {
 		expect(await spentOn(db, '2026-11-20')).toBe(0);
-		expect(
-			await recordUsage(db, '2026-11-20', 'claude-sonnet-5-5', {
-				inputTokens: 1000,
-				outputTokens: 500
-			})
-		).toBe(7000);
-		await recordUsage(db, '2026-11-20', 'claude-sonnet-5-5', {
-			inputTokens: 1000,
-			outputTokens: 500
-		});
-		await recordUsage(db, '2026-11-20', 'claude-haiku-5-5', { inputTokens: 1000, outputTokens: 0 });
-		await recordUsage(db, '2026-11-21', 'claude-sonnet-5-5', { inputTokens: 1, outputTokens: 0 });
+		const tokens = { inputTokens: 1000, outputTokens: 500 };
+		await recordUsage(db, '2026-11-20', 'claude-sonnet-5-5', tokens, 7000);
+		await recordUsage(db, '2026-11-20', 'claude-sonnet-5-5', tokens, 7000);
+		await recordUsage(
+			db,
+			'2026-11-20',
+			'claude-haiku-5-5',
+			{ inputTokens: 1000, outputTokens: 0 },
+			100
+		);
+		await recordUsage(
+			db,
+			'2026-11-21',
+			'claude-sonnet-5-5',
+			{ inputTokens: 1, outputTokens: 0 },
+			2
+		);
 		expect(await spentOn(db, '2026-11-20')).toBe(14_100);
 		expect(
 			await db
@@ -189,10 +195,13 @@ describe('draftLetter', () => {
 			/forbids AI-written answers/
 		);
 		await setAiRule(db, job, 'none', '');
-		await recordUsage(db, '2026-11-20', 'claude-sonnet-5-5', {
-			inputTokens: 0,
-			outputTokens: 100_000
-		});
+		await recordUsage(
+			db,
+			'2026-11-20',
+			'claude-sonnet-5-5',
+			{ inputTokens: 0, outputTokens: 100_000 },
+			1_000_000
+		);
 		expect((await draftLetter(db, using(fetcher), job, 'letter_full')).message).toBe(
 			'Today’s drafting limit is reached ($1.00 of $1.00). It resets at midnight UTC.'
 		);
@@ -210,7 +219,7 @@ describe('draftLetter', () => {
 	it('passes API errors on in words, and charges for an answer in the wrong shape', async () => {
 		const refused = vi.fn<typeof fetch>(() => Promise.resolve(new Response('', { status: 401 })));
 		expect((await draftLetter(db, using(refused), job, 'letter_full')).message).toBe(
-			'Couldn’t draft: the API key was refused.'
+			'Couldn’t draft: the API key was refused (401).'
 		);
 		expect((await draftLetter(db, using(letter('nonsense')), job, 'letter_full')).message).toBe(
 			'The model didn’t return a letter in the shape asked for ($0.01 spent). Try again.'
@@ -223,12 +232,47 @@ describe('draftLetter', () => {
 		// Not a Response at all: a bug, not the API saying no.
 		const broken = vi.fn<typeof fetch>(() => Promise.resolve(null as unknown as Response));
 		await expect(draftLetter(db, using(broken), job, 'letter_full')).rejects.toThrow(TypeError);
-		// A model with no price can't be recorded against the cap.
-		const unpriced = { ...using(letter([[{ text: 'Flight Co.', facts: [] }]])) };
+	});
+
+	it('refuses a model with no price before sending anything, so the cap holds', async () => {
+		const fetcher = letter([[{ text: 'Flight Co.', facts: [] }]]);
+		const unpriced = using(fetcher);
 		const setup = unpriced.setup as Extract<Setup, { ok: true }>;
-		await expect(
-			draftLetter(db, { ...unpriced, setup: { ...setup, model: 'unpriced' } }, job, 'letter_full')
-		).rejects.toThrow('No price on file for unpriced');
+		expect(
+			(
+				await draftLetter(
+					db,
+					{ ...unpriced, setup: { ...setup, model: 'unpriced' } },
+					job,
+					'letter_full'
+				)
+			).message
+		).toBe('There’s no price on file for the model “unpriced”, so it can’t be called.');
+		expect(fetcher).not.toHaveBeenCalled();
+	});
+
+	it('records the cost of a refusal or a cut-off answer, and says so', async () => {
+		const answering = (stop_reason: string) =>
+			vi.fn<typeof fetch>(() =>
+				Promise.resolve(
+					Response.json({
+						content: [{ type: 'text', text: 'No.' }],
+						model: 'claude-sonnet-5-5',
+						stop_reason,
+						usage: { input_tokens: 1000, output_tokens: 500 }
+					})
+				)
+			);
+		expect((await draftLetter(db, using(answering('refusal')), job, 'letter_full')).message).toBe(
+			'The model declined to draft a letter ($0.01 spent).'
+		);
+		expect((await draftAnswer(db, using(answering('max_tokens')), job, 'x')).message).toBe(
+			'That question isn’t on this kit any more.'
+		);
+		expect(
+			(await draftLetter(db, using(answering('max_tokens')), job, 'letter_short')).message
+		).toBe('The model ran out of room before finishing a letter ($0.01 spent). Try again.');
+		expect(await spentOn(db, '2026-11-20')).toBe(14_000);
 	});
 });
 

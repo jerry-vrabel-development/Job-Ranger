@@ -22,7 +22,9 @@ import {
 } from '#lib/kit/letter.ts';
 import { matchQuestion } from '#lib/kit/match.ts';
 import { addAnswer, checkAnswer } from './answers.ts';
-import { costMicros, ModelError, type Setup, type Usage } from './models/model.ts';
+import { complete } from '#lib/models/complete.ts';
+import type { TokenUsage } from '#lib/models/types.ts';
+import type { Setup } from './models/model.ts';
 import { count, StoredDataError, text } from './db.ts';
 import { listFacts } from './facts.ts';
 import { getKit, getPosting, type JobKey, type Result } from './kits.ts';
@@ -44,11 +46,9 @@ export async function recordUsage(
 	db: D1Database,
 	day: string,
 	model: string,
-	usage: Usage
-): Promise<number> {
-	// chooseModel only allows priced models, so a missing price is a bug: fail loudly.
-	const cost = costMicros(model, usage);
-	if (cost === null) throw new Error(`No price on file for ${model}`);
+	usage: Pick<TokenUsage, 'inputTokens' | 'outputTokens'>,
+	micros: number
+): Promise<void> {
 	await db
 		.prepare(
 			`INSERT INTO model_usage (day, model, calls, input_tokens, output_tokens, cost_micros)
@@ -58,9 +58,8 @@ export async function recordUsage(
 			 output_tokens = output_tokens + excluded.output_tokens,
 			 cost_micros = cost_micros + excluded.cost_micros`
 		)
-		.bind(day, model, usage.inputTokens, usage.outputTokens, cost)
+		.bind(day, model, usage.inputTokens, usage.outputTokens, micros)
 		.run();
-	return cost;
 }
 
 /** "$0.04". */
@@ -211,27 +210,40 @@ async function write(
 	user: string,
 	what: string
 ): Promise<Written> {
-	let output: unknown;
-	let cost: number;
-	try {
-		const answer = await go.setup.provider.structured({
+	const result = await complete(
+		go.setup.adapter,
+		{
 			model: go.setup.model,
 			system,
 			user,
-			schema: LETTER_TOOL,
-			maxTokens: 4000
-		});
-		cost = await recordUsage(db, go.day, go.setup.model, answer.usage);
-		output = answer.output;
-	} catch (error) {
-		if (error instanceof ModelError) return { ok: false, message: error.message };
-		throw error;
+			maxOutputTokens: 4000,
+			timeoutMs: 90_000,
+			json: {
+				name: LETTER_TOOL.name,
+				description: LETTER_TOOL.description,
+				schema: LETTER_TOOL.input_schema
+			}
+		},
+		go.setup.apiKey
+	);
+	if (!result.ok) return { ok: false, message: result.error.message };
+	const cost = result.cost.micros;
+	await recordUsage(db, go.day, go.setup.model, result.usage, cost);
+	const spent = `${dollars(cost)} spent`;
+	if (result.stopReason === 'refusal') {
+		return { ok: false, message: `The model declined to draft ${what} (${spent}).` };
 	}
-	const paragraphs = parseLetter(output);
+	if (result.stopReason === 'max_tokens') {
+		return {
+			ok: false,
+			message: `The model ran out of room before finishing ${what} (${spent}). Try again.`
+		};
+	}
+	const paragraphs = parseLetter(result.output);
 	if (paragraphs === null) {
 		return {
 			ok: false,
-			message: `The model didn’t return ${what} in the shape asked for (${dollars(cost)} spent). Try again.`
+			message: `The model didn’t return ${what} in the shape asked for (${spent}). Try again.`
 		};
 	}
 	return { ok: true, paragraphs, cost };

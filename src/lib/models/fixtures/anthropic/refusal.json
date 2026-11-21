@@ -1,0 +1,15 @@
+{
+	"note": "Built from Anthropic's refusal docs (stop_reason refusal with stop_details), not recorded live.",
+	"status": 200,
+	"headers": {},
+	"body": {
+		"id": "msg_04",
+		"type": "message",
+		"role": "assistant",
+		"content": [{ "type": "text", "text": "Hello.." }],
+		"model": "claude-sonnet-5-5",
+		"stop_reason": "refusal",
+		"stop_details": { "type": "refusal", "category": "cyber", "explanation": "Declined." },
+		"usage": { "input_tokens": 20, "output_tokens": 2 }
+	}
+}

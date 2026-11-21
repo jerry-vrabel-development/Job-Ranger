@@ -144,11 +144,11 @@ npx wrangler secret put ANTHROPIC_API_KEY
 npx wrangler secret put DRAFT_DAILY_CAP_USD   # for example 2.50
 ```
 
-Drafting goes through one small model interface
-(`src/lib/server/models/`), so the provider and model are settings, not code:
-`MODEL_PROVIDER` (default `anthropic`) and `DRAFT_MODEL` (default
-`claude-sonnet-5-5`). Only models with a price in `models/model.ts` can be
-used, so the daily cap always holds.
+Drafting goes through a runtime-neutral model module (`src/lib/models/`),
+so the provider and model are settings, not code: `MODEL_PROVIDER` (default
+`anthropic`) and `DRAFT_MODEL` (default `claude-sonnet-5-5`). Prices live in
+`src/lib/models/prices.json`, dated and sourced; only models listed there can
+be called, so the daily cap always holds.
 
 Each draft costs about two cents. The model gets the job and the facts
 picked for it, never your name or contact details, and every sentence it

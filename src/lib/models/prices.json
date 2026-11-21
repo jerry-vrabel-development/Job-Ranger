@@ -1,0 +1,20 @@
+{
+	"version": "2026-11-20",
+	"source": "https://platform.claude.com/docs/en/about-claude/pricing",
+	"note": "US dollars per million tokens. Only pinned model ids (snapshots, not aliases) belong here: a model must be listed to be called.",
+	"models": {
+		"claude-sonnet-5-5": {
+			"provider": "anthropic",
+			"inputPerMTok": 2,
+			"outputPerMTok": 10,
+			"acceptsTemperature": false
+		},
+		"claude-haiku-5-5": {
+			"provider": "anthropic",
+			"inputPerMTok": 0.1,
+			"outputPerMTok": 0.5,
+			"acceptsTemperature": false,
+			"longPrompt": { "overInputTokens": 100000, "inputPerMTok": 0.5, "outputPerMTok": 2.5 }
+		}
+	}
+}

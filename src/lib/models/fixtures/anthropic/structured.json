@@ -1,0 +1,23 @@
+{
+	"note": "Built from the tool-use shape in Anthropic's docs, not recorded live.",
+	"status": 200,
+	"headers": {},
+	"body": {
+		"id": "msg_02",
+		"type": "message",
+		"role": "assistant",
+		"content": [
+			{ "type": "text", "text": "Here is the letter." },
+			{
+				"type": "tool_use",
+				"id": "toolu_01",
+				"name": "write_letter",
+				"input": { "paragraphs": [[{ "text": "Hi.", "facts": [] }]] }
+			}
+		],
+		"model": "claude-sonnet-5-5",
+		"stop_reason": "tool_use",
+		"stop_sequence": null,
+		"usage": { "input_tokens": 1000, "output_tokens": 500 }
+	}
+}

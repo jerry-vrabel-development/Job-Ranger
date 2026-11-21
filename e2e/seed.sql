@@ -1,5 +1,7 @@
 -- Browser-test data for the local D1 (npm run e2e:seed). Safe to run again:
 -- it starts from empty. Real-sized: long text, many jobs, every kind of card.
+DELETE FROM draft_costs;
+DELETE FROM applications;
 DELETE FROM answer_drafts;
 DELETE FROM drafts;
 DELETE FROM kits;
@@ -121,4 +123,12 @@ INSERT INTO answer_drafts (source, board, posting_id, question, paragraphs, prob
 		'[[{"text":"I led the checkout rebuild.","facts":[1]},{"text":"The team had 6 people.","facts":[1]}]]',
 		'[{"paragraph":0,"sentence":1,"problem":"The number 6 isn’t in the facts it cites."}]',
 		'claude-sonnet-5-5', 3000, '2026-11-20T16:00:00.000Z');
+
+-- Made-up drafting costs for that kit ($0.01 so far), and one past application whose drafting
+-- cost $0.05, so the per-application average shows.
+INSERT INTO draft_costs (source, board, posting_id, kind, model, price_table, cost_micros) VALUES
+	('ashby', 'example', 'newest', 'letter_full', 'claude-sonnet-5-5', '2026-11-20', 7000),
+	('ashby', 'example', 'newest', 'answer', 'claude-sonnet-5-5', '2026-11-20', 3000);
+INSERT INTO applications (source, board, posting_id, company, title, applied_at, drafting_micros)
+	VALUES ('ashby', 'example', 'long', 'Example Co', 'A long posting', '2026-11-19T15:00:00.000Z', 50000);
 

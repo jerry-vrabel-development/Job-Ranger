@@ -32,6 +32,15 @@ test.describe('a drafted answer', () => {
 		await expect(item.getByRole('button', { name: /^Draft/ })).toHaveCount(0);
 	});
 
+	test('says what drafting for this application has cost, and the average so far', async ({
+		page
+	}) => {
+		await expect(page.getByText('Drafting for this application so far: $0.01.')).toBeVisible();
+		await expect(
+			page.getByText('Across 1 application: $0.05 of drafting in all, $0.05 each on average.')
+		).toBeVisible();
+	});
+
 	test('offers no draft for a question about your situation', async ({ page }) => {
 		const pay = page
 			.getByRole('listitem')

@@ -398,3 +398,30 @@ describe('migration 0014: answer drafts', () => {
 		await expect(draft('Other?', '{}')).rejects.toThrow();
 	});
 });
+
+describe('migration 0015: draft costs', () => {
+	it('logs costs by job and kind, and gives applications a drafting total', async () => {
+		await applyD1Migrations(db, [...MIGRATIONS]);
+		const cost = (kind: string, micros: number) =>
+			db
+				.prepare(
+					`INSERT INTO draft_costs (source, board, posting_id, kind, model, price_table, cost_micros)
+					 VALUES ('lever', 'f', '1', ?1, 'm', 'v', ?2)`
+				)
+				.bind(kind, micros)
+				.run();
+		await cost('answer', 10);
+		await expect(cost('poem', 10)).rejects.toThrow();
+		await expect(cost('answer', -1)).rejects.toThrow();
+		await db
+			.prepare(
+				`INSERT INTO applications (source, board, posting_id, company, title, applied_at)
+				 VALUES ('lever', 'f', '1', 'F', 'T', '2026-11-21T00:00:00Z')`
+			)
+			.run();
+		expect(await first('SELECT drafting_micros FROM applications')).toEqual({ drafting_micros: 0 });
+		await expect(
+			db.prepare('UPDATE applications SET drafting_micros = -1').run()
+		).rejects.toThrow();
+	});
+});

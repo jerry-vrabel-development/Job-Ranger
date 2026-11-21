@@ -338,7 +338,7 @@ export async function appliedDates(db: D1Database): Promise<Map<string, string>>
 	);
 }
 
-/** Records that I applied, with the saved answers the kit offered. */
+/** Records that I applied, with the saved answers the kit offered and what drafting for it cost. */
 export async function markApplied(
 	db: D1Database,
 	posting: StoredPosting,
@@ -347,10 +347,12 @@ export async function markApplied(
 ): Promise<Result> {
 	await db
 		.prepare(
-			`INSERT INTO applications (source, board, posting_id, company, title, applied_at, answer_ids)
-			 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+			`INSERT INTO applications (source, board, posting_id, company, title, applied_at, answer_ids,
+				drafting_micros)
+			 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, (SELECT COALESCE(SUM(cost_micros), 0) FROM draft_costs
+				WHERE source = ?1 AND board = ?2 AND posting_id = ?3))
 			 ON CONFLICT (source, board, posting_id) DO UPDATE SET applied_at = excluded.applied_at,
-				answer_ids = excluded.answer_ids`
+				answer_ids = excluded.answer_ids, drafting_micros = excluded.drafting_micros`
 		)
 		.bind(
 			posting.source,

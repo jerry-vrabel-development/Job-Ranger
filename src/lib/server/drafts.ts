@@ -15,6 +15,7 @@ import {
 	systemPrompt,
 	userPrompt,
 	type LetterFact,
+	type DraftKind,
 	type LetterJob,
 	type LetterKind,
 	type Paragraph,
@@ -60,6 +61,30 @@ export async function recordUsage(
 		)
 		.bind(day, model, usage.inputTokens, usage.outputTokens, micros)
 		.run();
+}
+
+/** What drafting for one job has cost so far, in millionths of a dollar. */
+export async function jobDraftingCost(db: D1Database, key: JobKey): Promise<number> {
+	return count(
+		await db
+			.prepare(
+				`SELECT COALESCE(SUM(cost_micros), 0) AS n FROM draft_costs
+				 WHERE source = ?1 AND board = ?2 AND posting_id = ?3`
+			)
+			.bind(key.source, key.board, key.id)
+			.first<Row>(),
+		'n'
+	);
+}
+
+/** Drafting cost across everything I've applied to: how many applications, and the total. */
+export async function appliedDraftingCost(
+	db: D1Database
+): Promise<{ readonly applications: number; readonly micros: number }> {
+	const row = await db
+		.prepare('SELECT COUNT(*) AS n, COALESCE(SUM(drafting_micros), 0) AS micros FROM applications')
+		.first<Row>();
+	return { applications: count(row, 'n'), micros: count(row, 'micros') };
 }
 
 /** "$0.04". */
@@ -136,6 +161,7 @@ export interface DraftSettings {
 
 interface Ready {
 	readonly ok: true;
+	readonly key: JobKey;
 	readonly setup: Extract<Setup, { ok: true }>;
 	readonly day: string;
 	readonly chosen: LetterFact[];
@@ -181,6 +207,7 @@ async function ready(
 	const resume = buildResume(confirmed, jobTextOf(posting, kit));
 	return {
 		ok: true,
+		key,
 		setup,
 		day,
 		chosen: [
@@ -206,6 +233,7 @@ type Written =
 async function write(
 	db: D1Database,
 	go: Ready,
+	kind: DraftKind,
 	system: string,
 	user: string,
 	what: string
@@ -229,6 +257,13 @@ async function write(
 	if (!result.ok) return { ok: false, message: result.error.message };
 	const cost = result.cost.micros;
 	await recordUsage(db, go.day, go.setup.model, result.usage, cost);
+	await db
+		.prepare(
+			`INSERT INTO draft_costs (source, board, posting_id, kind, model, price_table, cost_micros)
+			 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`
+		)
+		.bind(go.key.source, go.key.board, go.key.id, kind, result.model, result.cost.priceTable, cost)
+		.run();
 	const spent = `${dollars(cost)} spent`;
 	if (result.stopReason === 'refusal') {
 		return { ok: false, message: `The model declined to draft ${what} (${spent}).` };
@@ -272,6 +307,7 @@ export async function draftLetter(
 	const written = await write(
 		db,
 		go,
+		kind,
 		systemPrompt(kind),
 		userPrompt(go.job, go.chosen),
 		'a letter'
@@ -338,6 +374,7 @@ export async function draftAnswer(
 	const written = await write(
 		db,
 		go,
+		'answer',
 		answerSystemPrompt(),
 		userPrompt(go.job, go.chosen, question),
 		'an answer'

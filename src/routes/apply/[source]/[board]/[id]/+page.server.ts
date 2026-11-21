@@ -12,8 +12,10 @@ import {
 	dollars,
 	draftAnswer,
 	draftLetter,
+	appliedDraftingCost,
 	getAnswerDrafts,
 	getDrafts,
+	jobDraftingCost,
 	keepAnswerDraft,
 	spentOn
 } from '#lib/server/drafts.ts';
@@ -101,17 +103,29 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 	const posting = await getPosting(db, key);
 	if (!posting) error(404, 'That job is no longer in Job Ranger.');
 	const today = new Date().toISOString().slice(0, 10);
-	const [kit, application, answers, facts, drafts, spent, profile, answerDrafts] =
-		await Promise.all([
-			getKit(db, key),
-			getApplication(db, key),
-			listAnswers(db),
-			listFacts(db),
-			getDrafts(db, key),
-			spentOn(db, today),
-			getProfile(db),
-			getAnswerDrafts(db, key)
-		]);
+	const [
+		kit,
+		application,
+		answers,
+		facts,
+		drafts,
+		spent,
+		profile,
+		answerDrafts,
+		jobCost,
+		appliedCost
+	] = await Promise.all([
+		getKit(db, key),
+		getApplication(db, key),
+		listAnswers(db),
+		listFacts(db),
+		getDrafts(db, key),
+		spentOn(db, today),
+		getProfile(db),
+		getAnswerDrafts(db, key),
+		jobDraftingCost(db, key),
+		appliedDraftingCost(db)
+	]);
 	const factText = new Map(facts.map((fact) => [fact.id, fact.text]));
 	const usable = facts.filter((fact) => fact.confirmed && !fact.retired);
 	const gaps =
@@ -172,6 +186,16 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 		drafting: {
 			...describe(chooseModel(PROVIDERS, setting, fetch)),
 			spent: dollars(spent),
+			/** What drafting for this job has cost, and the average per application so far. */
+			thisJob: jobCost === 0 ? null : dollars(jobCost),
+			perApplication:
+				appliedCost.applications === 0 || appliedCost.micros === 0
+					? null
+					: {
+							applications: appliedCost.applications,
+							total: dollars(appliedCost.micros),
+							average: dollars(Math.round(appliedCost.micros / appliedCost.applications))
+						},
 			cap: dollars(capMicros(setting('DRAFT_DAILY_CAP_USD'))),
 			name: profile.name,
 			drafts: drafts.map((draft) => ({

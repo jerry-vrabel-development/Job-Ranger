@@ -508,7 +508,8 @@ export async function removeBoard(
 		db.prepare('DELETE FROM board_interests WHERE source = ?1 AND board = ?2').bind(source, token),
 		// Kits go with the company; applications stay as my history (migration 0011).
 		db.prepare('DELETE FROM kits WHERE source = ?1 AND board = ?2').bind(source, token),
-		db.prepare('DELETE FROM drafts WHERE source = ?1 AND board = ?2').bind(source, token)
+		db.prepare('DELETE FROM drafts WHERE source = ?1 AND board = ?2').bind(source, token),
+		db.prepare('DELETE FROM answer_drafts WHERE source = ?1 AND board = ?2').bind(source, token)
 	]);
 	const row = removed?.results[0];
 	if (row === undefined) return null;

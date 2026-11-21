@@ -380,3 +380,21 @@ describe('migration 0013: drafts and usage', () => {
 		).rejects.toThrow();
 	});
 });
+
+describe('migration 0014: answer drafts', () => {
+	it('keeps one draft per job and question, as JSON lists', async () => {
+		await applyD1Migrations(db, [...MIGRATIONS]);
+		const draft = (question: string, paragraphs: string) =>
+			db
+				.prepare(
+					`INSERT INTO answer_drafts (source, board, posting_id, question, paragraphs, model, cost_micros)
+					 VALUES ('lever', 'f', '1', ?1, ?2, 'm', 0)`
+				)
+				.bind(question, paragraphs)
+				.run();
+		await draft('Why us?', '[]');
+		await expect(draft('Why us?', '[]')).rejects.toThrow();
+		await expect(draft('', '[]')).rejects.toThrow();
+		await expect(draft('Other?', '{}')).rejects.toThrow();
+	});
+});

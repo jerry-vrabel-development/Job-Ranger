@@ -1,17 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { chooseModel, costMicros, type ModelProvider, type ProviderInfo } from './model.ts';
-import { PROVIDERS } from './providers.ts';
-
-describe('costMicros', () => {
-	it('prices tokens in millionths of a dollar, rounding up, and knows no price for unknown models', () => {
-		expect(costMicros('claude-sonnet-5-5', { inputTokens: 1000, outputTokens: 500 })).toBe(7000);
-		expect(costMicros('claude-haiku-5-5', { inputTokens: 1000, outputTokens: 1 })).toBe(101);
-		expect(costMicros('some-new-model', { inputTokens: 1, outputTokens: 0 })).toBeNull();
-	});
-});
+import type { Adapter } from '#lib/models/types.ts';
+import { chooseModel, PROVIDERS, type ProviderInfo } from './model.ts';
 
 describe('chooseModel', () => {
-	const fake: ModelProvider = { structured: vi.fn() };
+	const fake: Adapter = { provider: 'other', send: vi.fn() };
 	const make = vi.fn(() => fake);
 	const other: ProviderInfo = {
 		label: 'Other',
@@ -22,7 +14,7 @@ describe('chooseModel', () => {
 	const providers = { ...PROVIDERS, other };
 	const settings = (values: Record<string, string>) => (name: string) => values[name] ?? '';
 
-	it('uses Anthropic and its default model unless told otherwise', () => {
+	it('uses Anthropic and its default model unless told otherwise, keeping the key for the call', () => {
 		const setup = chooseModel(
 			providers,
 			settings({ ANTHROPIC_API_KEY: 'sk' }),
@@ -31,8 +23,10 @@ describe('chooseModel', () => {
 		expect(setup).toMatchObject({
 			ok: true,
 			model: 'claude-sonnet-5-5',
+			apiKey: 'sk',
 			label: 'Claude (Anthropic), claude-sonnet-5-5'
 		});
+		expect(setup.ok && setup.adapter.provider).toBe('anthropic');
 	});
 
 	it('picks another provider and model from the settings, with that provider’s key', () => {
@@ -44,11 +38,12 @@ describe('chooseModel', () => {
 		);
 		expect(setup).toEqual({
 			ok: true,
-			provider: fake,
+			adapter: fake,
 			model: 'claude-sonnet-5-5',
+			apiKey: 'k2',
 			label: 'Other, claude-sonnet-5-5'
 		});
-		expect(make).toHaveBeenCalledWith(fetcher, 'k2');
+		expect(make).toHaveBeenCalledWith(fetcher);
 	});
 
 	it('says why drafting isn’t set up', () => {
@@ -67,10 +62,10 @@ describe('chooseModel', () => {
 				'Drafting isn’t set up: Job Ranger doesn’t know the model provider “mystery”. It knows: anthropic, other.'
 		});
 		expect(choose({ MODEL_PROVIDER: 'constructor' })).toMatchObject({ ok: false });
-		expect(choose({ ANTHROPIC_API_KEY: 'sk', DRAFT_MODEL: 'unpriced-model' })).toEqual({
+		expect(choose({ ANTHROPIC_API_KEY: 'sk', DRAFT_MODEL: 'claude-latest' })).toEqual({
 			ok: false,
 			message:
-				'Drafting isn’t set up: there’s no price on file for the model “unpriced-model”, so the daily cap couldn’t be kept.'
+				'Drafting isn’t set up: there’s no price on file for the model “claude-latest”, so the daily cap couldn’t be kept.'
 		});
 	});
 });

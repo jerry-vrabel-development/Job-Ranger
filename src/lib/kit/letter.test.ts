@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+	answerSystemPrompt,
 	checkLetter,
+	draftable,
+	plainText,
 	letterText,
 	LIMITS,
 	parseLetter,
@@ -162,5 +165,45 @@ describe('letterText', () => {
 			'Dear hiring team,\n\nOne. Two.\n\nThree.\n\nSincerely,\nJane Doe'
 		);
 		expect(letterText(letter, '')).toMatch(/\[Your name\]$/);
+	});
+});
+
+describe('answers', () => {
+	it('drafts only questions that facts can answer', () => {
+		expect(draftable('why_company')).toBe(true);
+		expect(draftable('ai_use')).toBe(true);
+		expect(draftable(null)).toBe(true);
+		for (const situation of [
+			'work_authorization',
+			'start_date',
+			'location',
+			'pay',
+			'how_heard'
+		] as const) {
+			expect(draftable(situation)).toBe(false);
+		}
+	});
+
+	it('asks for a short, cited answer, and sends the question with the job', () => {
+		expect(answerSystemPrompt()).toMatch(/50 to 150 words/);
+		expect(answerSystemPrompt()).toMatch(/At most one sentence may cite no facts/);
+		const sent = JSON.parse(userPrompt(job, facts, 'Why us?')) as { question: string };
+		expect(sent.question).toBe('Why us?');
+		expect(Object.keys(JSON.parse(userPrompt(job, facts)) as object)).not.toContain('question');
+	});
+
+	it('doesn’t need the company named in an answer, unless asked to', () => {
+		const answer = [[s('At HIMSS I led engineering for a platform.', [1])]];
+		expect(checkLetter('answer', answer, facts, job, [])).toEqual([]);
+		expect(checkLetter('answer', answer, facts, job, [], true)).toEqual([
+			{ paragraph: -1, sentence: -1, problem: 'Never names Zipline.' }
+		]);
+		expect(checkLetter('answer', [[s('One.'), s('Two.')]], facts, job, [])).toEqual([
+			{ paragraph: 0, sentence: 1, problem: 'Makes a claim without citing a fact.' }
+		]);
+	});
+
+	it('gives a draft’s plain text, paragraphs kept', () => {
+		expect(plainText([[s('One.'), s('Two.')], [s('Three.')]])).toBe('One. Two.\n\nThree.');
 	});
 });

@@ -246,9 +246,17 @@ Each step is one PR with unit, database and browser tests, including axe.
    named unless a cited fact is about it; the posting's company must be
    named; length. Problems are listed in words and marked "[Check n]" after
    the sentence. Greeting and name are added by code. Daily cap from
-   DRAFT_DAILY_CAP_USD (default $1), usage kept per day and model. Drafted
-   answers to single questions (4b) and the summary come next, on the same
-   checks.
+   DRAFT_DAILY_CAP_USD (default $1), usage kept per day and model. _Answer
+   drafts built (4b)._ Only questions facts can answer are drafted (about
+   me, why this company or role, strengths, a challenge, a mistake,
+   leadership, AI use, other, and unmatched ones); work authorization,
+   start date, location, pay and "how did you hear" are about my situation,
+   so they are never drafted. Same checks as letters (one framing sentence
+   allowed; the company must be named only for "why this company"). A
+   draft is kept only by editing it: saving it unchanged is refused,
+   because it's saved to the answer bank as "AI draft, edited by me", with
+   a note of the model, job and date; the draft is then deleted. The
+   resume summary is still to do.
 5. **Final review** (code checks first, then model suggestions).
 6. **Evals script** and the saved set of postings.
 7. **Write together** list and the good day pile.
@@ -270,17 +278,35 @@ Step 1 and 2 are useful on their own: copy-paste answers right away.
    eval judging; a hard daily cap, starting around $1.
 8. **After "I applied",** follow-up is tracked in Job Ranger (step 4), not
    in Quest Log.
-9. **Model-agnostic (Nov 20):** drafting goes through one small interface
-   (`src/lib/server/models/model.ts`): instructions, input and the shape to
-   fill in; structured output and token counts back. Claude (Anthropic) is
-   the first adapter. The provider and model are settings (MODEL_PROVIDER,
-   DRAFT_MODEL), each provider has its own key secret, and a model without
-   a price on file can't be used, so the daily cap always holds. The
-   honesty checks are plain code on the output, so they hold whichever
-   model writes. A second adapter is added when someone needs one (an
-   OpenAI-compatible one would cover several providers and local models);
-   per-user choice comes with accounts. The evals (step 6) compare
-   providers on the same saved postings.
+9. **Model-agnostic (Nov 20), shaped for reuse.** Calls go through a
+   runtime-neutral module, `src/lib/models/` (only fetch, AbortSignal and
+   data, so it runs in a Worker, a browser or Node), meant to be copied
+   into a second project that will add OpenAI, Google and local models.
+   - _Request:_ a pinned model id (Anthropic's 4.6+ dateless ids are
+     pinned snapshots, not aliases), system and user text, max output
+     tokens, optional temperature, optional reasoning effort (low, medium,
+     high), a timeout, and optional structured output (Job Ranger's cited
+     sentences need it; text-only callers leave it out). The key is passed
+     per call and never stored or logged.
+   - _Result:_ text, structured output, the model id the API reports,
+     input and output tokens, reasoning tokens when reported separately
+     (null for Anthropic, which doesn't), latency, a stop reason in four
+     words (end, max_tokens, refusal, error), the raw response, and the
+     cost with the price table version that produced it.
+   - _Errors_ are typed results (rate_limited, timeout, auth, refused,
+     other), never thrown, so one retry policy fits every provider.
+   - _Prices_ are data (`prices.json`), dated and sourced. A model must be
+     listed to be called, so every call can be priced and only pinned ids
+     are used; the table also says which models reject a temperature
+     (Sonnet 5.5 and Haiku 5.5 do), refused before anything is sent.
+   - _Tests:_ `contract.ts` holds tests any adapter runs with its own
+     fixtures (success, structured, max_tokens, refusal, 401, 403, 429,
+     500, timeout, network, the key never echoed). Anthropic's fixtures
+     are built from the documented shapes, not yet recorded live.
+   - Job Ranger only has the Anthropic adapter; the provider and model are
+     settings (MODEL_PROVIDER, DRAFT_MODEL). Per-user choice comes with
+     accounts, and the evals (step 6) compare providers on the same
+     postings.
 
 ## Open questions
 

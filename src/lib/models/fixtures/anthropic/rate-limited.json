@@ -1,0 +1,6 @@
+{
+	"note": "Built from Anthropic's error shape and Retry-After header, not recorded live.",
+	"status": 429,
+	"headers": { "retry-after": "20" },
+	"body": { "type": "error", "error": { "type": "rate_limit_error", "message": "Rate limited." } }
+}

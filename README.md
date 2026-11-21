@@ -18,8 +18,8 @@ of ready answers to common form questions with a Copy button, an apply kit
 per job (the form's questions with your saved answers lined up, an AI-rule
 check, and "I applied"), a printable resume per job picked from confirmed
 facts, with skills the posting names that you haven't added asked about, not
-assumed, cover letter drafts from Claude in which every sentence names its
-facts and code checks it, and a daily
+assumed, cover letter and answer drafts in which every sentence names its facts and
+code checks it (answers are kept only once you've edited them), and a daily
 record of each company's open-job count, all behind sign-in. The rest of the features below are
 planned, not shipped yet. The plan is in
 [design note 0001](docs/design/0001-job-ranger.md), and how it connects to
@@ -144,11 +144,11 @@ npx wrangler secret put ANTHROPIC_API_KEY
 npx wrangler secret put DRAFT_DAILY_CAP_USD   # for example 2.50
 ```
 
-Drafting goes through one small model interface
-(`src/lib/server/models/`), so the provider and model are settings, not code:
-`MODEL_PROVIDER` (default `anthropic`) and `DRAFT_MODEL` (default
-`claude-sonnet-5-5`). Only models with a price in `models/model.ts` can be
-used, so the daily cap always holds.
+Drafting goes through a runtime-neutral model module (`src/lib/models/`),
+so the provider and model are settings, not code: `MODEL_PROVIDER` (default
+`anthropic`) and `DRAFT_MODEL` (default `claude-sonnet-5-5`). Prices live in
+`src/lib/models/prices.json`, dated and sourced; only models listed there can
+be called, so the daily cap always holds.
 
 Each draft costs about two cents. The model gets the job and the facts
 picked for it, never your name or contact details, and every sentence it

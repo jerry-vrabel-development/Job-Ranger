@@ -1,0 +1,15 @@
+{
+	"note": "Built from the response shape in Anthropic's Messages API docs (Nov 20, 2026), not recorded live. Replace with a real recording.",
+	"status": 200,
+	"headers": {},
+	"body": {
+		"id": "msg_01XFDUDYJgAACzvnptvVoYEL",
+		"type": "message",
+		"role": "assistant",
+		"content": [{ "type": "text", "text": "Hello!" }],
+		"model": "claude-sonnet-5-5",
+		"stop_reason": "end_turn",
+		"stop_sequence": null,
+		"usage": { "input_tokens": 12, "output_tokens": 6 }
+	}
+}

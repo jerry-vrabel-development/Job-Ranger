@@ -73,8 +73,20 @@ describe('toJobCard', () => {
 			postedAt: '2026-11-12T15:00:00.000Z',
 			applyUrl: 'https://jobs.ashbyhq.com/example/a/application',
 			jobUrl: 'https://jobs.ashbyhq.com/example/a',
-			ghost: null
+			ghost: null,
+			payLaws: null
 		});
+	});
+
+	it('names the state’s pay-range rule when a job there posts no pay', () => {
+		const card = toJobCard({ ...stored, pay: null }, NOW);
+		expect(card.payLaws).toEqual([
+			{
+				name: 'Illinois',
+				who: 'employers with 15 or more employees',
+				url: 'https://labor.illinois.gov/laws-rules/conmed/equal-pay-act-salary-transparency.html'
+			}
+		]);
 	});
 
 	it('carries the ghost-job warning in words when the facts add up to one', () => {

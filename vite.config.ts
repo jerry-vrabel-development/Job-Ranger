@@ -75,6 +75,10 @@ export default defineConfig({
 				test: {
 					name: 'workers',
 					include: ['src/**/*.worker.test.ts'],
+					// Each test applies every migration to a local D1. That takes about 60ms
+					// here but can stall for seconds on a busy CI runner, which once failed
+					// a passing test at the 5-second default.
+					testTimeout: 20_000,
 					expect: { requireAssertions: true }
 				}
 			}

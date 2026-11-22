@@ -22,12 +22,14 @@ assumed, cover letter and answer drafts in which every sentence names its facts 
 code checks it (answers are kept only once you've edited them), a drafted resume
 summary, checked the same way, that goes on the resume only once you choose it, a Review
 button that checks your edited summary and answers for the wrong company or role, length and numbers not
-in your facts (suggestions only), and a daily
+in your facts (suggestions only), a ghost-job warning on jobs open 60 days or more or reposted
+twice, with the facts behind it, and a daily
 record of each company's open-job count, all behind sign-in. The rest of the features below are
 planned, not shipped yet. The plan is in
 [design note 0001](docs/design/0001-job-ranger.md), and how it connects to
 email, documents and AI assistants is in
-[design note 0002](docs/design/0002-connectors-company-insight-dashboards.md). How applying will work (answers, tailored
+[design note 0002](docs/design/0002-connectors-company-insight-dashboards.md). Honest signals (ghost jobs,
+missing pay, scams) are in [design note 0005](docs/design/0005-honest-signals.md). How applying will work (answers, tailored
 resumes and cover letters, never applying for you) is in
 [design note 0004](docs/design/0004-applying-resumes-cover-letters.md).
 

@@ -266,7 +266,19 @@ Each step is one PR with unit, database and browser tests, including axe.
    posting forbids AI, the resume keeps the picked facts. Costs are logged
    as `summary` (migration 0016). An edited summary isn't re-checked yet:
    that's step 5.
-5. **Final review** (code checks first, then model suggestions).
+5. **Final review** (code checks first, then model suggestions). _Code
+   checks built (5a)._ As built: a Review button beside the two boxes I
+   edit on the kit, the resume summary and each drafted answer. It checks
+   the box as it is now, so my edits too, and changes nothing. Suggestions,
+   in words: Wrong company (another company on my list, with its line),
+   Missing company (a "why this company" answer that never names it), Wrong
+   role (another kit's or application's title, two words or more, so
+   "Engineer" alone never matches), Too long (80 words for a summary, 200
+   for an answer), Not in your facts (a number no confirmed fact has; edited
+   text has no citations, so all confirmed facts count), and Same as another
+   application (a summary word for word what another job's resume uses).
+   Letters aren't edited in the app, so they keep their draft checks. Model
+   suggestions (5b) wait for the API key.
 6. **Evals script** and the saved set of postings.
 7. **Write together** list and the good day pile.
 

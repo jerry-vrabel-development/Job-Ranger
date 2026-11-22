@@ -32,6 +32,22 @@ test.describe('a drafted answer', () => {
 		await expect(item.getByRole('button', { name: /^Draft/ })).toHaveCount(0);
 	});
 
+	test('reviews a drafted answer before it’s saved, suggestions only', async ({ page }) => {
+		const item = page
+			.getByRole('listitem')
+			.filter({ has: page.getByRole('heading', { name: LEAD }) });
+		await item.getByRole('button', { name: `Review ${LEAD}` }).click();
+		await expect(page.getByRole('status')).toHaveText(
+			'Reviewed: 1 thing to look at. Nothing was changed.'
+		);
+		await expect(
+			item.getByText(
+				'Not in your facts: The number 6 isn’t in any confirmed fact: “The team had 6 people.”'
+			)
+		).toBeVisible();
+		await expect(item.getByText('Drafted answer')).toBeVisible();
+	});
+
 	test('says what drafting for this application has cost, and the average so far', async ({
 		page
 	}) => {

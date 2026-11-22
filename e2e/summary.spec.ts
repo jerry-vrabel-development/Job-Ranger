@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 // The made-up summary draft from e2e/seed.sql, on a prepared kit. There's no API key here, so
@@ -5,6 +6,7 @@ import { expect, test } from '@playwright/test';
 // page's axe and reflow checks are in letter.spec.ts.
 
 const KIT = '/apply/ashby/example/newest';
+const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 const DRAFT = 'Senior Developer at Example Co. Cut page load time in half for 40 stores.';
 
 test.describe('a resume summary draft', () => {
@@ -37,5 +39,36 @@ test.describe('a resume summary draft', () => {
 		await page.goto(`${KIT}/resume`);
 		await expect(page.getByText(/nothing is added or reworded\./)).toBeVisible();
 		await expect(page.getByRole('heading', { name: 'Summary' })).toHaveCount(0);
+	});
+
+	test('reviews the box as it is now, in words, and changes nothing', async ({ page }) => {
+		await page.goto(KIT);
+		const draft = page.getByRole('article', { name: 'Drafted summary' });
+		const box = draft.getByRole('textbox', {
+			name: 'Put it on the resume, as it is or as you edit it'
+		});
+		await draft.getByRole('button', { name: 'Review', exact: true }).click();
+		await expect(page.getByRole('status')).toHaveText(
+			'Reviewed: 1 thing to look at. Nothing was changed.'
+		);
+		await expect(
+			draft.getByText(
+				'Not in your facts: The number 40 isn’t in any confirmed fact: “Cut page load time in half for 40 stores.”'
+			)
+		).toBeVisible();
+		await expect(box).toHaveValue(DRAFT);
+
+		const mine = 'Senior Developer at Example Co.';
+		await box.fill(mine);
+		await draft.getByRole('button', { name: 'Review', exact: true }).click();
+		await expect(page.getByRole('status')).toHaveText(
+			'Reviewed: nothing to fix in names, length or numbers. Tone and clarity are yours to judge.'
+		);
+		await expect(box).toHaveValue(mine);
+		expect(
+			(await new AxeBuilder({ page }).withTags(WCAG).analyze()).violations.map(
+				(v) => `${v.id}: ${v.help}`
+			)
+		).toEqual([]);
 	});
 });

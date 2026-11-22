@@ -32,6 +32,8 @@
 	/** A summary that couldn't go on the resume, to put back in its box. */
 	const summaryBack = $derived(form && 'summary' in form ? form.summary : undefined);
 	const summary = $derived(data.drafting.summary);
+	/** The last review's suggestions, and which box they're for. */
+	const review = $derived(form && 'review' in form ? form.review : undefined);
 	const GAP_ANSWERS = [
 		{ value: 'professional', label: 'Professional' },
 		{ value: 'side', label: 'Side project or hobby' },
@@ -43,10 +45,11 @@
 	const forbids = $derived(kit?.aiRule === 'forbids');
 
 	const afterAction: SubmitFunction =
-		() =>
+		({ action }) =>
 		async ({ update }) => {
 			copied = '';
-			await update({ refreshAll: true });
+			// A review changes nothing, so the box keeps what I typed.
+			await update({ refreshAll: true, reset: !action.search.startsWith('?/review') });
 			await tick();
 			status?.focus();
 		};
@@ -107,6 +110,24 @@
 			.join(' · ');
 	}
 </script>
+
+{#snippet suggestions(list: readonly { label: string; detail: string }[])}
+	<div class="review">
+		{#if list.length === 0}
+			<p>
+				<strong>Review:</strong> nothing to fix in names, length or numbers. Tone and clarity are yours
+				to judge.
+			</p>
+		{:else}
+			<p><strong>Review ({String(list.length)}), suggestions only:</strong></p>
+			<ul>
+				{#each list as suggestion, i (i)}
+					<li><strong>{suggestion.label}:</strong> {suggestion.detail}</li>
+				{/each}
+			</ul>
+		{/if}
+	</div>
+{/snippet}
 
 <svelte:head>
 	<title>{pageTitle(`Apply: ${job.title}`)}</title>
@@ -291,10 +312,18 @@
 											defaultValue={keptBack?.question === item.label
 												? keptBack.edited
 												: item.draft.text}></textarea>
-										<button type="submit"
-											>Save to Answers<span class="visually-hidden">{` ${item.label}`}</span
-											></button
-										>
+										{#if review?.field === `answer:${item.label}`}
+											{@render suggestions(review.suggestions)}
+										{/if}
+										<div class="buttons">
+											<button type="submit" formaction="?/reviewAnswer"
+												>Review<span class="visually-hidden">{` ${item.label}`}</span></button
+											>
+											<button type="submit"
+												>Save to Answers<span class="visually-hidden">{` ${item.label}`}</span
+												></button
+											>
+										</div>
 									</form>
 								</div>
 							{/if}
@@ -502,7 +531,13 @@
 							aria-describedby="keep-summary-hint"
 							value={browser ? undefined : (summaryBack ?? summary.kept?.text ?? summary.text)}
 							defaultValue={summaryBack ?? summary.kept?.text ?? summary.text}></textarea>
-						<button type="submit">Use on the resume</button>
+						{#if review?.field === 'summary'}
+							{@render suggestions(review.suggestions)}
+						{/if}
+						<div class="buttons">
+							<button type="submit" formaction="?/reviewSummary">Review</button>
+							<button type="submit">Use on the resume</button>
+						</div>
 					</form>
 				</article>
 			{/if}
@@ -808,6 +843,12 @@
 
 	.draft {
 		border-style: dashed;
+	}
+
+	/* Suggestions say what they are in words; the left rule is extra, not the signal. */
+	.review {
+		border-left: 4px solid var(--accent);
+		padding-left: 0.75rem;
 	}
 
 	.gaps {

@@ -24,7 +24,9 @@ import {
 	spentOn
 } from '#lib/server/drafts.ts';
 import { draftable, plainText } from '#lib/kit/letter.ts';
+import { reviewed } from '#lib/kit/review.ts';
 import { chooseModel, PROVIDERS } from '#lib/server/models/model.ts';
+import { reviewAnswer, reviewSummary } from '#lib/server/review.ts';
 import { getProfile } from '#lib/server/profile.ts';
 import { listAnswers, type Answer } from '#lib/server/answers.ts';
 import {
@@ -303,6 +305,30 @@ export const actions: Actions = {
 		const chosen = value(await request.formData(), 'summary', 20_000);
 		const result = await keepSummary(database(), keyOf(params), chosen, new Date().toISOString());
 		return result.ok ? { result } : fail(400, { result, summary: chosen });
+	},
+	reviewSummary: async ({ params, request }) => {
+		const text = value(await request.formData(), 'summary', 20_000);
+		const checked = await reviewSummary(database(), keyOf(params), text);
+		if (!('suggestions' in checked)) return fail(400, { result: checked, summary: text });
+		return {
+			result: { ok: true, message: reviewed(checked.suggestions) },
+			summary: text,
+			review: { field: 'summary', suggestions: checked.suggestions }
+		};
+	},
+	reviewAnswer: async ({ params, request }) => {
+		const form = await request.formData();
+		const question = value(form, 'question', 500);
+		const edited = value(form, 'text', 20_000);
+		const checked = await reviewAnswer(database(), keyOf(params), question, edited);
+		if (!('suggestions' in checked)) {
+			return fail(400, { result: checked, kept: { question, edited } });
+		}
+		return {
+			result: { ok: true, message: reviewed(checked.suggestions) },
+			kept: { question, edited },
+			review: { field: `answer:${question}`, suggestions: checked.suggestions }
+		};
 	},
 	dropSummary: async ({ params }) => reply(await dropSummary(database(), keyOf(params))),
 	keepAnswer: async ({ params, request }) => {

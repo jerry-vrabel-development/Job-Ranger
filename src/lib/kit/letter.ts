@@ -196,11 +196,12 @@ export interface Problem {
 	readonly problem: string;
 }
 
-const NUMBER = /\d[\d,.]*\+?%?/g;
+/** A number as drafts write it: 12, 1,200, 1M+, 50%. */
+export const NUMBER = /\d[\d,.]*\+?%?/g;
 const PROFESSIONAL_WORDS =
 	/\bprofessional(?:ly)?\b|\byears? of (?:experience|professional)\b|\bin production for clients\b|\bmy (?:day )?job\b|\bat work\b/i;
 
-const normalizeNumber = (n: string) => n.replace(/[,]/g, '').replace(/\.$/, '');
+export const normalizeNumber = (n: string) => n.replace(/[,]/g, '').replace(/\.$/, '');
 
 /**
  * Code checks on a draft: every claim backed by a confirmed fact it cites,

@@ -8,10 +8,14 @@ import {
 	dollars,
 	draftAnswer,
 	draftLetter,
+	draftSummary,
+	dropSummary,
 	getAnswerDrafts,
 	getDrafts,
+	getSummaryDraft,
 	jobDraftingCost,
 	keepAnswerDraft,
+	keepSummary,
 	recordUsage,
 	spentOn,
 	type DraftSettings
@@ -63,6 +67,7 @@ beforeEach(async () => {
 		db.prepare('DELETE FROM draft_costs'),
 		db.prepare('DELETE FROM applications'),
 		db.prepare('DELETE FROM answer_drafts'),
+		db.prepare('DELETE FROM resume_summaries'),
 		db.prepare('DELETE FROM answers'),
 		db.prepare('DELETE FROM model_usage'),
 		db.prepare('DELETE FROM kits'),
@@ -487,6 +492,115 @@ describe('cost per application', () => {
 		expect(await db.prepare('SELECT kind, cost_micros FROM draft_costs').first()).toEqual({
 			kind: 'answer',
 			cost_micros: 7000
+		});
+	});
+});
+
+describe('resume summary drafts', () => {
+	const BACKED = 'Led a 12-person flight security team in the Air Force.';
+
+	it('drafts a summary from the picked facts, checks it, and keeps it off the resume until chosen', async () => {
+		const fetcher = letter([[{ text: BACKED, facts: [factId] }]]);
+		expect(await draftSummary(db, using(fetcher), job)).toEqual({
+			ok: true,
+			message:
+				'Drafted a summary ($0.01). Every sentence is backed by its facts. Read it, and make it yours.'
+		});
+		const sent = JSON.parse(fetcher.mock.calls[0]?.[1]?.body as string) as {
+			system: string;
+			messages: { content: string }[];
+		};
+		expect(sent.system).toMatch(/the summary at the top of a resume/);
+		expect(sent.messages[0]?.content).toMatch(/Led a 12-person flight security team/);
+		expect(await getSummaryDraft(db, job)).toMatchObject({
+			problems: [],
+			model: 'claude-sonnet-5-5',
+			costMicros: 7000,
+			kept: null
+		});
+		expect(
+			await db
+				.prepare('SELECT kind, cost_micros FROM draft_costs WHERE kind = ?1')
+				.bind('summary')
+				.first()
+		).toEqual({ kind: 'summary', cost_micros: 7000 });
+		expect(await jobDraftingCost(db, job)).toBe(7000);
+	});
+
+	it('flags a sentence without facts, and doesn’t ask for the company', async () => {
+		const fetcher = letter([
+			[
+				{ text: BACKED, facts: [factId] },
+				{ text: 'A natural leader.', facts: [] }
+			]
+		]);
+		expect((await draftSummary(db, using(fetcher), job)).message).toMatch(/found 1 problem\./);
+		expect((await getSummaryDraft(db, job))?.problems).toEqual([
+			{ paragraph: 0, sentence: 1, problem: 'Makes a claim without citing a fact.' }
+		]);
+	});
+
+	it('won’t draft where AI is forbidden, or put a draft on that resume', async () => {
+		await draftSummary(db, using(letter([[{ text: BACKED, facts: [factId] }]])), job);
+		await setAiRule(db, job, 'forbids', 'No AI.');
+		const fetcher = vi.fn<typeof fetch>();
+		expect((await draftSummary(db, using(fetcher), job)).message).toBe(
+			'This posting forbids AI-written answers, so Job Ranger won’t draft a summary for it.'
+		);
+		expect(fetcher).not.toHaveBeenCalled();
+		expect(await keepSummary(db, job, BACKED, NOW)).toEqual({
+			ok: false,
+			message: 'This posting forbids AI-written answers, so the resume keeps your picked facts.'
+		});
+	});
+
+	it('puts a clean draft on the resume as drafted, and a flagged one only once edited', async () => {
+		expect((await keepSummary(db, job, BACKED, NOW)).message).toBe(
+			'That summary draft is no longer here.'
+		);
+		await draftSummary(db, using(letter([[{ text: BACKED, facts: [factId] }]])), job);
+		expect(await keepSummary(db, job, `  ${BACKED}\n`, NOW)).toEqual({
+			ok: true,
+			message:
+				'The drafted summary is on the resume for this job. Every sentence is backed by its facts.'
+		});
+		expect((await getSummaryDraft(db, job))?.kept).toEqual({
+			text: BACKED,
+			edited: false,
+			at: NOW
+		});
+
+		const flagged = 'Led a 99-person team.';
+		await draftSummary(db, using(letter([[{ text: flagged, facts: [factId] }]])), job);
+		// A new draft takes the old choice off the resume.
+		expect((await getSummaryDraft(db, job))?.kept).toBeNull();
+		expect((await keepSummary(db, job, flagged, NOW)).message).toMatch(
+			/^The checks found problems in this draft\./
+		);
+		expect((await keepSummary(db, job, '  ', NOW)).message).toBe(
+			'Write the summary first: the box is empty.'
+		);
+		expect((await keepSummary(db, job, 'x'.repeat(1501), NOW)).message).toBe(
+			'That’s 1501 characters. Keep the summary under 1500.'
+		);
+		expect((await keepSummary(db, job, 'Led a 12-person team.', NOW)).message).toBe(
+			'Your edited summary is on the resume for this job.'
+		);
+		expect((await getSummaryDraft(db, job))?.kept).toMatchObject({ edited: true });
+
+		expect((await dropSummary(db, job)).message).toBe(
+			'The resume uses your picked facts for its summary again.'
+		);
+		expect(await getSummaryDraft(db, job)).toMatchObject({ kept: null, problems: [{}] });
+	});
+
+	it('fails loudly on a stored summary it doesn’t recognise, and goes with its company', async () => {
+		await draftSummary(db, using(letter([[{ text: BACKED, facts: [factId] }]])), job);
+		await db.prepare(`UPDATE resume_summaries SET problems = '[{"problem": 1}]'`).run();
+		await expect(getSummaryDraft(db, job)).rejects.toThrow(StoredDataError);
+		await removeBoard(db, 'lever', 'Flight');
+		expect(await db.prepare('SELECT COUNT(*) AS n FROM resume_summaries').first()).toEqual({
+			n: 0
 		});
 	});
 });

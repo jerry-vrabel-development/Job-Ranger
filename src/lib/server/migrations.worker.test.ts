@@ -425,3 +425,60 @@ describe('migration 0015: draft costs', () => {
 		).rejects.toThrow();
 	});
 });
+
+describe('migration 0016: resume summaries', () => {
+	it('keeps every draft cost, ids included, and then accepts summaries', async () => {
+		await applyD1Migrations(db, MIGRATIONS.slice(0, 15));
+		await db
+			.prepare(
+				`INSERT INTO draft_costs (id, source, board, posting_id, kind, model, price_table, cost_micros, at)
+				 VALUES (7, 'lever', 'f', '1', 'answer', 'm', 'v', 10, '2026-11-21T00:00:00.000Z')`
+			)
+			.run();
+		await applyD1Migrations(db, [...MIGRATIONS]);
+		expect(await first('SELECT * FROM draft_costs')).toEqual({
+			id: 7,
+			source: 'lever',
+			board: 'f',
+			posting_id: '1',
+			kind: 'answer',
+			model: 'm',
+			price_table: 'v',
+			cost_micros: 10,
+			at: '2026-11-21T00:00:00.000Z'
+		});
+		const cost = (kind: string) =>
+			db
+				.prepare(
+					`INSERT INTO draft_costs (source, board, posting_id, kind, model, price_table, cost_micros)
+					 VALUES ('lever', 'f', '1', ?1, 'm', 'v', 1)`
+				)
+				.bind(kind)
+				.run();
+		await cost('summary');
+		await expect(cost('poem')).rejects.toThrow();
+		expect(
+			await first(
+				"SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'draft_costs_job'"
+			)
+		).toEqual({ name: 'draft_costs_job' });
+	});
+
+	it('keeps one summary per job, and a choice only with its time', async () => {
+		await applyD1Migrations(db, [...MIGRATIONS]);
+		const summary = (posting: string, kept: string | null, at: string | null) =>
+			db
+				.prepare(
+					`INSERT INTO resume_summaries (source, board, posting_id, paragraphs, model, cost_micros,
+					 kept_text, kept_at) VALUES ('lever', 'f', ?1, '[]', 'm', 0, ?2, ?3)`
+				)
+				.bind(posting, kept, at)
+				.run();
+		await summary('1', null, null);
+		await expect(summary('1', null, null)).rejects.toThrow();
+		await summary('2', 'Mine.', '2026-11-22T00:00:00Z');
+		await expect(summary('3', 'Mine.', null)).rejects.toThrow();
+		await expect(summary('4', null, '2026-11-22T00:00:00Z')).rejects.toThrow();
+		await expect(summary('5', '', '2026-11-22T00:00:00Z')).rejects.toThrow();
+	});
+});

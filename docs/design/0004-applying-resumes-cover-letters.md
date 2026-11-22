@@ -255,8 +255,17 @@ Each step is one PR with unit, database and browser tests, including axe.
    allowed; the company must be named only for "why this company"). A
    draft is kept only by editing it: saving it unchanged is refused,
    because it's saved to the answer bank as "AI draft, edited by me", with
-   a note of the model, job and date; the draft is then deleted. The
-   resume summary is still to do.
+   a note of the model, job and date; the draft is then deleted.
+   _Resume summary built (4c)._ As built: one paragraph of 2 or 3
+   sentences (up to 80 words) from the same picked facts, in resume style
+   (no "I", no company name), with the same checks and no framing sentence
+   allowed: every sentence cites facts. It's drafted on the kit, beside the
+   resume link, and goes on the printed resume only once I choose it: as
+   drafted only if the checks passed, otherwise once I've edited it, and
+   the resume says which. A new draft takes the old choice off; where the
+   posting forbids AI, the resume keeps the picked facts. Costs are logged
+   as `summary` (migration 0016). An edited summary isn't re-checked yet:
+   that's step 5.
 5. **Final review** (code checks first, then model suggestions).
 6. **Evals script** and the saved set of postings.
 7. **Write together** list and the good day pile.

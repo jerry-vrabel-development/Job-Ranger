@@ -9,8 +9,8 @@ import type { Question } from '#lib/answers.ts';
 import type { Experience, Kind } from '#lib/facts.ts';
 
 export type LetterKind = 'letter_full' | 'letter_short';
-/** What a draft is for: a letter of either length, or one answer. */
-export type DraftKind = LetterKind | 'answer';
+/** What a draft is for: a letter of either length, one answer, or the resume's summary. */
+export type DraftKind = LetterKind | 'answer' | 'summary';
 
 /**
  * Question types facts can answer. Work authorization, start date,
@@ -61,7 +61,9 @@ export interface LetterJob {
 export const LIMITS: Readonly<Record<DraftKind, { words: number; framing: number }>> = {
 	letter_full: { words: 450, framing: 3 },
 	letter_short: { words: 170, framing: 2 },
-	answer: { words: 200, framing: 1 }
+	answer: { words: 200, framing: 1 },
+	// A summary is all claims: every sentence names its facts.
+	summary: { words: 80, framing: 0 }
 };
 
 export const TOOL_NAME = 'write_letter';
@@ -121,6 +123,19 @@ export function answerSystemPrompt(): string {
 		'Facts whose experience is "side" are side projects or hobbies, and "learning" ones are being learned now. Never present them as professional work or as years of experience.',
 		'Answer the question asked, directly, in the first person, plainly and specifically. Avoid filler like “passionate” or “leverage”.',
 		'Write one or two short paragraphs, 50 to 150 words in all.',
+		`Answer only by calling the ${TOOL_NAME} tool.`
+	].join('\n');
+}
+
+export function summarySystemPrompt(): string {
+	return [
+		'You draft the summary at the top of a resume for one job, for the person whose facts you are given.',
+		'Use only the facts given. Every sentence must list, in `facts`, the ids of the facts it uses. No sentence may cite no facts.',
+		'Never add a skill, number, year, job title, employer or result that isn’t in the facts a sentence cites.',
+		'Facts whose experience is "side" are side projects or hobbies, and "learning" ones are being learned now. Never present them as professional work or as years of experience.',
+		'Lead with what fits this job best, using the posting when it is given.',
+		'Write in resume style, without “I” and without naming the company you are applying to. Be plain and specific. Avoid “passionate”, “results-driven”, “leverage”, “synergy”, “seasoned” and similar filler.',
+		'Write one paragraph of 2 or 3 sentences, 40 to 70 words in all.',
 		`Answer only by calling the ${TOOL_NAME} tool.`
 	].join('\n');
 }
@@ -198,8 +213,8 @@ export function checkLetter(
 	facts: readonly LetterFact[],
 	job: LetterJob,
 	otherCompanies: readonly string[],
-	/** Letters must name the company; an answer only when it's asked why this company. */
-	needsCompany = kind !== 'answer'
+	/** Letters must name the company; an answer only when it's asked why this company; a summary never. */
+	needsCompany = kind === 'letter_full' || kind === 'letter_short'
 ): Problem[] {
 	const byId = new Map(facts.map((fact) => [fact.id, fact]));
 	const problems: Problem[] = [];

@@ -50,7 +50,9 @@
 		For <strong>{data.job.title}</strong> at {data.job.company}. Picked by plain rules from your {countLabel(
 			data.factCount,
 			'confirmed fact'
-		)}: nothing is added or reworded.
+		)}: nothing is added or reworded{data.summary === null
+			? '.'
+			: `, except the summary: ${data.summary.edited ? 'your edit of a drafted one' : 'a drafted one you chose, every sentence backed by its facts'}. Change it on the kit.`}
 		{#if resume.pickedFor.length > 0}
 			Picked for: {resume.pickedFor.join(', ')}.
 		{/if}
@@ -83,7 +85,12 @@
 		{#if contact.length > 0}<p class="contact">{contact.join(' · ')}</p>{/if}
 	</header>
 
-	{#if resume.summary.length > 0}
+	{#if data.summary !== null}
+		<section aria-labelledby="summary-heading">
+			<h2 id="summary-heading">Summary</h2>
+			<p>{data.summary.text}</p>
+		</section>
+	{:else if resume.summary.length > 0}
 		<section aria-labelledby="summary-heading">
 			<h2 id="summary-heading">Summary</h2>
 			{#each resume.summary as fact (fact.id)}<p>{fact.text}</p>{/each}

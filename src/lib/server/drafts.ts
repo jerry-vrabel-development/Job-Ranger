@@ -1,7 +1,7 @@
 /**
- * Drafting cover letters for a job (design note 0004, step 4): picks the
- * facts that fit, asks the model, checks the answer in code, and keeps a
- * daily spending cap.
+ * Drafting for a job (design note 0004, step 4): cover letters, answers and
+ * the resume summary. Picks the facts that fit, asks the model, checks the
+ * answer in code, and keeps a daily spending cap.
  */
 import { buildResume, jobTextOf } from '#lib/kit/resume.ts';
 import { LABEL_MAX } from '#lib/answers.ts';
@@ -12,6 +12,7 @@ import {
 	LETTER_TOOL,
 	parseLetter,
 	plainText,
+	summarySystemPrompt,
 	systemPrompt,
 	userPrompt,
 	type LetterFact,
@@ -488,4 +489,152 @@ export async function keepAnswerDraft(
 		ok: true,
 		message: 'Saved your edited answer to Answers, labeled “AI draft, edited by me”.'
 	};
+}
+
+export interface SummaryDraft {
+	readonly paragraphs: readonly Paragraph[];
+	readonly problems: readonly Problem[];
+	readonly model: string;
+	readonly costMicros: number;
+	readonly createdAt: string;
+	/** What I chose for the resume (the draft, or my edit of it); null until I choose. */
+	readonly kept: { readonly text: string; readonly edited: boolean; readonly at: string } | null;
+}
+
+/** The latest drafted resume summary for a job, or null. */
+export async function getSummaryDraft(db: D1Database, key: JobKey): Promise<SummaryDraft | null> {
+	const row = await db
+		.prepare('SELECT * FROM resume_summaries WHERE source = ?1 AND board = ?2 AND posting_id = ?3')
+		.bind(key.source, key.board, key.id)
+		.first<Row>();
+	if (row === null) return null;
+	const paragraphs: unknown = JSON.parse(text(row, 'paragraphs'));
+	const problems: unknown = JSON.parse(text(row, 'problems'));
+	if (!isParagraphs(paragraphs) || !isProblems(problems)) {
+		throw new StoredDataError('a stored summary draft is not the shape we keep');
+	}
+	const keptText = row['kept_text'];
+	return {
+		paragraphs,
+		problems,
+		model: text(row, 'model'),
+		costMicros: count(row, 'cost_micros'),
+		createdAt: text(row, 'created_at'),
+		kept:
+			typeof keptText === 'string'
+				? { text: keptText, edited: row['kept_edited'] === 1, at: text(row, 'kept_at') }
+				: null
+	};
+}
+
+/** Drafts the resume summary for the job, checks it, and keeps it. A new draft is not on the resume until I choose it. */
+export async function draftSummary(
+	db: D1Database,
+	settings: DraftSettings,
+	key: JobKey
+): Promise<Result> {
+	const go = await ready(db, settings, key, 'a summary');
+	if (!('setup' in go)) return go;
+	const written = await write(
+		db,
+		go,
+		'summary',
+		summarySystemPrompt(),
+		userPrompt(go.job, go.chosen),
+		'a summary'
+	);
+	if (!('paragraphs' in written)) return written;
+	const problems = checkLetter(
+		'summary',
+		written.paragraphs,
+		go.chosen,
+		go.job,
+		await companies(db)
+	);
+	await db
+		.prepare(
+			`INSERT INTO resume_summaries (source, board, posting_id, paragraphs, problems, model, cost_micros)
+			 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+			 ON CONFLICT (source, board, posting_id) DO UPDATE SET paragraphs = excluded.paragraphs,
+			 problems = excluded.problems, model = excluded.model, cost_micros = excluded.cost_micros,
+			 created_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), kept_text = NULL, kept_edited = 0,
+			 kept_at = NULL`
+		)
+		.bind(
+			key.source,
+			key.board,
+			key.id,
+			JSON.stringify(written.paragraphs),
+			JSON.stringify(problems),
+			go.setup.model,
+			written.cost
+		)
+		.run();
+	return { ok: true, message: drafted('a summary', written.cost, problems) };
+}
+
+/** Longest summary text the resume takes, in characters. */
+export const SUMMARY_MAX = 1500;
+
+/**
+ * Puts a drafted summary on the job's resume: as drafted, only if the checks
+ * passed; or my edit of it, which is mine to stand behind.
+ */
+export async function keepSummary(
+	db: D1Database,
+	key: JobKey,
+	chosen: string,
+	now: string
+): Promise<Result> {
+	const draft = await getSummaryDraft(db, key);
+	if (!draft) return { ok: false, message: 'That summary draft is no longer here.' };
+	const kit = await getKit(db, key);
+	if (kit?.aiRule === 'forbids') {
+		return {
+			ok: false,
+			message: 'This posting forbids AI-written answers, so the resume keeps your picked facts.'
+		};
+	}
+	const tidy = (value: string) => value.replace(/\s+/g, ' ').trim();
+	const summary = tidy(chosen);
+	if (summary === '') return { ok: false, message: 'Write the summary first: the box is empty.' };
+	if (summary.length > SUMMARY_MAX) {
+		return {
+			ok: false,
+			message: `That’s ${String(summary.length)} characters. Keep the summary under ${String(SUMMARY_MAX)}.`
+		};
+	}
+	const edited = summary !== tidy(plainText(draft.paragraphs));
+	if (!edited && draft.problems.length > 0) {
+		return {
+			ok: false,
+			message:
+				'The checks found problems in this draft. Fix or cut those sentences in the box first, or draft it again.'
+		};
+	}
+	await db
+		.prepare(
+			`UPDATE resume_summaries SET kept_text = ?4, kept_edited = ?5, kept_at = ?6
+			 WHERE source = ?1 AND board = ?2 AND posting_id = ?3`
+		)
+		.bind(key.source, key.board, key.id, summary, edited ? 1 : 0, now)
+		.run();
+	return {
+		ok: true,
+		message: edited
+			? 'Your edited summary is on the resume for this job.'
+			: 'The drafted summary is on the resume for this job. Every sentence is backed by its facts.'
+	};
+}
+
+/** Takes the chosen summary off the resume; the picked facts are used again. The draft stays. */
+export async function dropSummary(db: D1Database, key: JobKey): Promise<Result> {
+	await db
+		.prepare(
+			`UPDATE resume_summaries SET kept_text = NULL, kept_edited = 0, kept_at = NULL
+			 WHERE source = ?1 AND board = ?2 AND posting_id = ?3`
+		)
+		.bind(key.source, key.board, key.id)
+		.run();
+	return { ok: true, message: 'The resume uses your picked facts for its summary again.' };
 }

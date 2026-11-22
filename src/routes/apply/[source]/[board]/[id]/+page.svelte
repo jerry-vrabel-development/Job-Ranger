@@ -29,6 +29,9 @@
 	const postingBack = $derived(form && 'posting' in form ? form.posting : undefined);
 	/** An edited answer that couldn't be saved, to put back in its box. */
 	const keptBack = $derived(form && 'kept' in form ? form.kept : undefined);
+	/** A summary that couldn't go on the resume, to put back in its box. */
+	const summaryBack = $derived(form && 'summary' in form ? form.summary : undefined);
+	const summary = $derived(data.drafting.summary);
 	const GAP_ANSWERS = [
 		{ value: 'professional', label: 'Professional' },
 		{ value: 'side', label: 'Side project or hobby' },
@@ -422,6 +425,88 @@
 				<button type="submit">Save the posting’s text</button>
 			</form>
 		</details>
+		<h3 id="summary-heading">Summary</h3>
+		{#if kit.aiRule === 'forbids'}
+			<p>
+				This posting forbids AI-written answers, so the resume’s summary is your picked facts, as
+				they are.
+			</p>
+		{:else}
+			{#if summary?.kept}
+				<p>
+					<strong>On the resume:</strong>
+					{summary.kept.edited
+						? 'your edited version of the drafted summary.'
+						: 'the drafted summary, as drafted.'}
+				</p>
+				<form method="POST" action="?/dropSummary" use:enhance={afterAction}>
+					<button type="submit">Use your picked facts instead</button>
+				</form>
+			{:else}
+				<p>The resume’s summary is your picked facts, as they are, until you choose a draft.</p>
+			{/if}
+			{#if !data.drafting.ready}
+				<p>Drafting isn’t set up yet, so Job Ranger can’t draft a summary.</p>
+			{:else}
+				<p>
+					{data.drafting.label} can draft a summary fitted to this job, from the facts picked for it.
+					Each sentence names the facts it uses, and code checks it against them.
+				</p>
+				<form method="POST" action="?/draftSummary" use:enhance={afterAction}>
+					<button type="submit">{summary ? 'Draft the summary again' : 'Draft a summary'}</button>
+				</form>
+			{/if}
+			{#if summary}
+				<article class="answer draft" aria-labelledby="summary-draft-heading">
+					<h4 id="summary-draft-heading">Drafted summary</h4>
+					<p class="meta">Drafted {summary.created} · {summary.cost}</p>
+					{#if summary.problems.length > 0}
+						<div class="problems">
+							<p><strong>Check before using ({String(summary.problems.length)}):</strong></p>
+							<ol>
+								{#each summary.problems as problem, i (i)}
+									<li>
+										{problem.paragraph < 0
+											? 'The summary'
+											: `Sentence ${String(problem.sentence + 1)}`}:
+										{problem.problem}
+									</li>
+								{/each}
+							</ol>
+						</div>
+					{:else}
+						<p><strong>Checks passed:</strong> every sentence is backed by the facts it names.</p>
+					{/if}
+					{#each summary.paragraphs.map((_, p) => paragraphText(summary, p)) as paragraph, p (p)}
+						<p class="text">{paragraph}</p>
+					{/each}
+					<details>
+						<summary>Facts each sentence uses…</summary>
+						<ul>
+							{#each summary.used.flat() as used, u (u)}
+								<li>{used.length === 0 ? 'No facts.' : used.join('; ')}</li>
+							{/each}
+						</ul>
+					</details>
+					<form method="POST" action="?/keepSummary" use:enhance={afterAction} class="stack">
+						<label for="keep-summary">Put it on the resume, as it is or as you edit it</label>
+						<p class="hint" id="keep-summary-hint">
+							{summary.problems.length > 0
+								? 'Fix or cut the flagged sentences first.'
+								: 'Read it first: it goes on the resume as your words.'}
+						</p>
+						<textarea
+							id="keep-summary"
+							name="summary"
+							rows="4"
+							aria-describedby="keep-summary-hint"
+							value={browser ? undefined : (summaryBack ?? summary.kept?.text ?? summary.text)}
+							defaultValue={summaryBack ?? summary.kept?.text ?? summary.text}></textarea>
+						<button type="submit">Use on the resume</button>
+					</form>
+				</article>
+			{/if}
+		{/if}
 		{#if kit.gaps.length > 0}
 			<h3>Skills the posting names that aren’t in your facts</h3>
 			<p>

@@ -97,6 +97,28 @@ test.describe('the jobs page', () => {
 		await expect(fresh.getByText(/Ghost-job warning/)).toHaveCount(0);
 	});
 
+	test('says when pay is missing where a state’s law requires it, and links the rule', async ({
+		page
+	}) => {
+		const job = page.getByRole('article', { name: 'Software Engineer 3', exact: true });
+		await expect(
+			job.getByText(
+				'Pay missing: No pay is posted. Illinois requires a pay range in job postings from employers with 15 or more employees: Illinois’s rule on the state’s own site. Whether it covers this job depends on the employer’s size and where the work is done. Information, not legal advice.'
+			)
+		).toBeVisible();
+		await expect(
+			job.getByRole('link', { name: 'Illinois’s rule on the state’s own site' })
+		).toHaveAttribute(
+			'href',
+			'https://labor.illinois.gov/laws-rules/conmed/equal-pay-act-salary-transparency.html'
+		);
+		// Greenhouse's list never carries pay, so its jobs aren't judged.
+		const greenhouse = page.getByRole('article', { name: 'Software Engineer, Benefits Access' });
+		await expect(greenhouse.getByText(/Pay missing/)).toHaveCount(0);
+		const paid = page.getByRole('article', { name: 'Software Engineer 2', exact: true });
+		await expect(paid.getByText(/Pay missing/)).toHaveCount(0);
+	});
+
 	test('says when a board could not be read, and why', async ({ page }) => {
 		await expect(page.getByText('1 board couldn’t be read in the last check.')).toBeVisible();
 		await page.getByText('Job boards (4)').click();

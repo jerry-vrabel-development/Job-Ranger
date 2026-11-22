@@ -7,6 +7,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { ghostSignal, type GhostInput } from './ghost.ts';
+import { paySignal, type PayInput } from './pay.ts';
 
 const NOW = '2026-11-22T12:00:00.000Z';
 const daysAgo = (n: number) => new Date(Date.parse(NOW) - n * 86_400_000).toISOString();
@@ -72,5 +73,74 @@ describe('signals eval: ghost-job warning', () => {
 
 	it('misses nothing', () => {
 		expect(results.filter((r) => !r.flagged && r.ghost).map((r) => r.name)).toEqual([]);
+	});
+});
+
+interface PayCase {
+	readonly name: string;
+	readonly posting: PayInput;
+	readonly flag: boolean;
+}
+
+const RANGE = {
+	summary: '$120K - $140K',
+	min: 120_000,
+	max: 140_000,
+	currency: 'USD',
+	interval: null
+};
+
+const PAY_CASES: readonly PayCase[] = [
+	{
+		name: 'Chicago job, no pay',
+		posting: { source: 'ashby', location: 'Chicago, IL', pay: null },
+		flag: true
+	},
+	{
+		name: 'hybrid New York or remote, no pay',
+		posting: { source: 'lever', location: 'New York, NY; Remote (US)', pay: null },
+		flag: true
+	},
+	{
+		name: 'Chicago job with its range posted',
+		posting: { source: 'ashby', location: 'Chicago, IL', pay: RANGE },
+		flag: false
+	},
+	{
+		name: 'Greenhouse job: its list never carries pay',
+		posting: { source: 'greenhouse', location: 'Chicago, IL', pay: null },
+		flag: false
+	},
+	{
+		name: 'remote anywhere in the US, no pay',
+		posting: { source: 'ashby', location: 'Remote (US)', pay: null },
+		flag: false
+	},
+	{
+		name: 'Texas job, no pay',
+		posting: { source: 'breezy', location: 'Austin, TX', pay: null },
+		flag: false
+	},
+	{
+		name: 'West Virginia job, no pay',
+		posting: { source: 'ashby', location: 'Morgantown, West Virginia', pay: null },
+		flag: false
+	},
+	{
+		name: 'Washington, D.C. job, no pay',
+		posting: { source: 'lever', location: 'Washington, D.C.', pay: null },
+		flag: true
+	}
+];
+
+describe('signals eval: pay missing where the law may require it', () => {
+	const results = PAY_CASES.map((c) => ({ ...c, flagged: paySignal(c.posting, NOW) !== null }));
+
+	it('raises no false alarms', () => {
+		expect(results.filter((r) => r.flagged && !r.flag).map((r) => r.name)).toEqual([]);
+	});
+
+	it('misses nothing', () => {
+		expect(results.filter((r) => !r.flagged && r.flag).map((r) => r.name)).toEqual([]);
 	});
 });

@@ -23,7 +23,8 @@ code checks it (answers are kept only once you've edited them), a drafted resume
 summary, checked the same way, that goes on the resume only once you choose it, a Review
 button that checks your edited summary and answers for the wrong company or role, length and numbers not
 in your facts (suggestions only), a ghost-job warning on jobs open 60 days or more or reposted
-twice, with the facts behind it, and a daily
+twice, with the facts behind it, a note when a job posts no pay in a state whose law requires a range
+(with a link to the state's rule), and a daily
 record of each company's open-job count, all behind sign-in. The rest of the features below are
 planned, not shipped yet. The plan is in
 [design note 0001](docs/design/0001-job-ranger.md), and how it connects to

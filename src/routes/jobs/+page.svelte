@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PayMissing from '#lib/signals/PayMissing.svelte';
 	import { tick } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
@@ -145,6 +146,9 @@
 						{/if}
 						{#if job.ghost}
 							<p class="signal"><strong>Ghost-job warning:</strong> {job.ghost}</p>
+						{/if}
+						{#if job.payLaws}
+							<PayMissing laws={job.payLaws} />
 						{/if}
 						{#if job.why}
 							<p class="why"><span class="visually-hidden">Why it's listed:</span> {job.why}</p>

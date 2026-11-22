@@ -1,6 +1,6 @@
 # 0005 — Honest signals: ghost jobs, missing pay, scams
 
-- **Status:** Accepted. Building (ghost-job warning first)
+- **Status:** Accepted. Ghost-job warning and missing pay built; scam checks next
 - **Builds on:** [0001](0001-job-ranger.md), roadmap step 4
 
 ## Problem
@@ -65,16 +65,36 @@ Why 60 days: most roles that are really hiring fill or close within two
 months, and a shorter line would flag ordinary slow hiring. The line is a
 named constant, and the signals eval (below) is how it gets tuned.
 
-### 2. Pay missing where the law may require it (next)
+### 2. Pay missing where the law may require it (built)
 
-For a posting whose location names a US state with a pay-range law, from a
-source that lists pay, with no pay posted: "Pay not posted. Illinois
-requires a pay range in postings for jobs there (employers with 15 or more
-employees), with a link to the state's page. Information, not legal
-advice." The list of states, their thresholds and links live in one data
-file with a date checked, verified against each state's own site when it's
-built. Remote jobs aren't flagged by state, since which law applies depends
-on where the work is done.
+For a posting with no pay, from a source that lists pay (Ashby, Lever,
+Breezy), whose location names a state with a pay-range-in-postings law in
+effect: "Pay missing: No pay is posted. Illinois requires a pay range in
+job postings from employers with 15 or more employees: Illinois's rule."
+Then: "Whether it covers this job depends on the employer's size and where
+the work is done. Information, not legal advice."
+
+- **The laws** live in one file, `src/lib/signals/pay-laws.ts`, each with
+  its headcount threshold, effective date and a link to the state's own
+  page (or its legislature's), all checked on the date in that file. As
+  checked on Nov 22, 2026: California, Colorado, Connecticut (from Oct 1,
+  2026), Washington D.C., Hawaii, Illinois, Maine (from July 29, 2026),
+  Maryland, Massachusetts, Minnesota, New Jersey, New York, Vermont,
+  Virginia (from July 1, 2026) and Washington. Delaware's takes effect
+  Sept. 26, 2027 and is in the file, silent until then. Nevada and Rhode
+  Island require pay only on request or after an interview, so a posting
+  without pay doesn't break them; they're left out.
+- **Reading the location:** a state counts when the location names it in
+  full ("Seattle, Washington") or as a capital code after a comma
+  ("Chicago, IL"), in any part of a location like "Chicago, IL; Remote
+  (US)". "Washington, DC" is D.C., never Washington state; West Virginia is
+  never Virginia. "Remote (US)" names no state, so it isn't flagged, even
+  though some of these laws cover remote jobs: which law applies depends on
+  facts the posting doesn't give.
+- **Greenhouse** jobs are never flagged: its job list carries no pay, so a
+  missing pay there means nothing.
+- **City laws** (New York City, Jersey City, Cleveland and others) aren't
+  checked: the state laws cover the places on my list.
 
 ### 3. Scam checks (last)
 

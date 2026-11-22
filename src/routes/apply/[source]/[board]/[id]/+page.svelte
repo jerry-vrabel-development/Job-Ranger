@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PayMissing from '#lib/signals/PayMissing.svelte';
 	import { tick } from 'svelte';
 	import { browser } from '$app/env';
 	import { enhance, type SubmitFunction } from '$app/forms';
@@ -143,6 +144,9 @@
 {/if}
 {#if job.ghost}
 	<p class="note"><strong>Ghost-job warning:</strong> {job.ghost}</p>
+{/if}
+{#if job.payLaws}
+	<PayMissing laws={job.payLaws} />
 {/if}
 
 {#if copied !== ''}

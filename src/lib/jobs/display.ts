@@ -3,6 +3,7 @@
  * Everything is said in words: nothing relies on color or icons alone.
  */
 import { ghostSignal, ghostWords } from '#lib/signals/ghost.ts';
+import { paySignal, whoItCovers } from '#lib/signals/pay.ts';
 import { SOURCE_LISTS_PAY, type Workplace } from './posting.ts';
 import type { StoredPosting } from './sync.ts';
 
@@ -48,6 +49,16 @@ export interface JobCard {
 	readonly jobUrl: string | null;
 	/** The ghost-job warning in words, with its facts, or null (design note 0005). */
 	readonly ghost: string | null;
+	/** States whose pay-range law may apply to a posting with no pay, or null (design note 0005). */
+	readonly payLaws: readonly PayLawWords[] | null;
+}
+
+/** One state's pay-range rule, as a card says it. */
+export interface PayLawWords {
+	readonly name: string;
+	/** "employers with 15 or more employees". */
+	readonly who: string;
+	readonly url: string;
 }
 
 export function toJobCard(posting: StoredPosting, now: string): JobCard {
@@ -69,7 +80,13 @@ export function toJobCard(posting: StoredPosting, now: string): JobCard {
 		postedAt: posting.postedAt,
 		applyUrl: posting.applyUrl,
 		jobUrl: posting.jobUrl,
-		ghost: ((signal) => (signal === null ? null : ghostWords(signal)))(ghostSignal(posting, now))
+		ghost: ((signal) => (signal === null ? null : ghostWords(signal)))(ghostSignal(posting, now)),
+		payLaws:
+			paySignal(posting, now)?.map((law) => ({
+				name: law.name,
+				who: whoItCovers(law),
+				url: law.url
+			})) ?? null
 	};
 }
 

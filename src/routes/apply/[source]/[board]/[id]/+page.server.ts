@@ -12,11 +12,15 @@ import {
 	dollars,
 	draftAnswer,
 	draftLetter,
+	draftSummary,
+	dropSummary,
 	appliedDraftingCost,
 	getAnswerDrafts,
 	getDrafts,
+	getSummaryDraft,
 	jobDraftingCost,
 	keepAnswerDraft,
+	keepSummary,
 	spentOn
 } from '#lib/server/drafts.ts';
 import { draftable, plainText } from '#lib/kit/letter.ts';
@@ -113,7 +117,8 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 		profile,
 		answerDrafts,
 		jobCost,
-		appliedCost
+		appliedCost,
+		summaryDraft
 	] = await Promise.all([
 		getKit(db, key),
 		getApplication(db, key),
@@ -124,9 +129,19 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 		getProfile(db),
 		getAnswerDrafts(db, key),
 		jobDraftingCost(db, key),
-		appliedDraftingCost(db)
+		appliedDraftingCost(db),
+		getSummaryDraft(db, key)
 	]);
 	const factText = new Map(facts.map((fact) => [fact.id, fact.text]));
+	/** Each sentence's cited facts, in words. */
+	const usedBy = (paragraphs: readonly (readonly { readonly facts: readonly number[] }[])[]) =>
+		paragraphs.map((paragraph) =>
+			paragraph.map((sentence) =>
+				sentence.facts.map(
+					(id) => factText.get(id) ?? `Fact ${String(id)} (no longer in your bank)`
+				)
+			)
+		);
 	const usable = facts.filter((fact) => fact.confirmed && !fact.retired);
 	const gaps =
 		kit === null
@@ -167,14 +182,7 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 												problems: draft.problems,
 												paragraphs: draft.paragraphs,
 												text: plainText(draft.paragraphs),
-												used: draft.paragraphs.map((paragraph) =>
-													paragraph.map((sentence) =>
-														sentence.facts.map(
-															(id) =>
-																factText.get(id) ?? `Fact ${String(id)} (no longer in your bank)`
-														)
-													)
-												)
+												used: usedBy(draft.paragraphs)
 											}
 							};
 						})
@@ -198,18 +206,26 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 						},
 			cap: dollars(capMicros(setting('DRAFT_DAILY_CAP_USD'))),
 			name: profile.name,
+			summary:
+				summaryDraft === null
+					? null
+					: {
+							created: dateLabel(summaryDraft.createdAt),
+							cost: dollars(summaryDraft.costMicros),
+							problems: summaryDraft.problems,
+							paragraphs: summaryDraft.paragraphs,
+							text: plainText(summaryDraft.paragraphs),
+							used: usedBy(summaryDraft.paragraphs),
+							kept:
+								summaryDraft.kept === null
+									? null
+									: { text: summaryDraft.kept.text, edited: summaryDraft.kept.edited }
+						},
 			drafts: drafts.map((draft) => ({
 				...draft,
 				created: dateLabel(draft.createdAt),
 				cost: dollars(draft.costMicros),
-				/** Each sentence's cited facts, in words. */
-				used: draft.paragraphs.map((paragraph) =>
-					paragraph.map((sentence) =>
-						sentence.facts.map(
-							(id) => factText.get(id) ?? `Fact ${String(id)} (no longer in your bank)`
-						)
-					)
-				)
+				used: usedBy(draft.paragraphs)
 			}))
 		}
 	};
@@ -271,6 +287,24 @@ export const actions: Actions = {
 			)
 		);
 	},
+	draftSummary: async ({ params, fetch }) =>
+		reply(
+			await draftSummary(
+				database(),
+				{
+					setup: chooseModel(PROVIDERS, setting, fetch),
+					capMicros: capMicros(setting('DRAFT_DAILY_CAP_USD')),
+					now: new Date().toISOString()
+				},
+				keyOf(params)
+			)
+		),
+	keepSummary: async ({ params, request }) => {
+		const chosen = value(await request.formData(), 'summary', 20_000);
+		const result = await keepSummary(database(), keyOf(params), chosen, new Date().toISOString());
+		return result.ok ? { result } : fail(400, { result, summary: chosen });
+	},
+	dropSummary: async ({ params }) => reply(await dropSummary(database(), keyOf(params))),
 	keepAnswer: async ({ params, request }) => {
 		const form = await request.formData();
 		const question = value(form, 'question', 500);

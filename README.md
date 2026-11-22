@@ -19,7 +19,8 @@ per job (the form's questions with your saved answers lined up, an AI-rule
 check, and "I applied"), a printable resume per job picked from confirmed
 facts, with skills the posting names that you haven't added asked about, not
 assumed, cover letter and answer drafts in which every sentence names its facts and
-code checks it (answers are kept only once you've edited them), and a daily
+code checks it (answers are kept only once you've edited them), a drafted resume
+summary, checked the same way, that goes on the resume only once you choose it, and a daily
 record of each company's open-job count, all behind sign-in. The rest of the features below are
 planned, not shipped yet. The plan is in
 [design note 0001](docs/design/0001-job-ranger.md), and how it connects to

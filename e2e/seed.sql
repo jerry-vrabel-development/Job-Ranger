@@ -1,6 +1,7 @@
 -- Browser-test data for the local D1 (npm run e2e:seed). Safe to run again:
 -- it starts from empty. Real-sized: long text, many jobs, every kind of card.
 DELETE FROM draft_costs;
+DELETE FROM resume_summaries;
 DELETE FROM applications;
 DELETE FROM answer_drafts;
 DELETE FROM drafts;
@@ -123,6 +124,15 @@ INSERT INTO answer_drafts (source, board, posting_id, question, paragraphs, prob
 		'[[{"text":"I led the checkout rebuild.","facts":[1]},{"text":"The team had 6 people.","facts":[1]}]]',
 		'[{"paragraph":0,"sentence":1,"problem":"The number 6 isn’t in the facts it cites."}]',
 		'claude-sonnet-5-5', 3000, '2026-11-20T16:00:00.000Z');
+
+-- A made-up resume summary draft for that kit, not yet on the resume. The second sentence's
+-- number isn't in its fact, so the checks flagged it.
+INSERT INTO resume_summaries (source, board, posting_id, paragraphs, problems, model, cost_micros,
+	created_at) VALUES
+	('ashby', 'example', 'newest',
+		'[[{"text":"Senior Developer at Example Co.","facts":[3]},{"text":"Cut page load time in half for 40 stores.","facts":[1]}]]',
+		'[{"paragraph":0,"sentence":1,"problem":"The number 40 isn’t in the facts it cites."}]',
+		'claude-sonnet-5-5', 6000, '2026-11-21T15:00:00.000Z');
 
 -- Made-up drafting costs for that kit ($0.01 so far), and one past application whose drafting
 -- cost $0.05, so the per-application average shows.

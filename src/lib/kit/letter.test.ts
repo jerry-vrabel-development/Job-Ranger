@@ -7,6 +7,7 @@ import {
 	letterText,
 	LIMITS,
 	parseLetter,
+	summarySystemPrompt,
 	systemPrompt,
 	userPrompt,
 	type LetterFact,
@@ -205,5 +206,46 @@ describe('answers', () => {
 
 	it('gives a draft’s plain text, paragraphs kept', () => {
 		expect(plainText([[s('One.'), s('Two.')], [s('Three.')]])).toBe('One. Two.\n\nThree.');
+	});
+});
+
+describe('resume summaries', () => {
+	it('asks for a short, fully cited summary in resume style', () => {
+		const prompt = summarySystemPrompt();
+		expect(prompt).toMatch(/No sentence may cite no facts/);
+		expect(prompt).toMatch(/"side" are side projects or hobbies/);
+		expect(prompt).toMatch(/without “I” and without naming the company/);
+		expect(prompt).toMatch(/40 to 70 words/);
+	});
+
+	it('flags every sentence that cites no fact, and never asks for the company', () => {
+		const summary = [
+			[
+				s('Engineering lead for a platform with 1M+ monthly visitors across 128 domains.', [1]),
+				s('Calm under pressure.')
+			]
+		];
+		expect(checkLetter('summary', summary, facts, job, [])).toEqual([
+			{ paragraph: 0, sentence: 1, problem: 'Makes a claim without citing a fact.' }
+		]);
+	});
+
+	it('holds a summary to its own, shorter length', () => {
+		expect(LIMITS.summary).toEqual({ words: 80, framing: 0 });
+		const long = [[s('Led engineering at HIMSS. '.repeat(21).trim(), [1])]];
+		expect(checkLetter('summary', long, facts, job, [])).toEqual([
+			{ paragraph: -1, sentence: -1, problem: '84 words, over the 80 this length allows.' }
+		]);
+	});
+
+	it('catches a side project worded as professional work in a summary too', () => {
+		const summary = [[s('Professional builder of Quest Log.', [2])]];
+		expect(checkLetter('summary', summary, facts, job, [])).toEqual([
+			{
+				paragraph: 0,
+				sentence: 0,
+				problem: 'Words a side project or something you’re learning as professional work.'
+			}
+		]);
 	});
 });

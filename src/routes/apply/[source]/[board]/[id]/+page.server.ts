@@ -25,6 +25,7 @@ import {
 } from '#lib/server/drafts.ts';
 import { draftable, plainText } from '#lib/kit/letter.ts';
 import { reviewed } from '#lib/kit/review.ts';
+import { scamSignals } from '#lib/signals/scam.ts';
 import { chooseModel, PROVIDERS } from '#lib/server/models/model.ts';
 import { reviewAnswer, reviewSummary } from '#lib/server/review.ts';
 import { getProfile } from '#lib/server/profile.ts';
@@ -168,6 +169,8 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 						aiDecidedBy: kit.aiDecidedBy,
 						pasted: kit.pasted.join('\n'),
 						postingText: kit.postingText,
+						/** Scam patterns in the posting's text, each with its sentence (design note 0005). */
+						scam: scamSignals(kit.postingText),
 						gaps,
 						basics: kit.questions.filter((q) => q.basic).map((q) => q.label),
 						items: itemsOf(kit, answers).map((item) => {

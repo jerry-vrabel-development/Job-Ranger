@@ -1,6 +1,6 @@
 # 0005 — Honest signals: ghost jobs, missing pay, scams
 
-- **Status:** Accepted. Ghost-job warning and missing pay built; scam checks next
+- **Status:** Accepted. All three signals built
 - **Builds on:** [0001](0001-job-ranger.md), roadmap step 4
 
 ## Problem
@@ -96,12 +96,28 @@ the work is done. Information, not legal advice."
 - **City laws** (New York City, Jersey City, Cleveland and others) aren't
   checked: the state laws cover the places on my list.
 
-### 3. Scam checks (last)
+### 3. Scam checks (built)
 
-On text I paste or a kit's posting text: pay-to-start or equipment-check
-requests, a "recruiter" on a free email domain, text-message-only contact,
-and the developer-scam pattern (install a "meeting app", run a repo as a
-take-home). Each flag quotes the sentence it found.
+On a kit's posting text (read from Greenhouse or pasted in), five narrow
+patterns, each flag quoting the sentence it found and saying why it
+matters:
+
+- **Asks you to pay:** "you must pay/purchase…", or a training, starter-kit,
+  registration or background-check fee.
+- **Check for equipment:** a check sent or deposited to buy equipment or
+  office setup, the fake-check scam.
+- **Free email address:** a contact on Gmail, Yahoo, Outlook and the like.
+- **Chat-app contact:** contact or an interview on WhatsApp, Telegram,
+  Signal and the like, or "by text only". Mentioning those apps as a
+  product isn't enough.
+- **Run their software:** install a "meeting app", clone a repo and run it,
+  or connect a crypto wallet: the developer-scam pattern.
+
+Each kind shows at most once. Ordinary phrases that share words ("we pay
+for your training", "we'll send you a laptop", "background check",
+"equipment checks", "signal processing") are in the tests and the eval
+set, so they stay quiet. Checking text pasted from anywhere ("paste to
+check") is 0001's later list.
 
 ## Evals
 

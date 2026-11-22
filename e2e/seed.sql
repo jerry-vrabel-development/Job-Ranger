@@ -126,6 +126,11 @@ INSERT INTO answer_drafts (source, board, posting_id, question, paragraphs, prob
 		'[{"paragraph":0,"sentence":1,"problem":"The number 6 isn’t in the facts it cites."}]',
 		'claude-sonnet-5-5', 3000, '2026-11-20T16:00:00.000Z');
 
+-- A kit whose made-up posting text has two scam patterns, for the scam check (design note 0005).
+INSERT INTO kits (source, board, posting_id, read_note, ai_rule, ai_decided_by, pasted, posting_text)
+	VALUES ('ashby', 'example', 'job-1', 'Pasted by hand.', 'none', 'me', '',
+		'Great remote role. Your interview will be held over Telegram. We will mail you a check to buy your office setup from our vendor.');
+
 -- A made-up resume summary draft for that kit, not yet on the resume. The second sentence's
 -- number isn't in its fact, so the checks flagged it.
 INSERT INTO resume_summaries (source, board, posting_id, paragraphs, problems, model, cost_micros,

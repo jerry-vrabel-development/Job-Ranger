@@ -2,6 +2,7 @@
  * Words for the job list, in one place so the page and its tests agree.
  * Everything is said in words: nothing relies on color or icons alone.
  */
+import { ghostSignal, ghostWords } from '#lib/signals/ghost.ts';
 import { SOURCE_LISTS_PAY, type Workplace } from './posting.ts';
 import type { StoredPosting } from './sync.ts';
 
@@ -45,6 +46,8 @@ export interface JobCard {
 	readonly postedAt: string | null;
 	readonly applyUrl: string;
 	readonly jobUrl: string | null;
+	/** The ghost-job warning in words, with its facts, or null (design note 0005). */
+	readonly ghost: string | null;
 }
 
 export function toJobCard(posting: StoredPosting, now: string): JobCard {
@@ -65,7 +68,8 @@ export function toJobCard(posting: StoredPosting, now: string): JobCard {
 		posted: postedLabel(posting.postedAt, now),
 		postedAt: posting.postedAt,
 		applyUrl: posting.applyUrl,
-		jobUrl: posting.jobUrl
+		jobUrl: posting.jobUrl,
+		ghost: ((signal) => (signal === null ? null : ghostWords(signal)))(ghostSignal(posting, now))
 	};
 }
 

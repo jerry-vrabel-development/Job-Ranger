@@ -72,8 +72,19 @@ describe('toJobCard', () => {
 			posted: 'Posted 5 days ago',
 			postedAt: '2026-11-12T15:00:00.000Z',
 			applyUrl: 'https://jobs.ashbyhq.com/example/a/application',
-			jobUrl: 'https://jobs.ashbyhq.com/example/a'
+			jobUrl: 'https://jobs.ashbyhq.com/example/a',
+			ghost: null
 		});
+	});
+
+	it('carries the ghost-job warning in words when the facts add up to one', () => {
+		const card = toJobCard(
+			{ ...stored, postedAt: '2026-09-01T00:00:00.000Z', reopenCount: 2 },
+			NOW
+		);
+		expect(card.ghost).toMatch(
+			/^Open \d+ days \(since Sep 1, 2026, the board’s date\), reposted twice\./
+		);
 	});
 
 	it('points to the posting for pay when the source does not list it', () => {

@@ -86,6 +86,17 @@ test.describe('the jobs page', () => {
 		await expect(leverJob.getByText('Engineering · Avionics')).toBeVisible();
 	});
 
+	test('warns of a possible ghost job in words, with its facts', async ({ page }) => {
+		const long = page.getByRole('article', { name: /^Principal Staff Senior Lead/ });
+		await expect(
+			long.getByText(
+				/^Ghost-job warning: Open \d+ days \(since Nov 15, 2026, the board’s date\), reposted twice\. Long-open or reposted jobs are sometimes never filled\. A warning, not a verdict\.$/
+			)
+		).toBeVisible();
+		const fresh = page.getByRole('article', { name: 'Senior Software Engineer, Accessibility' });
+		await expect(fresh.getByText(/Ghost-job warning/)).toHaveCount(0);
+	});
+
 	test('says when a board could not be read, and why', async ({ page }) => {
 		await expect(page.getByText('1 board couldn’t be read in the last check.')).toBeVisible();
 		await page.getByText('Job boards (4)').click();

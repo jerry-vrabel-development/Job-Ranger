@@ -143,6 +143,9 @@
 						{#if job.applied}
 							<p class="applied"><strong>Applied</strong> {job.applied}</p>
 						{/if}
+						{#if job.ghost}
+							<p class="signal"><strong>Ghost-job warning:</strong> {job.ghost}</p>
+						{/if}
 						{#if job.why}
 							<p class="why"><span class="visually-hidden">Why it's listed:</span> {job.why}</p>
 						{/if}
@@ -252,6 +255,13 @@
 
 	.applied {
 		margin: 0.25rem 0 0;
+	}
+
+	/* The warning says what it is in words; the rule beside it is extra, not the signal. */
+	.signal {
+		margin: 0.5rem 0 0;
+		border-left: 4px solid var(--accent);
+		padding-left: 0.75rem;
 	}
 
 	.why {

@@ -141,6 +141,9 @@
 {#if job.closed}
 	<p class="note"><strong>Closed:</strong> this job has left {job.sourceName}'s board.</p>
 {/if}
+{#if job.ghost}
+	<p class="note"><strong>Ghost-job warning:</strong> {job.ghost}</p>
+{/if}
 
 {#if copied !== ''}
 	<p class="note" role="status" tabindex="-1" bind:this={status}>{copied}</p>

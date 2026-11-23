@@ -1,6 +1,6 @@
 # 0006 — Tracking: saved, passed, and what happens after I apply
 
-- **Status:** Accepted. Part 1 (saved and passed) built; part 2 next
+- **Status:** Accepted. Built (both parts)
 - **Builds on:** [0001](0001-job-ranger.md), roadmap step 3
 
 ## Problem
@@ -33,7 +33,7 @@ waiting. 0001 promises a tracker that knows about ghosting.
 - Every button names its job for screen readers, the status line says what
   happened in words, and the list works without JavaScript.
 
-## Part 2: after I apply (next)
+## Part 2: after I apply (built)
 
 - **Statuses:** applied → interviewing → offer, or rejected or withdrawn,
   each with its date and an optional note, on the kit and on a Tracker page.
@@ -41,9 +41,18 @@ waiting. 0001 promises a tracker that knows about ghosting.
   reply", worked out from the dates when the page loads, so there's no
   timer to run and nothing to go stale.
 - **Follow-up reminders:** at 7 and 14 days with no reply, the Tracker shows
-  "A good time to follow up", calm and dismissable.
+  "A good time to follow up", with an "I followed up today" button. A
+  follow-up covers the reminder it answers: one on day 7 to 13 quiets the
+  first, and the second comes at day 14.
 - The intervals are named constants, tested with a fake clock, and said on
   the page.
+- **As built:** migration 0018 adds status, status_at, status_note and
+  followed_up_at to applications. The kit's "Applied?" section shows where
+  the application stands, a "Where it stands" choice with a note, and the
+  follow-up button when one is due. The **Tracker** page (in the main menu)
+  groups applications by what needs me first: Follow up now, Interviewing,
+  Offers, Waiting to hear, No reply, Closed. "How each company responds"
+  comes later, once there's enough history to say anything.
 
 ## Options considered
 

@@ -679,7 +679,32 @@
 		</p>
 	{/if}
 	{#if data.applied}
-		<p><strong>You applied on {data.applied}.</strong></p>
+		<p><strong>You applied on {data.applied}.</strong> {data.tracking?.words}</p>
+		{#if data.tracking?.note}
+			<p><strong>Your note:</strong> {data.tracking.note}</p>
+		{/if}
+		{#if data.tracking?.group === 'follow-up'}
+			<form method="POST" action="?/followedUp" use:enhance={afterAction}>
+				<button type="submit">I followed up today</button>
+			</form>
+		{/if}
+		<form method="POST" action="?/status" use:enhance={afterAction} class="stack">
+			<label for="status">Where it stands</label>
+			<select id="status" name="status" value={data.tracking?.status}>
+				{#each data.statuses as status (status.value)}
+					<option value={status.value}>{status.label}</option>
+				{/each}
+			</select>
+			<label for="status-note">Note (optional, just for you)</label>
+			<input
+				id="status-note"
+				name="note"
+				type="text"
+				maxlength={data.statusNoteMax}
+				value={data.tracking?.note ?? ''}
+			/>
+			<button type="submit">Update</button>
+		</form>
 		<form method="POST" action="?/unapplied" use:enhance={afterAction}>
 			<button type="submit">Undo: I haven't applied</button>
 		</form>

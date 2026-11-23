@@ -482,3 +482,22 @@ describe('migration 0016: resume summaries', () => {
 		await expect(summary('5', '', '2026-11-22T00:00:00Z')).rejects.toThrow();
 	});
 });
+
+describe('migration 0017: job marks', () => {
+	it('keeps one mark per job, saved or passed, with a short note', async () => {
+		await applyD1Migrations(db, [...MIGRATIONS]);
+		const mark = (id: string, kind: string, note = '') =>
+			db
+				.prepare(
+					`INSERT INTO job_marks (source, board, posting_id, mark, note, marked_at)
+					 VALUES ('lever', 'f', ?1, ?2, ?3, '2026-11-23T00:00:00Z')`
+				)
+				.bind(id, kind, note)
+				.run();
+		await mark('1', 'saved');
+		await mark('2', 'passed', 'Too far.');
+		await expect(mark('1', 'passed')).rejects.toThrow();
+		await expect(mark('3', 'applied')).rejects.toThrow();
+		await expect(mark('4', 'passed', 'x'.repeat(301))).rejects.toThrow();
+	});
+});

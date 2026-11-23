@@ -148,6 +148,19 @@
 {#if job.payLaws}
 	<PayMissing laws={job.payLaws} />
 {/if}
+{#if kit && kit.scam.length > 0}
+	<div class="note">
+		<p>
+			<strong>Scam check ({String(kit.scam.length)}):</strong> the posting’s text has patterns job scams
+			use. A reason to look closer, not a verdict.
+		</p>
+		<ul>
+			{#each kit.scam as flag (flag.label)}
+				<li><strong>{flag.label}:</strong> “{flag.quote}” {flag.why}</li>
+			{/each}
+		</ul>
+	</div>
+{/if}
 
 {#if copied !== ''}
 	<p class="note" role="status" tabindex="-1" bind:this={status}>{copied}</p>

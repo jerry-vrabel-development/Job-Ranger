@@ -8,6 +8,7 @@
 import { describe, expect, it } from 'vitest';
 import { ghostSignal, type GhostInput } from './ghost.ts';
 import { paySignal, type PayInput } from './pay.ts';
+import { scamSignals } from './scam.ts';
 
 const NOW = '2026-11-22T12:00:00.000Z';
 const daysAgo = (n: number) => new Date(Date.parse(NOW) - n * 86_400_000).toISOString();
@@ -142,5 +143,60 @@ describe('signals eval: pay missing where the law may require it', () => {
 
 	it('misses nothing', () => {
 		expect(results.filter((r) => !r.flagged && r.flag).map((r) => r.name)).toEqual([]);
+	});
+});
+
+const SCAM_CASES: readonly { name: string; text: string; scam: boolean }[] = [
+	{
+		name: 'ordinary engineering posting',
+		text: 'You’ll build accessible web apps in TypeScript. We pay for conferences and training. Offers depend on a background check. Interviews happen on Zoom.',
+		scam: false
+	},
+	{
+		name: 'messaging product team',
+		text: 'Join the team behind our WhatsApp and Telegram integrations. Email jobs@example.com with questions.',
+		scam: false
+	},
+	{
+		name: 'remote laptop shipped by the company',
+		text: 'We’ll send you a laptop and a home-office budget on day one.',
+		scam: false
+	},
+	{
+		name: 'warehouse role with equipment checks',
+		text: 'You’ll run daily equipment checks and keep the line safe.',
+		scam: false
+	},
+	{
+		name: 'fake-check equipment scam',
+		text: 'Congratulations! We will send you a check to purchase equipment from our vendor.',
+		scam: true
+	},
+	{
+		name: 'chat-app interview with a free email',
+		text: 'Your interview will be held on Telegram. Questions: recruiter.team@outlook.com.',
+		scam: true
+	},
+	{
+		name: 'developer "meeting app" scam',
+		text: 'Before the technical call, please download our meeting app from the link below.',
+		scam: true
+	},
+	{
+		name: 'starter-kit fee',
+		text: 'A small onboarding fee covers your training materials.',
+		scam: true
+	}
+];
+
+describe('signals eval: scam checks', () => {
+	const results = SCAM_CASES.map((c) => ({ ...c, flagged: scamSignals(c.text).length > 0 }));
+
+	it('raises no false alarms', () => {
+		expect(results.filter((r) => r.flagged && !r.scam).map((r) => r.name)).toEqual([]);
+	});
+
+	it('misses nothing', () => {
+		expect(results.filter((r) => !r.flagged && r.scam).map((r) => r.name)).toEqual([]);
 	});
 });

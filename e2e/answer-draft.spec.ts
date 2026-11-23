@@ -53,7 +53,7 @@ test.describe('a drafted answer', () => {
 	}) => {
 		await expect(page.getByText('Drafting for this application so far: $0.01.')).toBeVisible();
 		await expect(
-			page.getByText('Across 1 application: $0.05 of drafting in all, $0.05 each on average.')
+			page.getByText('Across 4 applications: $0.20 of drafting in all, $0.05 each on average.')
 		).toBeVisible();
 	});
 

@@ -140,11 +140,22 @@ INSERT INTO resume_summaries (source, board, posting_id, paragraphs, problems, m
 		'[{"paragraph":0,"sentence":1,"problem":"The number 40 isn’t in the facts it cites."}]',
 		'claude-sonnet-5-5', 6000, '2026-11-21T15:00:00.000Z');
 
--- Made-up drafting costs for that kit ($0.01 so far), and one past application whose drafting
--- cost $0.05, so the per-application average shows.
+-- Made-up drafting costs for that kit ($0.01 so far), and four past applications whose drafting
+-- cost $0.05 each, so the per-application average shows.
 INSERT INTO draft_costs (source, board, posting_id, kind, model, price_table, cost_micros) VALUES
 	('ashby', 'example', 'newest', 'letter_full', 'claude-sonnet-5-5', '2026-11-20', 7000),
 	('ashby', 'example', 'newest', 'answer', 'claude-sonnet-5-5', '2026-11-20', 3000);
-INSERT INTO applications (source, board, posting_id, company, title, applied_at, drafting_micros)
-	VALUES ('ashby', 'example', 'long', 'Example Co', 'A long posting', '2026-11-19T15:00:00.000Z', 50000);
+-- Application dates are relative to today, so the tracker's groups (design note 0006) hold
+-- whenever the tests run: waiting, follow up now, no reply, and interviewing.
+INSERT INTO applications (source, board, posting_id, company, title, applied_at, drafting_micros,
+	status, status_at, status_note) VALUES
+	('ashby', 'example', 'long', 'Example Co', 'A long posting',
+		strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-2 days'), 50000, 'applied', NULL, ''),
+	('ashby', 'example', 'job-2', 'Example Co', 'Software Engineer 2',
+		strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-10 days'), 50000, 'applied', NULL, ''),
+	('ashby', 'example', 'job-3', 'Example Co', 'Software Engineer 3',
+		strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-45 days'), 50000, 'applied', NULL, ''),
+	('ashby', 'example', 'job-4', 'Example Co', 'Software Engineer 4',
+		strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-20 days'), 50000, 'interviewing',
+		strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-2 days'), 'Call with Sam.');
 

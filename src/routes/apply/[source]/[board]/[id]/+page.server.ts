@@ -25,6 +25,8 @@ import {
 } from '#lib/server/drafts.ts';
 import { draftable, plainText } from '#lib/kit/letter.ts';
 import { reviewed } from '#lib/kit/review.ts';
+import { isStatus, standing, STATUS_WORDS, STATUSES } from '#lib/tracking/standing.ts';
+import { followedUp, getTracked, setStatus, STATUS_NOTE_MAX } from '#lib/server/tracker.ts';
 import { scamSignals } from '#lib/signals/scam.ts';
 import { chooseModel, PROVIDERS } from '#lib/server/models/model.ts';
 import { reviewAnswer, reviewSummary } from '#lib/server/review.ts';
@@ -32,7 +34,6 @@ import { getProfile } from '#lib/server/profile.ts';
 import { listAnswers, type Answer } from '#lib/server/answers.ts';
 import {
 	dismissGap,
-	getApplication,
 	getKit,
 	getPosting,
 	markApplied,
@@ -124,7 +125,7 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 		summaryDraft
 	] = await Promise.all([
 		getKit(db, key),
-		getApplication(db, key),
+		getTracked(db, key),
 		listAnswers(db),
 		listFacts(db),
 		getDrafts(db, key),
@@ -195,6 +196,17 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 		/** Every saved answer, to browse for a question no type matched. */
 		answers,
 		applied: application === null ? null : dateLabel(application.appliedAt),
+		/** Where the application stands (design note 0006), or null before I apply. */
+		tracking:
+			application === null
+				? null
+				: {
+						status: application.status,
+						note: application.note,
+						...standing(application, new Date().toISOString())
+					},
+		statuses: STATUSES.map((status) => ({ value: status, label: STATUS_WORDS[status] })),
+		statusNoteMax: STATUS_NOTE_MAX,
 		factCount: usable.length,
 		drafting: {
 			...describe(chooseModel(PROVIDERS, setting, fetch)),
@@ -386,5 +398,21 @@ export const actions: Actions = {
 		const ids = [...new Set(offered.map((answer) => answer.id))];
 		return reply(await markApplied(db, posting, ids, new Date().toISOString()));
 	},
-	unapplied: async ({ params }) => reply(await unmarkApplied(database(), keyOf(params)))
+	unapplied: async ({ params }) => reply(await unmarkApplied(database(), keyOf(params))),
+	status: async ({ params, request }) => {
+		const form = await request.formData();
+		const status = form.get('status');
+		if (!isStatus(status)) return reply({ ok: false, message: 'Choose where it stands.' });
+		return reply(
+			await setStatus(
+				database(),
+				keyOf(params),
+				status,
+				value(form, 'note', 2000),
+				new Date().toISOString()
+			)
+		);
+	},
+	followedUp: async ({ params }) =>
+		reply(await followedUp(database(), keyOf(params), new Date().toISOString()))
 };

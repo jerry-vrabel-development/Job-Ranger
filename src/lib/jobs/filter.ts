@@ -22,14 +22,20 @@ export interface JobFilter {
 	readonly onlyNew: boolean;
 	/** One active interest, or null for all jobs. */
 	readonly interest: InterestMatch | null;
+	/** Only saved jobs, only passed ones, or null: every job I haven't passed on. */
+	readonly show: Show | null;
 }
+
+/** The marks the list can show on their own (design note 0006). */
+export type Show = 'saved' | 'passed';
 
 export const NO_FILTER: JobFilter = {
 	words: [],
 	board: null,
 	workplace: null,
 	onlyNew: false,
-	interest: null
+	interest: null,
+	show: null
 };
 
 function isWorkplace(value: unknown): value is Workplace {
@@ -71,12 +77,14 @@ export function parseFilter(
 ): JobFilter {
 	const workplace = params.get('workplace');
 	const interest = params.get('interest');
+	const show = params.get('show');
 	return {
 		words: searchWords(params.get('q') ?? ''),
 		board: parseBoard(params.get('company')),
 		workplace: isWorkplace(workplace) ? workplace : null,
 		onlyNew: params.get('new') === '1',
-		interest: interests.find((each) => String(each.id) === interest) ?? null
+		interest: interests.find((each) => String(each.id) === interest) ?? null,
+		show: show === 'saved' || show === 'passed' ? show : null
 	};
 }
 
@@ -86,6 +94,7 @@ export function isFiltered(filter: JobFilter): boolean {
 		filter.board !== null ||
 		filter.workplace !== null ||
 		filter.onlyNew ||
-		filter.interest !== null
+		filter.interest !== null ||
+		filter.show !== null
 	);
 }

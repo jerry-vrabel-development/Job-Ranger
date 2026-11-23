@@ -26,6 +26,10 @@
 				>Jobs</a
 			>
 			<a
+				href={resolve('/tracker')}
+				aria-current={page.url.pathname === '/tracker' ? 'page' : undefined}>Tracker</a
+			>
+			<a
 				href={resolve('/companies')}
 				aria-current={page.url.pathname === '/companies' ? 'page' : undefined}>Companies</a
 			>

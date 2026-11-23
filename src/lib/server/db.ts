@@ -314,6 +314,12 @@ function openWhere(filter: JobFilter): { sql: string; values: unknown[] } {
 	}
 	if (filter.workplace) clauses.push(`p.workplace = ${bind(filter.workplace)}`);
 	if (filter.onlyNew) clauses.push('p.seen_at IS NULL');
+	// Passed jobs are off the list unless I ask for them (design note 0006).
+	const marked = (mark: string) =>
+		`EXISTS (SELECT 1 FROM job_marks m WHERE m.source = p.source AND m.board = p.board` +
+		` AND m.posting_id = p.id AND m.mark = '${mark}')`;
+	if (filter.show === null) clauses.push(`NOT ${marked('passed')}`);
+	else clauses.push(marked(filter.show));
 	if (filter.interest) {
 		const id = bind(filter.interest.id);
 		const either = [
@@ -503,7 +509,7 @@ export async function removeBoard(
 		db
 			.prepare('DELETE FROM boards WHERE source = ?1 AND token = ?2 RETURNING company')
 			.bind(source, token),
-		// History, tags, kits and drafts have no foreign key to boards (migrations 0007, 0008, 0011, 0013, 0016), so they go explicitly.
+		// History, tags, kits and drafts have no foreign key to boards (migrations 0007, 0008, 0011, 0013, 0016, 0017), so they go explicitly.
 		db.prepare('DELETE FROM board_counts WHERE source = ?1 AND board = ?2').bind(source, token),
 		db.prepare('DELETE FROM board_interests WHERE source = ?1 AND board = ?2').bind(source, token),
 		// Kits go with the company; applications stay as my history (migration 0011).
@@ -511,6 +517,7 @@ export async function removeBoard(
 		db.prepare('DELETE FROM drafts WHERE source = ?1 AND board = ?2').bind(source, token),
 		db.prepare('DELETE FROM answer_drafts WHERE source = ?1 AND board = ?2').bind(source, token),
 		db.prepare('DELETE FROM resume_summaries WHERE source = ?1 AND board = ?2').bind(source, token),
+		db.prepare('DELETE FROM job_marks WHERE source = ?1 AND board = ?2').bind(source, token),
 		db.prepare('DELETE FROM draft_costs WHERE source = ?1 AND board = ?2').bind(source, token)
 	]);
 	const row = removed?.results[0];

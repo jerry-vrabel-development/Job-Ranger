@@ -482,3 +482,42 @@ describe('migration 0016: resume summaries', () => {
 		await expect(summary('5', '', '2026-11-22T00:00:00Z')).rejects.toThrow();
 	});
 });
+
+describe('migration 0017: job marks', () => {
+	it('keeps one mark per job, saved or passed, with a short note', async () => {
+		await applyD1Migrations(db, [...MIGRATIONS]);
+		const mark = (id: string, kind: string, note = '') =>
+			db
+				.prepare(
+					`INSERT INTO job_marks (source, board, posting_id, mark, note, marked_at)
+					 VALUES ('lever', 'f', ?1, ?2, ?3, '2026-11-23T00:00:00Z')`
+				)
+				.bind(id, kind, note)
+				.run();
+		await mark('1', 'saved');
+		await mark('2', 'passed', 'Too far.');
+		await expect(mark('1', 'passed')).rejects.toThrow();
+		await expect(mark('3', 'applied')).rejects.toThrow();
+		await expect(mark('4', 'passed', 'x'.repeat(301))).rejects.toThrow();
+	});
+});
+
+describe('migration 0018: application status', () => {
+	it('starts old applications at applied, and only takes known statuses', async () => {
+		await applyD1Migrations(db, MIGRATIONS.slice(0, 17));
+		await db
+			.prepare(
+				`INSERT INTO applications (source, board, posting_id, company, title, applied_at)
+				 VALUES ('lever', 'f', '1', 'F', 'T', '2026-11-01T00:00:00Z')`
+			)
+			.run();
+		await applyD1Migrations(db, [...MIGRATIONS]);
+		expect(
+			await first('SELECT status, status_at, status_note, followed_up_at FROM applications')
+		).toEqual({ status: 'applied', status_at: null, status_note: '', followed_up_at: null });
+		await expect(db.prepare(`UPDATE applications SET status = 'ghosted'`).run()).rejects.toThrow();
+		await expect(
+			db.prepare(`UPDATE applications SET status_note = ?1`).bind('x'.repeat(301)).run()
+		).rejects.toThrow();
+	});
+});

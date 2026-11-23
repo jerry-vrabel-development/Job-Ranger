@@ -1,7 +1,7 @@
 <script lang="ts">
 	import PayMissing from '#lib/signals/PayMissing.svelte';
 	import { tick } from 'svelte';
-	import { enhance } from '$app/forms';
+	import { enhance, type SubmitFunction } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import { checkedLabel, countLabel, latest } from '#lib/jobs/display.ts';
 	import { pageTitle } from '#lib/site.ts';
@@ -10,12 +10,28 @@
 	let { data, form }: PageProps = $props();
 
 	let status: HTMLParagraphElement | undefined = $state();
+	let markStatus: HTMLParagraphElement | undefined = $state();
+
+	/** After saving or passing, the list reloads and the status line takes focus. */
+	const afterMark: SubmitFunction =
+		() =>
+		async ({ update }) => {
+			await update();
+			await tick();
+			markStatus?.focus();
+		};
 
 	const newCount = $derived(data.counts.new);
 	const shown = $derived(data.jobs.length);
 	const failed = $derived(data.boards.filter((board) => board.lastFetchOk === false));
 	const lastCheck = $derived(latest(data.boards.map((board) => board.lastFetchedAt)));
 </script>
+
+{#snippet jobFields(job: { source: string; board: string; id: string })}
+	<input type="hidden" name="source" value={job.source} />
+	<input type="hidden" name="board" value={job.board} />
+	<input type="hidden" name="id" value={job.id} />
+{/snippet}
 
 <svelte:head>
 	<title>{pageTitle('Jobs')}</title>
@@ -38,6 +54,9 @@
 		{/if}
 		{#if shown < data.counts.matching}
 			Showing the first {shown}; use the filters to narrow the list.
+		{/if}
+		{#if data.counts.passed > 0 && data.filter.show !== 'passed'}
+			{countLabel(data.counts.passed, 'passed job')} hidden.
 		{/if}
 		Last checked: {checkedLabel(lastCheck)}.
 	</p>
@@ -85,6 +104,14 @@
 				<option value="unknown">Not stated</option>
 			</select>
 		</div>
+		<div class="field">
+			<label for="show">Show</label>
+			<select id="show" name="show" value={data.filter.show}>
+				<option value="">All but passed</option>
+				<option value="saved">Saved only</option>
+				<option value="passed">Passed only</option>
+			</select>
+		</div>
 		<div class="field check">
 			<input id="new" name="new" type="checkbox" value="1" checked={data.filter.onlyNew} />
 			<label for="new">Only new</label>
@@ -108,6 +135,12 @@
 	{#if form?.marked !== undefined}
 		<p class="note" role="status" tabindex="-1" bind:this={status}>
 			Marked {countLabel(form.marked, 'job')} as seen.
+		</p>
+	{/if}
+
+	{#if form?.result}
+		<p class="note" role="status" tabindex="-1" bind:this={markStatus}>
+			{form.result.ok ? '' : 'Not done: '}{form.result.message}
 		</p>
 	{/if}
 
@@ -143,6 +176,14 @@
 						<p class="company">{job.company}</p>
 						{#if job.applied}
 							<p class="applied"><strong>Applied</strong> {job.applied}</p>
+						{/if}
+						{#if job.mark?.kind === 'saved'}
+							<p class="applied"><strong>Saved</strong> {job.mark.on}</p>
+						{:else if job.mark?.kind === 'passed'}
+							<p class="applied">
+								<strong>Passed</strong>
+								{job.mark.on}{#if job.mark.note}: {job.mark.note}{/if}
+							</p>
 						{/if}
 						{#if job.ghost}
 							<p class="signal"><strong>Ghost-job warning:</strong> {job.ghost}</p>
@@ -207,6 +248,46 @@
 								>
 							{/if}
 						</p>
+						<div class="marks">
+							{#if job.mark}
+								<form method="POST" action="?/unmark" use:enhance={afterMark}>
+									{@render jobFields(job)}
+									<button type="submit"
+										>{job.mark.kind === 'saved' ? 'Unsave' : 'Put back on the list'}<span
+											class="visually-hidden">{` ${job.title} at ${job.company}`}</span
+										></button
+									>
+								</form>
+							{/if}
+							{#if job.mark?.kind !== 'saved'}
+								<form method="POST" action="?/save" use:enhance={afterMark}>
+									{@render jobFields(job)}
+									<button type="submit"
+										>Save<span class="visually-hidden">{` ${job.title} at ${job.company}`}</span
+										></button
+									>
+								</form>
+							{/if}
+							{#if job.mark?.kind !== 'passed'}
+								<details>
+									<summary
+										>Pass on this job<span class="visually-hidden"
+											>{` ${job.title} at ${job.company}`}</span
+										></summary
+									>
+									<form method="POST" action="?/pass" use:enhance={afterMark} class="stack">
+										{@render jobFields(job)}
+										<label for="note-{job.key}">Why (optional, just for you)</label>
+										<input id="note-{job.key}" name="note" type="text" maxlength={data.noteMax} />
+										<button type="submit"
+											>Pass<span class="visually-hidden"
+												>{` on ${job.title} at ${job.company}`}</span
+											></button
+										>
+									</form>
+								</details>
+							{/if}
+						</div>
 					</article>
 				</li>
 			{/each}
@@ -259,6 +340,21 @@
 
 	.applied {
 		margin: 0.25rem 0 0;
+	}
+
+	.marks {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem 1rem;
+		align-items: flex-start;
+		margin-top: 0.5rem;
+	}
+
+	.stack {
+		display: grid;
+		gap: 0.25rem;
+		margin-top: 0.5rem;
+		max-width: 28rem;
 	}
 
 	/* The warning says what it is in words; the rule beside it is extra, not the signal. */

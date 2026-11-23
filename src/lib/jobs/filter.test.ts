@@ -21,7 +21,8 @@ describe('parseFilter', () => {
 			board: { source: 'lever', token: 'BluesInc' },
 			workplace: 'hybrid',
 			onlyNew: true,
-			interest: null
+			interest: null,
+			show: null
 		});
 	});
 
@@ -32,6 +33,12 @@ describe('parseFilter', () => {
 			expect(parseFilter(params(query), [drones])).toEqual(NO_FILTER);
 		}
 		expect(parseFilter(params('interest=7'))).toEqual(NO_FILTER);
+	});
+
+	it('reads which marked jobs to show', () => {
+		expect(parseFilter(params('show=saved')).show).toBe('saved');
+		expect(parseFilter(params('show=passed')).show).toBe('passed');
+		expect(isFiltered({ ...NO_FILTER, show: 'saved' })).toBe(true);
 	});
 
 	it('means no filter when the address has none', () => {
@@ -46,7 +53,9 @@ describe('parseFilter', () => {
 		`company=greenhouse:${'x'.repeat(101)}`,
 		'workplace=moon',
 		'workplace=constructor',
-		'new=yes'
+		'new=yes',
+		'show=all',
+		'show=SAVED'
 	])('ignores what it does not know: %s', (query) => {
 		expect(parseFilter(params(query))).toEqual(NO_FILTER);
 	});

@@ -19,14 +19,15 @@ test('pausing hides a company’s jobs, and resuming brings them back', async ({
 	await expect(page.getByText('Watching 3 of 4 companies.')).toBeVisible();
 
 	await page.goto('/jobs');
-	await expect(page.getByText('44 open jobs from 3 job boards, newest first.')).toBeVisible();
+	// Other edit tests may pass on a job meanwhile, so the job count isn't pinned down.
+	await expect(page.getByText(/\d+\s+open jobs from 3 job boards,\s+newest first\./)).toBeVisible();
 	await expect(page.getByRole('heading', { name: /Benefits Access/ })).toHaveCount(0);
 
 	await page.goto('/companies');
 	await page.getByRole('button', { name: 'Resume Civic Co' }).click();
 	await expect(page.getByRole('status')).toHaveText(/Resumed Civic Co\./);
 	await page.goto('/jobs');
-	await expect(page.getByText('45 open jobs from 4 job boards, newest first.')).toBeVisible();
+	await expect(page.getByText(/\d+\s+open jobs from 4 job boards,\s+newest first\./)).toBeVisible();
 });
 
 test('removing a company asks first, then says what went', async ({ page }) => {

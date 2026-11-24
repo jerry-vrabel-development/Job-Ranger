@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { getPosting, markApplied, type JobKey } from './kits.ts';
-import { searchCounts } from './insights.ts';
+import { companyCounts, searchCounts } from './insights.ts';
 import { markJob } from './marks.ts';
 import { addBoard, migratedDb } from './test-db.ts';
 import { setStatus } from './tracker.ts';
@@ -29,7 +29,9 @@ async function apply(id: string) {
 beforeEach(async () => {
 	db = await migratedDb();
 	await db.batch(
-		['job_marks', 'applications', 'postings', 'boards'].map((t) => db.prepare(`DELETE FROM ${t}`))
+		['job_marks', 'applications', 'board_counts', 'postings', 'boards'].map((t) =>
+			db.prepare(`DELETE FROM ${t}`)
+		)
 	);
 	await addBoard(db, { source: 'lever', token: 'Flight', company: 'Flight Co' });
 });
@@ -71,5 +73,45 @@ describe('the counts behind My search', () => {
 			interviewing: 2,
 			offers: 1
 		});
+	});
+});
+
+describe('the counts behind Trending companies', () => {
+	async function counts(board: string, rows: readonly (readonly [string, number])[]) {
+		for (const [day, open] of rows) {
+			await db
+				.prepare(
+					`INSERT INTO board_counts (source, board, day, open_jobs) VALUES ('ashby', ?1, ?2, ?3)`
+				)
+				.bind(board, day, open)
+				.run();
+		}
+	}
+
+	it('gives each watched company its counts since a day, oldest first, and skips paused ones', async () => {
+		await addBoard(db, { source: 'ashby', token: 'zeta', company: 'Zeta Labs' });
+		await addBoard(db, { source: 'ashby', token: 'alpha', company: 'Alpha Co' });
+		await addBoard(db, { source: 'ashby', token: 'paused', company: 'Paused Co' });
+		await db.prepare(`UPDATE boards SET paused = 1 WHERE token = 'paused'`).run();
+		await counts('zeta', [
+			['2026-11-24', 12],
+			['2026-10-01', 99],
+			['2026-11-20', 9]
+		]);
+		await counts('paused', [['2026-11-24', 3]]);
+
+		expect(await companyCounts(db, '2026-11-01')).toEqual([
+			{ source: 'ashby', board: 'alpha', company: 'Alpha Co', counts: [] },
+			{ source: 'lever', board: 'Flight', company: 'Flight Co', counts: [] },
+			{
+				source: 'ashby',
+				board: 'zeta',
+				company: 'Zeta Labs',
+				counts: [
+					{ day: '2026-11-20', openJobs: 9 },
+					{ day: '2026-11-24', openJobs: 12 }
+				]
+			}
+		]);
 	});
 });

@@ -28,6 +28,18 @@ INSERT INTO boards (source, token, company, last_fetched_at, last_fetch_ok, last
 	('greenhouse', 'civic', 'Civic Co', '2026-11-17T11:23:00.000Z', 1, '1 open, 1 new, 0 closed.'),
 	('lever', 'flight', 'Flight Co', '2026-11-17T11:23:00.000Z', 1, '1 open, 1 new, 0 closed.');
 
+-- Daily open-job counts for Trending companies (design note 0007), 40 days back from today so
+-- the trends hold whenever the tests run. Over 7 days: Example Co grows (63 → 70), Civic Co is
+-- steady (13 → 12), Flight Co shrinks (23 → 20) with a two-day gap from failed fetches, and
+-- Quiet Co's counts start 2 days ago: not enough data yet.
+INSERT INTO board_counts (source, board, day, open_jobs)
+	WITH RECURSIVE d(n) AS (SELECT 0 UNION ALL SELECT n + 1 FROM d WHERE n < 40)
+	SELECT 'ashby', 'example', date('now', '-' || n || ' days'), 30 + (40 - n) FROM d
+	UNION ALL SELECT 'greenhouse', 'civic', date('now', '-' || n || ' days'), 12 + n % 2 FROM d
+	UNION ALL SELECT 'lever', 'flight', date('now', '-' || n || ' days'), 20 + n / 2 FROM d
+		WHERE n NOT IN (3, 4)
+	UNION ALL SELECT 'ashby', 'quiet', date('now', '-' || n || ' days'), 5 FROM d WHERE n < 3;
+
 -- A Lever job: pay posted in Lever's salary range, applied for on Lever's form.
 INSERT INTO postings (source, board, id, company, title, location, workplace, employment_type,
 	department, apply_url, job_url, posted_at, pay_summary, pay_min, pay_max, pay_currency,

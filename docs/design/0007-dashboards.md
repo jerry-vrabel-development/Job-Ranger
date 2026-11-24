@@ -32,7 +32,7 @@ already recorded.
 ## Not goals
 
 - Predictions. Trends describe what happened.
-- A chart library. See Design.
+- A chart library that draws for us. See How charts are built.
 - Layoff data in the first PRs. It needs research first (see Layoffs).
 
 ## What the data can show today
@@ -73,13 +73,18 @@ numbers but no percentages. Median days to a reply waits for a status
 history: only the latest status date is stored, so today it would measure
 the latest answer, not the first.
 
-**Trending companies (hiring).** For each watched company: open jobs now,
-change over 7 and 30 days, and a small line of daily counts. Sorted by
-change, with the label in words and a symbol, never color alone:
-"↑ Growing: 62 → 75 open (+13) in 7 days". A change needs both a minimum
-size (3 jobs or 10%, whichever is larger) and at least 7 days of counts,
-or it's "Steady" or "Not enough data yet". Days with a failed fetch are
-gaps, not zeros.
+**Trending companies (hiring)** (built). For each watched company, a line
+chart of its daily counts over the last 7 or 30 days (a switch kept in the
+address), with the change said in words and a symbol, never color alone:
+"↑ Growing: 62 → 75 open (+13) in 7 days". A trend runs from the last
+count on or before the window's first day to the latest count. A change
+needs at least 3 jobs and at least 10% of the start, or it's "Steady"; with
+no count from the start of the window it's "Not enough data yet", with the
+reason. Days with a failed fetch are gaps, not zeros. Sorted from most
+growth to most shrinkage. The y axis starts at 0, so a small change doesn't
+look like a big one. Each chart is a slider over its days: hover, or the
+arrow keys, read out a day and its count, and screen readers announce the
+same words.
 
 **The market I watch.** Open jobs by company, by source, and by remote,
 hybrid or on-site; how many post pay; new and closed jobs per day.
@@ -121,10 +126,32 @@ without an API stay out (0002: no scraping).
   at 11:23 UTC, early morning in Chicago, so each count is one fetch), and
   dates shown in Chicago time.
 
+## Addendum (2026-11-24): D3 and GSAP
+
+The charts are a portfolio piece as well as a tool, so they use the
+libraries a frontend or data-visualization team would expect, in a way
+that keeps every rule above:
+
+- **D3 for the math, Svelte for the drawing.** `d3-scale` and `d3-shape`
+  work out scales, ticks and line paths; Svelte renders the SVG. D3 never
+  touches the page, so everything stays an attribute, the CSP stays strict,
+  and the markup stays accessible. The US map of open jobs by state, when
+  it comes, uses `d3-geo` the same way.
+- **GSAP for motion.** For movement CSS can't do well (the trending list
+  reordering smoothly, sections revealing on scroll). It runs only in the
+  browser and sets styles from JavaScript, which the CSP allows; the server
+  page is complete without it. Off under reduced motion
+  (`gsap.matchMedia`), and never the only way to see a change. GSAP is free
+  under its own no-charge license, not an open-source one: fine as a
+  dependency of this MIT project, not something to copy into it.
+- **The same rules for both:** a summary in words, labels on the chart, a
+  table of the numbers, keyboard reading, light and dark checked with axe,
+  and motion that explains a change rather than decorates.
+
 ## Build order (one small PR each)
 
 1. ~~Chart parts (funnel, table, palette) and **Insights** with **My search**.~~ Built.
-2. **Trending companies (hiring)**, plus a small trend line on the Companies list.
+2. ~~**Trending companies (hiring)**~~ Built. A small trend line on the Companies list comes with the company page.
 3. **The market I watch.**
 4. **Signals and costs.**
 5. **Company page** with the summary from my own data.
@@ -136,10 +163,10 @@ dark mode and reduced motion.
 
 ## Options considered
 
-- **A chart library** (LayerChart, Chart.js and others). Faster to start,
-  but heavier, harder to make fully accessible, and canvas-based ones need
-  their own text fallback anyway. Rejected for now; revisit if the custom
-  parts grow past a few hundred lines.
+- **A chart library that draws** (LayerChart, Chart.js and others). Faster
+  to start, but heavier, harder to make fully accessible, and canvas-based
+  ones need their own text fallback anyway. Rejected; see the addendum for
+  the libraries chosen instead.
 - **Store daily summaries in new tables.** Not needed at this size; queries
   on load can't go stale. Revisit if a page gets slow.
 - **Build layoffs first.** It's the least certain data; better to show

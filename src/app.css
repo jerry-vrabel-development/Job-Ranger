@@ -16,6 +16,8 @@
 	--ordinal-4: #1c5cab;
 	--ordinal-5: #104281;
 	--chart-track: #eceeec;
+	/* A single series (a line chart's line): 3:1 or more against --surface. */
+	--series-1: #2a78d6;
 	font-family:
 		system-ui,
 		-apple-system,
@@ -43,6 +45,7 @@
 		--ordinal-4: #6da7ec;
 		--ordinal-5: #9ec5f4;
 		--chart-track: #262c28;
+		--series-1: #3987e5;
 	}
 }
 

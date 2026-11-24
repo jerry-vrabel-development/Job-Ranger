@@ -45,17 +45,17 @@
 		"eslint": "^10.4.0",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.17.0",
-		"fast-check": "^4.10.3",
+		"fast-check": "^4.10.2",
 		"globals": "^17.4.0",
 		"prettier": "^3.8.1",
-		"prettier-plugin-svelte": "^4.2.0",
+		"prettier-plugin-svelte": "^4.1.1",
 		"svelte": "^5.57.1",
 		"svelte-check": "^4.4.6",
 		"typescript": "~6.0.2",
 		"typescript-eslint": "^8.58.1",
 		"vite": "^8.0.12",
 		"vitest": "^5.1.1",
-		"wrangler": "^4.81.0"
+		"wrangler": "^4.166.0"
 	},
 	"overrides": {
 		"playwright-core": "$@playwright/test"

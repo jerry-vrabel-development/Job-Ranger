@@ -59,8 +59,10 @@
 										source: item.source,
 										board: item.board,
 										id: item.id
-									})}>{item.title}</a
+									})}
 								>
+									{item.title}
+								</a>
 							</h3>
 							<p class="company">{item.company} · applied {item.applied}</p>
 							<p><strong>{item.status}:</strong> {item.words}</p>
@@ -72,11 +74,11 @@
 									<input type="hidden" name="source" value={item.source} />
 									<input type="hidden" name="board" value={item.board} />
 									<input type="hidden" name="id" value={item.id} />
-									<button type="submit"
-										>I followed up today<span class="visually-hidden"
-											>{` on ${item.title} at ${item.company}`}</span
-										></button
-									>
+									<button type="submit">
+										I followed up today<span class="visually-hidden">
+											{` on ${item.title} at ${item.company}`}
+										</span>
+									</button>
 								</form>
 							{/if}
 						</article>

@@ -22,28 +22,45 @@
 			<span>{SITE.name}</span>
 		</a>
 		<nav aria-label="Main">
-			<a href={resolve('/jobs')} aria-current={page.url.pathname === '/jobs' ? 'page' : undefined}
-				>Jobs</a
-			>
+			<a href={resolve('/jobs')} aria-current={page.url.pathname === '/jobs' ? 'page' : undefined}>
+				Jobs
+			</a>
 			<a
 				href={resolve('/tracker')}
-				aria-current={page.url.pathname === '/tracker' ? 'page' : undefined}>Tracker</a
+				aria-current={page.url.pathname === '/tracker' ? 'page' : undefined}
 			>
+				Tracker
+			</a>
+			<a
+				href={resolve('/insights')}
+				aria-current={page.url.pathname === '/insights' ? 'page' : undefined}
+			>
+				Insights
+			</a>
 			<a
 				href={resolve('/companies')}
-				aria-current={page.url.pathname === '/companies' ? 'page' : undefined}>Companies</a
+				aria-current={page.url.pathname === '/companies' ? 'page' : undefined}
 			>
+				Companies
+			</a>
 			<a
 				href={resolve('/interests')}
-				aria-current={page.url.pathname === '/interests' ? 'page' : undefined}>Interests</a
+				aria-current={page.url.pathname === '/interests' ? 'page' : undefined}
 			>
-			<a href={resolve('/facts')} aria-current={page.url.pathname === '/facts' ? 'page' : undefined}
-				>Facts</a
+				Interests
+			</a>
+			<a
+				href={resolve('/facts')}
+				aria-current={page.url.pathname === '/facts' ? 'page' : undefined}
 			>
+				Facts
+			</a>
 			<a
 				href={resolve('/answers')}
-				aria-current={page.url.pathname === '/answers' ? 'page' : undefined}>Answers</a
+				aria-current={page.url.pathname === '/answers' ? 'page' : undefined}
 			>
+				Answers
+			</a>
 		</nav>
 	</div>
 </header>

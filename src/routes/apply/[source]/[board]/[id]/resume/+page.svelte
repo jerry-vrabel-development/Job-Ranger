@@ -43,8 +43,10 @@
 				source: data.job.source,
 				board: data.job.board,
 				id: data.job.id
-			})}>Back to the apply kit</a
+			})}
 		>
+			Back to the apply kit
+		</a>
 	</p>
 	<p>
 		For <strong>{data.job.title}</strong> at {data.job.company}. Picked by plain rules from your {countLabel(
@@ -71,8 +73,10 @@
 			type="button"
 			onclick={() => {
 				window.print();
-			}}>Print or save as PDF</button
+			}}
 		>
+			Print or save as PDF
+		</button>
 	{:else}
 		<p>Use your browser’s Print command to print it or save it as a PDF.</p>
 	{/if}

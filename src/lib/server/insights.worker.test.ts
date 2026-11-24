@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { getPosting, markApplied, type JobKey } from './kits.ts';
-import { companyCounts, searchCounts } from './insights.ts';
+import { companyCounts, marketCounts, searchCounts } from './insights.ts';
 import { markJob } from './marks.ts';
 import { addBoard, migratedDb } from './test-db.ts';
 import { setStatus } from './tracker.ts';
@@ -113,5 +113,52 @@ describe('the counts behind Trending companies', () => {
 				]
 			}
 		]);
+	});
+});
+
+describe('the counts behind The market I watch', () => {
+	async function open(
+		source: string,
+		board: string,
+		id: string,
+		workplace: string,
+		pay: string | null,
+		closed = false
+	) {
+		await db
+			.prepare(
+				`INSERT INTO postings (source, board, id, company, title, location, workplace, apply_url,
+				 first_seen_at, last_seen_at, closed_at, pay_summary) VALUES (?1, ?2, ?3, 'x', ?3, 'Remote',
+				 ?4, 'https://x.test/1', ?5, ?5, ?6, ?7)`
+			)
+			.bind(source, board, id, workplace, NOW, closed ? NOW : null, pay)
+			.run();
+	}
+
+	it('counts open jobs on watched boards by company, workplace and pay', async () => {
+		await addBoard(db, { source: 'greenhouse', token: 'civic', company: 'Civic Co' });
+		await addBoard(db, { source: 'ashby', token: 'quiet', company: 'Quiet Co' });
+		await addBoard(db, { source: 'ashby', token: 'paused', company: 'Paused Co' });
+		await db.prepare(`UPDATE boards SET paused = 1 WHERE token = 'paused'`).run();
+		await open('lever', 'Flight', 'a', 'remote', '$100k–$120k');
+		await open('lever', 'Flight', 'b', 'on-site', null);
+		await open('lever', 'Flight', 'gone', 'remote', null, true);
+		await open('greenhouse', 'civic', 'c', 'hybrid', null);
+		await open('greenhouse', 'civic', 'd', 'remote', null);
+		await open('ashby', 'paused', 'e', 'remote', '$1');
+
+		const market = await marketCounts(db);
+		expect([...market.byCompany].sort((x, y) => x.company.localeCompare(y.company))).toEqual([
+			{ company: 'Civic Co', open: 2 },
+			{ company: 'Flight Co', open: 2 },
+			// Watched but nothing open: still listed, at 0.
+			{ company: 'Quiet Co', open: 0 }
+		]);
+		expect([...market.byWorkplace].sort((x, y) => x.workplace.localeCompare(y.workplace))).toEqual([
+			{ workplace: 'hybrid', open: 1 },
+			{ workplace: 'on-site', open: 1 },
+			{ workplace: 'remote', open: 2 }
+		]);
+		expect(market).toMatchObject({ payListed: 2, payPosted: 1, payUnlisted: 2 });
 	});
 });

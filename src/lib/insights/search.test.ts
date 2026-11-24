@@ -30,20 +30,20 @@ const none: SearchCounts = {
 describe('the funnel', () => {
 	it('gives each step its count and its share of the step before', () => {
 		expect(funnelSteps(counts)).toEqual([
-			{ label: 'Saved', count: 20, share: null },
-			{ label: 'Applied', count: 10, share: '50% of saved' },
-			{ label: 'Replied', count: 4, share: '40% of applied' },
+			{ label: 'Saved', count: 20, detail: null },
+			{ label: 'Applied', count: 10, detail: '50% of saved' },
+			{ label: 'Replied', count: 4, detail: '40% of applied' },
 			// Fewer than 5 before it: the count, but no percentage.
-			{ label: 'Interviewing', count: 2, share: null },
-			{ label: 'Offer', count: 1, share: null }
+			{ label: 'Interviewing', count: 2, detail: null },
+			{ label: 'Offer', count: 1, detail: null }
 		]);
 	});
 
 	it('gives a share only from a step of at least the minimum', () => {
 		const at = funnelSteps({ ...counts, applied: MIN_FOR_SHARE, replied: 2 });
-		expect(at[2]?.share).toBe('40% of applied');
+		expect(at[2]?.detail).toBe('40% of applied');
 		const below = funnelSteps({ ...counts, applied: MIN_FOR_SHARE - 1, replied: 2 });
-		expect(below[2]?.share).toBeNull();
+		expect(below[2]?.detail).toBeNull();
 	});
 });
 

@@ -11,6 +11,7 @@
  * - interviewing: interviewing or offer
  */
 import { standing, type Tracked } from '#lib/tracking/standing.ts';
+import type { Bar } from '#lib/charts/types.ts';
 
 export interface SearchCounts {
 	/** Every job Job Ranger has seen, open or closed. */
@@ -23,12 +24,11 @@ export interface SearchCounts {
 	readonly offers: number;
 }
 
-export interface FunnelStep {
-	readonly label: string;
-	readonly count: number;
-	/** "40% of applied", or null when the step before is too small to say. */
-	readonly share: string | null;
-}
+/**
+ * A funnel step is a bar: its detail is the share of the step before ("40% of
+ * applied"), or null when the step before is too small to say.
+ */
+export type FunnelStep = Bar;
 
 /** Below this many, a share would be more noise than news ("100% of 1"), so none is shown. */
 export const MIN_FOR_SHARE = 5;
@@ -43,11 +43,11 @@ export function funnelSteps(counts: SearchCounts): FunnelStep[] {
 	];
 	return steps.map(([label, count], i) => {
 		const before = steps[i - 1];
-		const share =
+		const detail =
 			before === undefined || before[1] < MIN_FOR_SHARE
 				? null
 				: `${String(Math.round((count / before[1]) * 100))}% of ${before[0].toLowerCase()}`;
-		return { label, count, share };
+		return { label, count, detail };
 	});
 }
 

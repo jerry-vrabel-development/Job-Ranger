@@ -83,9 +83,9 @@
 			<p class="hint" id="links-hint">
 				From jobs.ashbyhq.com, job-boards.greenhouse.io, jobs.lever.co or a company's breezy.hr
 				page; a link to one of their jobs works too. Up to 25 at a time. Greenhouse boards bring
-				their own company name. To choose a name, add it after a comma: <span class="example"
-					>job-boards.greenhouse.io/splice, Splice</span
-				>
+				their own company name. To choose a name, add it after a comma: <span class="example">
+					job-boards.greenhouse.io/splice, Splice
+				</span>
 			</p>
 			{#if problem}
 				<p class="error" id="links-error"><strong>Error:</strong> {problem}</p>
@@ -150,10 +150,9 @@
 								<form method="POST" action="?/check" use:enhance={afterAction}>
 									<input type="hidden" name="source" value={company.source} />
 									<input type="hidden" name="token" value={company.token} />
-									<button type="submit"
-										>Check now<span class="visually-hidden">{` for ${company.company}`}</span
-										></button
-									>
+									<button type="submit">
+										Check now<span class="visually-hidden">{` for ${company.company}`}</span>
+									</button>
 								</form>
 							{/if}
 							<form
@@ -163,11 +162,11 @@
 							>
 								<input type="hidden" name="source" value={company.source} />
 								<input type="hidden" name="token" value={company.token} />
-								<button type="submit"
-									>{company.paused ? 'Resume' : 'Pause'}<span class="visually-hidden"
-										>{` ${company.company}`}</span
-									></button
-								>
+								<button type="submit">
+									{company.paused ? 'Resume' : 'Pause'}<span class="visually-hidden">
+										{` ${company.company}`}
+									</span>
+								</button>
 							</form>
 						</div>
 						<details>
@@ -175,9 +174,9 @@
 							<form method="POST" action="?/rename" use:enhance={afterAction} class="rename">
 								<input type="hidden" name="source" value={company.source} />
 								<input type="hidden" name="token" value={company.token} />
-								<label for="rename-{company.key}"
-									>New name<span class="visually-hidden">{` for ${company.company}`}</span></label
-								>
+								<label for="rename-{company.key}">
+									New name<span class="visually-hidden">{` for ${company.company}`}</span>
+								</label>
 								<input
 									id="rename-{company.key}"
 									name="company"
@@ -187,9 +186,9 @@
 									maxlength="200"
 									defaultValue={company.company}
 								/>
-								<button type="submit"
-									>Save name<span class="visually-hidden">{` for ${company.company}`}</span></button
-								>
+								<button type="submit">
+									Save name<span class="visually-hidden">{` for ${company.company}`}</span>
+								</button>
 							</form>
 						</details>
 						<details>

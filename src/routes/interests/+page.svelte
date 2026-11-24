@@ -159,17 +159,17 @@
 								use:enhance={afterAction}
 							>
 								<input type="hidden" name="id" value={interest.id} />
-								<button type="submit"
-									>{interest.paused ? 'Resume' : 'Pause'}<span class="visually-hidden"
-										>{` ${interest.name}`}</span
-									></button
-								>
+								<button type="submit">
+									{interest.paused ? 'Resume' : 'Pause'}<span class="visually-hidden">
+										{` ${interest.name}`}
+									</span>
+								</button>
 							</form>
 						</div>
 						<details>
-							<summary
-								>Edit<span class="visually-hidden">{` ${interest.name}`}</span> and tag companies…</summary
-							>
+							<summary>
+								Edit<span class="visually-hidden">{` ${interest.name}`}</span> and tag companies…
+							</summary>
 							<form method="POST" action="?/edit" use:enhance={afterAction} class="edit">
 								<input type="hidden" name="id" value={interest.id} />
 								<label for="name-{interest.id}">Name</label>
@@ -182,8 +182,9 @@
 									maxlength="60"
 									defaultValue={interest.name}
 								/>
-								<label for="note-{interest.id}">Note <span class="optional">(optional)</span></label
-								>
+								<label for="note-{interest.id}">
+									Note <span class="optional">(optional)</span>
+								</label>
 								<input
 									id="note-{interest.id}"
 									name="note"
@@ -192,9 +193,9 @@
 									maxlength="300"
 									defaultValue={interest.note}
 								/>
-								<label for="keywords-{interest.id}"
-									>Keywords <span class="optional">(optional, separated by commas)</span></label
-								>
+								<label for="keywords-{interest.id}">
+									Keywords <span class="optional">(optional, separated by commas)</span>
+								</label>
 								<input
 									id="keywords-{interest.id}"
 									name="keywords"
@@ -220,18 +221,18 @@
 															(tagged) => tagged.key === company.key
 														)}
 													/>
-													<label for="tag-{interest.id}-{company.key}"
-														>{company.company}{#if company.paused}
-															(paused){/if}</label
-													>
+													<label for="tag-{interest.id}-{company.key}">
+														{company.company}{#if company.paused}
+															(paused){/if}
+													</label>
 												</li>
 											{/each}
 										</ul>
 									{/if}
 								</fieldset>
-								<button type="submit"
-									>Save<span class="visually-hidden">{` ${interest.name}`}</span></button
-								>
+								<button type="submit">
+									Save<span class="visually-hidden">{` ${interest.name}`}</span>
+								</button>
 							</form>
 						</details>
 						<details>

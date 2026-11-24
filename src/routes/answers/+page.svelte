@@ -180,8 +180,9 @@
 				aria-describedby={describedBy('origin')}
 				bind:this={inputs['origin']}
 			>
-				{#each ORIGINS as origin (origin)}<option value={origin}>{ORIGIN_LABELS[origin]}</option
-					>{/each}
+				{#each ORIGINS as origin (origin)}<option value={origin}>
+						{ORIGIN_LABELS[origin]}
+					</option>{/each}
 			</select>
 		</div>
 		<div class="field">
@@ -238,9 +239,9 @@
 								<p class="notes"><span class="label">Notes:</span> {answer.notes}</p>
 							{/if}
 							{#if browser}
-								<button type="button" onclick={() => copy(answer)}
-									>Copy<span class="visually-hidden">{` ${name(answer)}`}</span></button
-								>
+								<button type="button" onclick={() => copy(answer)}>
+									Copy<span class="visually-hidden">{` ${name(answer)}`}</span>
+								</button>
 							{/if}
 							<details>
 								<summary>Edit<span class="visually-hidden">{` ${name(answer)}`}</span>…</summary>
@@ -252,9 +253,9 @@
 											<option value={question}>{QUESTION_LABELS[question]}</option>
 										{/each}
 									</select>
-									<label for="label-{answer.id}"
-										>Name <span class="optional">(optional)</span></label
-									>
+									<label for="label-{answer.id}">
+										Name <span class="optional">(optional)</span>
+									</label>
 									<input
 										id="label-{answer.id}"
 										name="label"
@@ -274,13 +275,13 @@
 										defaultValue={answer.text}></textarea>
 									<label for="origin-{answer.id}">How it was written</label>
 									<select id="origin-{answer.id}" name="origin" value={answer.origin}>
-										{#each ORIGINS as origin (origin)}<option value={origin}
-												>{ORIGIN_LABELS[origin]}</option
-											>{/each}
+										{#each ORIGINS as origin (origin)}<option value={origin}>
+												{ORIGIN_LABELS[origin]}
+											</option>{/each}
 									</select>
-									<label for="notes-{answer.id}"
-										>Notes <span class="optional">(optional)</span></label
-									>
+									<label for="notes-{answer.id}">
+										Notes <span class="optional">(optional)</span>
+									</label>
 									<textarea
 										id="notes-{answer.id}"
 										name="notes"
@@ -288,9 +289,9 @@
 										maxlength={NOTES_MAX}
 										value={browser ? undefined : answer.notes}
 										defaultValue={answer.notes}></textarea>
-									<button type="submit"
-										>Save<span class="visually-hidden">{` ${name(answer)}`}</span></button
-									>
+									<button type="submit">
+										Save<span class="visually-hidden">{` ${name(answer)}`}</span>
+									</button>
 								</form>
 							</details>
 							<details>
@@ -298,9 +299,9 @@
 								<p>This deletes the answer for good.</p>
 								<form method="POST" action="?/remove" use:enhance={afterAction}>
 									<input type="hidden" name="id" value={answer.id} />
-									<button type="submit" class="danger"
-										>Remove<span class="visually-hidden">{` ${name(answer)}`}</span></button
-									>
+									<button type="submit" class="danger">
+										Remove<span class="visually-hidden">{` ${name(answer)}`}</span>
+									</button>
 								</form>
 							</details>
 						</article>

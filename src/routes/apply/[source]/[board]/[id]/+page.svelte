@@ -173,14 +173,14 @@
 
 <p class="links">
 	<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- the employer's own apply page -->
-	<a class="apply" href={job.applyUrl} target="_blank" rel="noopener noreferrer"
-		>Open the application<span class="visually-hidden"> (opens in a new tab)</span></a
-	>
+	<a class="apply" href={job.applyUrl} target="_blank" rel="noopener noreferrer">
+		Open the application<span class="visually-hidden"> (opens in a new tab)</span>
+	</a>
 	{#if job.jobUrl && job.jobUrl !== job.applyUrl}
 		<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- the employer's own posting -->
-		<a href={job.jobUrl} target="_blank" rel="noopener noreferrer"
-			>Read the posting<span class="visually-hidden"> (opens in a new tab)</span></a
-		>
+		<a href={job.jobUrl} target="_blank" rel="noopener noreferrer">
+			Read the posting<span class="visually-hidden"> (opens in a new tab)</span>
+		</a>
 	{/if}
 </p>
 
@@ -205,11 +205,9 @@
 		<h2 id="rule-heading">AI rule</h2>
 		{#if kit.aiRule === 'forbids'}
 			<p>
-				<strong
-					>This posting forbids AI-written answers{kit.aiDecidedBy === 'me'
-						? ' (your call)'
-						: ''}.</strong
-				>
+				<strong>
+					This posting forbids AI-written answers{kit.aiDecidedBy === 'me' ? ' (your call)' : ''}.
+				</strong>
 				Only answers in your own words, or written together, are offered below.
 			</p>
 			{#if kit.aiSentence !== ''}
@@ -217,9 +215,9 @@
 			{/if}
 		{:else if kit.aiRule === 'none'}
 			<p>
-				<strong
-					>No AI rule{kit.aiDecidedBy === 'me' ? ' (your call)' : ' found in the posting'}.</strong
-				>
+				<strong>
+					No AI rule{kit.aiDecidedBy === 'me' ? ' (your call)' : ' found in the posting'}.
+				</strong>
 				{#if kit.aiDecidedBy === 'check'}
 					The check looks for a sentence that mentions AI with a “not”; it can miss one.
 				{/if}
@@ -231,13 +229,13 @@
 			</p>
 		{/if}
 		<details>
-			<summary
-				>{kit.aiRule === 'unknown' ? 'Say whether there is an AI rule…' : 'Change this…'}</summary
-			>
+			<summary>
+				{kit.aiRule === 'unknown' ? 'Say whether there is an AI rule…' : 'Change this…'}
+			</summary>
 			<form method="POST" action="?/rule" use:enhance={afterAction} class="stack">
-				<label for="sentence"
-					>The posting's line about AI <span class="optional">(optional)</span></label
-				>
+				<label for="sentence">
+					The posting's line about AI <span class="optional">(optional)</span>
+				</label>
 				<input
 					id="sentence"
 					name="sentence"
@@ -336,13 +334,12 @@
 											{@render suggestions(review.suggestions)}
 										{/if}
 										<div class="buttons">
-											<button type="submit" formaction="?/reviewAnswer"
-												>Review<span class="visually-hidden">{` ${item.label}`}</span></button
-											>
-											<button type="submit"
-												>Save to Answers<span class="visually-hidden">{` ${item.label}`}</span
-												></button
-											>
+											<button type="submit" formaction="?/reviewAnswer">
+												Review<span class="visually-hidden">{` ${item.label}`}</span>
+											</button>
+											<button type="submit">
+												Save to Answers<span class="visually-hidden">{` ${item.label}`}</span>
+											</button>
 										</div>
 									</form>
 								</div>
@@ -350,11 +347,11 @@
 							{#if data.drafting.ready}
 								<form method="POST" action="?/draftAnswer" use:enhance={afterAction}>
 									<input type="hidden" name="question" value={item.label} />
-									<button type="submit"
-										>{item.draft ? 'Draft again' : 'Draft an answer'}<span class="visually-hidden"
-											>{` for ${item.label}`}</span
-										></button
-									>
+									<button type="submit">
+										{item.draft ? 'Draft again' : 'Draft an answer'}<span class="visually-hidden">
+											{` for ${item.label}`}
+										</span>
+									</button>
 								</form>
 							{/if}
 						{/if}
@@ -371,10 +368,9 @@
 									<p class="meta">{meta(answer)}</p>
 									<p class="text">{answer.text}</p>
 									{#if browser}
-										<button type="button" onclick={() => copy(answer, item.label)}
-											>Copy<span class="visually-hidden">{` answer for ${item.label}`}</span
-											></button
-										>
+										<button type="button" onclick={() => copy(answer, item.label)}>
+											Copy<span class="visually-hidden">{` answer for ${item.label}`}</span>
+										</button>
 									{/if}
 								</div>
 							{/each}
@@ -395,9 +391,9 @@
 								<div class="answer">
 									<p class="meta">{meta(answer)}</p>
 									<p class="text">{answer.text}</p>
-									<button type="button" onclick={() => copy(answer, item.label)}
-										>Copy<span class="visually-hidden">{` answer for ${item.label}`}</span></button
-									>
+									<button type="button" onclick={() => copy(answer, item.label)}>
+										Copy<span class="visually-hidden">{` answer for ${item.label}`}</span>
+									</button>
 								</div>
 							{/each}
 						{:else}
@@ -437,8 +433,10 @@
 		{#if data.factCount === 0}
 			<p>
 				Your resume is built from confirmed facts, and none are confirmed yet. <a
-					href={resolve('/facts')}>Add or confirm facts</a
-				>.
+					href={resolve('/facts')}
+				>
+					Add or confirm facts
+				</a>.
 			</p>
 		{:else}
 			<p>
@@ -447,17 +445,17 @@
 						source: job.source,
 						board: job.board,
 						id: job.id
-					})}>Open the resume for this job</a
-				>: picked from your {countLabel(data.factCount, 'confirmed fact')}, ready to print or save
-				as a PDF.
+					})}
+				>
+					Open the resume for this job
+				</a>: picked from your {countLabel(data.factCount, 'confirmed fact')}, ready to print or
+				save as a PDF.
 			</p>
 		{/if}
 		<details open={postingBack !== undefined}>
-			<summary
-				>{kit.postingText === ''
-					? 'Paste the posting’s text…'
-					: 'Change the posting’s text…'}</summary
-			>
+			<summary>
+				{kit.postingText === '' ? 'Paste the posting’s text…' : 'Change the posting’s text…'}
+			</summary>
 			<form method="POST" action="?/posting" use:enhance={afterAction} class="stack">
 				<label for="posting">The posting’s text</label>
 				<p class="hint" id="posting-hint">
@@ -577,9 +575,9 @@
 								<legend>{skill}</legend>
 								<div class="buttons">
 									{#each GAP_ANSWERS as answer (answer.value)}
-										<button type="submit" name="answer" value={answer.value}
-											>{answer.label}<span class="visually-hidden">{` ${skill}`}</span></button
-										>
+										<button type="submit" name="answer" value={answer.value}>
+											{answer.label}<span class="visually-hidden">{` ${skill}`}</span>
+										</button>
 									{/each}
 								</div>
 							</fieldset>
@@ -641,9 +639,9 @@
 					<p>Sincerely,<br />{data.drafting.name === '' ? '[Your name]' : data.drafting.name}</p>
 				</div>
 				{#if browser}
-					<button type="button" onclick={() => copyLetter(draft)}
-						>Copy the {draft.kind === 'letter_full' ? 'full' : 'short'} letter</button
-					>
+					<button type="button" onclick={() => copyLetter(draft)}>
+						Copy the {draft.kind === 'letter_full' ? 'full' : 'short'} letter
+					</button>
 				{/if}
 				<details>
 					<summary>Facts each sentence uses…</summary>

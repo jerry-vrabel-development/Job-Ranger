@@ -218,72 +218,74 @@
 							<div>
 								<dt>Posted</dt>
 								<dd>
-									{#if job.postedAt}<time datetime={job.postedAt}>{job.posted}</time
-										>{:else}{job.posted}{/if}
+									{#if job.postedAt}<time datetime={job.postedAt}>
+											{job.posted}
+										</time>{:else}{job.posted}{/if}
 								</dd>
 							</div>
 						</dl>
 						<p class="links">
 							<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- the employer's own apply page -->
-							<a class="apply" href={job.applyUrl}
-								>Apply<span class="visually-hidden">{` for ${job.title} at ${job.company}`}</span
-								></a
-							>
+							<a class="apply" href={job.applyUrl}>
+								Apply<span class="visually-hidden">{` for ${job.title} at ${job.company}`}</span>
+							</a>
 							<a
 								href={resolve('/apply/[source]/[board]/[id]', {
 									source: job.source,
 									board: job.board,
 									id: job.id
 								})}
-								>Apply kit<span class="visually-hidden"
-									>{` for ${job.title} at ${job.company}`}</span
-								></a
 							>
+								Apply kit<span class="visually-hidden">
+									{` for ${job.title} at ${job.company}`}
+								</span>
+							</a>
 							{#if job.jobUrl}
 								<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- the employer's own posting -->
-								<a href={job.jobUrl}
-									>Read the posting<span class="visually-hidden"
-										>{` for ${job.title} at ${job.company}`}</span
-									></a
-								>
+								<a href={job.jobUrl}>
+									Read the posting<span class="visually-hidden">
+										{` for ${job.title} at ${job.company}`}
+									</span>
+								</a>
 							{/if}
 						</p>
 						<div class="marks">
 							{#if job.mark}
 								<form method="POST" action="?/unmark" use:enhance={afterMark}>
 									{@render jobFields(job)}
-									<button type="submit"
-										>{job.mark.kind === 'saved' ? 'Unsave' : 'Put back on the list'}<span
-											class="visually-hidden">{` ${job.title} at ${job.company}`}</span
-										></button
-									>
+									<button type="submit">
+										{job.mark.kind === 'saved' ? 'Unsave' : 'Put back on the list'}<span
+											class="visually-hidden"
+										>
+											{` ${job.title} at ${job.company}`}
+										</span>
+									</button>
 								</form>
 							{/if}
 							{#if job.mark?.kind !== 'saved'}
 								<form method="POST" action="?/save" use:enhance={afterMark}>
 									{@render jobFields(job)}
-									<button type="submit"
-										>Save<span class="visually-hidden">{` ${job.title} at ${job.company}`}</span
-										></button
-									>
+									<button type="submit">
+										Save<span class="visually-hidden">{` ${job.title} at ${job.company}`}</span>
+									</button>
 								</form>
 							{/if}
 							{#if job.mark?.kind !== 'passed'}
 								<details>
-									<summary
-										>Pass on this job<span class="visually-hidden"
-											>{` ${job.title} at ${job.company}`}</span
-										></summary
-									>
+									<summary>
+										Pass on this job<span class="visually-hidden">
+											{` ${job.title} at ${job.company}`}
+										</span>
+									</summary>
 									<form method="POST" action="?/pass" use:enhance={afterMark} class="stack">
 										{@render jobFields(job)}
 										<label for="note-{job.key}">Why (optional, just for you)</label>
 										<input id="note-{job.key}" name="note" type="text" maxlength={data.noteMax} />
-										<button type="submit"
-											>Pass<span class="visually-hidden"
-												>{` on ${job.title} at ${job.company}`}</span
-											></button
-										>
+										<button type="submit">
+											Pass<span class="visually-hidden">
+												{` on ${job.title} at ${job.company}`}
+											</span>
+										</button>
 									</form>
 								</details>
 							{/if}

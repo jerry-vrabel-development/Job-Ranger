@@ -1,6 +1,13 @@
 import { error } from '@sveltejs/kit';
 import { env } from 'cloudflare:workers';
 import {
+	companyBars,
+	companyRows,
+	marketSummary,
+	payLine,
+	workplaceBars
+} from '#lib/insights/market.ts';
+import {
 	foundLine,
 	funnelSteps,
 	funnelSummary,
@@ -19,7 +26,7 @@ import {
 	trendSummary,
 	windowDays
 } from '#lib/insights/trend.ts';
-import { companyCounts, searchCounts } from '#lib/server/insights.ts';
+import { companyCounts, marketCounts, searchCounts } from '#lib/server/insights.ts';
 import { listApplications } from '#lib/server/tracker.ts';
 import type { PageServerLoad } from './$types';
 
@@ -38,11 +45,13 @@ export const load: PageServerLoad = async ({ url }) => {
 	const today = now.slice(0, 10);
 	const range = parseRange(url.searchParams.get('range'));
 	const days = windowDays(today, range);
-	const [counts, apps, companies] = await Promise.all([
+	const [counts, apps, companies, market] = await Promise.all([
 		searchCounts(db),
 		listApplications(db),
-		companyCounts(db, addDays(today, -LOOKBACK_DAYS))
+		companyCounts(db, addDays(today, -LOOKBACK_DAYS)),
+		marketCounts(db)
 	]);
+	const byCompany = companyBars(market);
 	const trends = byChange(
 		companies.map((c) => ({
 			key: `${c.source}:${c.board}`,
@@ -61,6 +70,14 @@ export const load: PageServerLoad = async ({ url }) => {
 		ranges: RANGES,
 		trends,
 		trendSummary: trendSummary(trends, range),
-		rules: { minChange: MIN_CHANGE, minShare: Math.round(MIN_SHARE * 100) }
+		rules: { minChange: MIN_CHANGE, minShare: Math.round(MIN_SHARE * 100) },
+		market: {
+			summary: marketSummary(market),
+			companies: byCompany.bars,
+			companiesMore: byCompany.more,
+			companyTable: companyRows(market),
+			workplaces: workplaceBars(market),
+			pay: payLine(market)
+		}
 	};
 };

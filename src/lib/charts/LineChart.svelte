@@ -1,7 +1,7 @@
 <!--
 	A line chart of daily counts (design note 0007). D3 works out the geometry
 	(#lib/charts/line.ts); Svelte draws it, all attributes, so the CSP stays
-	strict. The y axis starts at 0, a day without a count is a gap, and the
+	strict. Reveal.svelte draws the line in as it scrolls into view. The y axis starts at 0, a day without a count is a gap, and the
 	latest count is labeled at the end of the line.
 
 	Reading it: the chart is a slider over the days. Hover, or focus it and use
@@ -95,9 +95,7 @@
 					{dayLabel(final.day)}
 				</text>
 			{/if}
-			{#key geometry.path}
-				<path class="line" d={geometry.path} pathLength="1" />
-			{/key}
+			<path class="line" d={geometry.path} pathLength="1" data-reveal="line" />
 			{#if geometry.end}
 				<circle class="dot" cx={geometry.end.x} cy={geometry.end.y} r="4" />
 				<text class="end" x={geometry.end.x + 8} y={geometry.end.y} dominant-baseline="middle">
@@ -182,17 +180,8 @@
 		stroke-width: 2;
 		stroke-linejoin: round;
 		stroke-linecap: round;
+		/* With pathLength="1", Reveal.svelte draws the line in by moving the dash offset. */
 		stroke-dasharray: 1;
-		animation: draw 900ms ease-out both;
-	}
-
-	@keyframes draw {
-		from {
-			stroke-dashoffset: 1;
-		}
-		to {
-			stroke-dashoffset: 0;
-		}
 	}
 
 	/* A 2px ring in the surface color keeps the dot clear of the line. */

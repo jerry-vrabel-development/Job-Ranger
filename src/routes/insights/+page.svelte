@@ -1,7 +1,10 @@
 <script lang="ts">
+	import { flip } from 'svelte/animate';
+	import { prefersReducedMotion } from 'svelte/motion';
 	import { resolve } from '$app/paths';
-	import Funnel from '#lib/charts/Funnel.svelte';
+	import BarChart from '#lib/charts/BarChart.svelte';
 	import LineChart from '#lib/charts/LineChart.svelte';
+	import Reveal from '#lib/charts/Reveal.svelte';
 	import { pageTitle } from '#lib/site.ts';
 	import type { PageProps } from './$types';
 
@@ -23,7 +26,15 @@
 	<h2 id="my-search">My search</h2>
 	<p class="found">{data.found}</p>
 
-	<Funnel title="From saved to offer" summary={data.summary} steps={data.steps} />
+	<Reveal>
+		<BarChart
+			title="From saved to offer"
+			summary={data.summary}
+			rows={data.steps}
+			columns={{ label: 'Step', count: 'Count', detail: 'Share of the step before' }}
+			ordinal
+		/>
+	</Reveal>
 
 	<p class="how">
 		Each step counts what got at least that far. Saved includes jobs you applied to without saving.
@@ -71,16 +82,46 @@
 	{:else}
 		<ul class="trends">
 			{#each data.trends as item (item.key)}
-				<li>
+				<!-- When the order changes (7 to 30 days), each company slides to its new place. -->
+				<li animate:flip={{ duration: prefersReducedMotion.current ? 0 : 400 }}>
 					<article aria-labelledby={`trend-${item.key}`}>
 						<h3 id={`trend-${item.key}`}>{item.company}</h3>
 						<p class={`direction ${item.trend.direction}`}>{item.trend.words}</p>
-						<LineChart label={item.company} data={item.points} />
+						<Reveal>
+							<LineChart label={item.company} data={item.points} />
+						</Reveal>
 					</article>
 				</li>
 			{/each}
 		</ul>
 	{/if}
+</section>
+
+<section aria-labelledby="market">
+	<h2 id="market">The market I watch</h2>
+	<p class="found">{data.market.summary}</p>
+	<div class="charts">
+		<Reveal>
+			<BarChart
+				title="Open jobs by company"
+				summary="Most first, with each company’s share of all open jobs."
+				rows={data.market.companies}
+				tableRows={data.market.companyTable}
+				note={data.market.companiesMore}
+				columns={{ label: 'Company', count: 'Open jobs', detail: 'Share' }}
+			/>
+		</Reveal>
+		<Reveal>
+			<BarChart
+				title="Remote, hybrid or on site"
+				summary="As each posting says; some don’t say."
+				rows={data.market.workplaces}
+				columns={{ label: 'Workplace', count: 'Open jobs', detail: 'Share' }}
+			/>
+		</Reveal>
+	</div>
+	<h3>Pay</h3>
+	<p>{data.market.pay}</p>
 </section>
 
 <style>
@@ -141,6 +182,11 @@
 	.ranges button[aria-pressed='true']::before {
 		content: '✓';
 		margin-right: 0.375rem;
+	}
+
+	.charts {
+		display: grid;
+		gap: 1rem;
 	}
 
 	.trends {

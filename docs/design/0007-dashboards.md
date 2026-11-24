@@ -86,8 +86,13 @@ look like a big one. Each chart is a slider over its days: hover, or the
 arrow keys, read out a day and its count, and screen readers announce the
 same words.
 
-**The market I watch.** Open jobs by company, by source, and by remote,
-hybrid or on-site; how many post pay; new and closed jobs per day.
+**The market I watch** (built). Open jobs on watched boards by company
+(most first, each with its share; past 15 companies the rest are one line,
+and all are in the table) and by remote, hybrid, on site or not stated
+(always those four, in that order). Pay: how many post it, counting only
+Ashby, Lever and Breezy, whose lists can show pay; Greenhouse's jobs are
+left out and the page says so (0005). New and closed jobs per day, and jobs
+by source, come later.
 
 **Signals and costs.** How many open jobs carry each 0005 flag, and the
 drafting cost per application and in all (from `draft_costs`).
@@ -120,8 +125,12 @@ without an API stay out (0002: no scraping).
   table that's also there without JavaScript.
 - One palette, checked for contrast in light and dark and for color-blind
   separation, defined once as CSS variables.
-- Motion in CSS (bars grow in), off under `prefers-reduced-motion`; it needs
-  no JavaScript, so the page reads the same without it.
+- Motion (built with the market): `Reveal.svelte` uses GSAP's ScrollTrigger
+  so bars grow and lines draw in once, when a chart scrolls into view;
+  charts on screen at load aren't hidden and replayed. Off under reduced
+  motion; without JavaScript every chart is complete. The trending list
+  slides to its new order with Svelte's built-in `flip` (zero duration
+  under reduced motion): GSAP wasn't needed for that.
 - Days work like the rest of the app: counted in UTC (the daily fetch runs
   at 11:23 UTC, early morning in Chicago, so each count is one fetch), and
   dates shown in Chicago time.
@@ -152,7 +161,7 @@ that keeps every rule above:
 
 1. ~~Chart parts (funnel, table, palette) and **Insights** with **My search**.~~ Built.
 2. ~~**Trending companies (hiring)**~~ Built. A small trend line on the Companies list comes with the company page.
-3. **The market I watch.**
+3. ~~**The market I watch.**~~ Built, with GSAP's scroll reveals.
 4. **Signals and costs.**
 5. **Company page** with the summary from my own data.
 6. Layoffs research, then a design addition before any code.

@@ -91,12 +91,13 @@ export default defineConfig({
 			// contract.ts is a test kit (tests any model adapter can run), not app code.
 			exclude: ['src/**/*.{test,spec}.ts', 'src/lib/models/contract.ts'],
 			reporter: ['text', 'json-summary', 'html'],
-			// Floors, like the other projects. We aim for 100%.
+			// 100%, so a branch without a test fails CI instead of slipping by.
+			// Code that truly can't be tested is excluded above, with a reason.
 			thresholds: {
-				lines: 95,
-				functions: 95,
-				branches: 90,
-				statements: 95
+				lines: 100,
+				functions: 100,
+				branches: 100,
+				statements: 100
 			}
 		}
 	}

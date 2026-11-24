@@ -31,6 +31,17 @@ describe('review', () => {
 		expect(review('Nava PBCs and Spotifyish things.', context)).toEqual([]);
 	});
 
+	it('quotes the whole text when a name with a period spans two sentences', () => {
+		// "St. Jude Labs" splits after "St.", so no one sentence holds the name.
+		const withPeriod = { ...context, otherCompanies: ['St. Jude Labs'] };
+		expect(review('I admire St. Jude Labs. Their work matters.', withPeriod)).toEqual([
+			{
+				label: 'Wrong company',
+				detail: 'Names St. Jude Labs, not Zipline: “I admire St. Jude Labs. Their work matters.”'
+			}
+		]);
+	});
+
 	it('asks for the company when the question is why them', () => {
 		expect(review('I like drones.', { ...context, needsCompany: true })).toEqual([
 			{ label: 'Missing company', detail: 'Never names Zipline, and the question asks why them.' }

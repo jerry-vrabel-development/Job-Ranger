@@ -156,3 +156,85 @@ test.describe('Insights: Trending companies', () => {
 		expect(await violations(page)).toEqual([]);
 	});
 });
+
+// From e2e/seed.sql: 45 open jobs on watched boards (Example Co 43, Civic Co 1, Flight Co 1,
+// Quiet Co 0); 3 remote, 1 hybrid, 40 on site, 1 not stated; 29 of the 44 on boards whose list
+// includes pay post it, and Greenhouse's 1 isn't counted.
+test.describe('Insights: The market I watch', () => {
+	test('shows open jobs by company and by workplace, and pay, in words', async ({ page }) => {
+		await page.goto('/insights');
+		const market = page.getByRole('region', { name: 'The market I watch' });
+		await expect(market.getByText('45 open jobs at 3 companies; 7% remote.')).toBeVisible();
+
+		const companies = market.getByRole('figure', { name: /Open jobs by company/ });
+		await expect(companies.getByRole('listitem')).toHaveText([
+			'Example Co 43 · 96%',
+			'Civic Co 1 · 2%',
+			'Flight Co 1 · 2%',
+			'Quiet Co 0 · 0%'
+		]);
+		await companies.getByText('Show the numbers').click();
+		await expect(companies.getByRole('table').getByRole('row')).toHaveText([
+			'CompanyOpen jobsShare',
+			'Example Co4396%',
+			'Civic Co12%',
+			'Flight Co12%',
+			'Quiet Co00%'
+		]);
+
+		const workplaces = market.getByRole('figure', { name: /Remote, hybrid or on site/ });
+		await expect(workplaces.getByRole('listitem')).toHaveText([
+			'Remote 3 · 7%',
+			'Hybrid 1 · 2%',
+			'On site 40 · 89%',
+			'Not stated 1 · 2%'
+		]);
+		await expect(
+			market.getByText(
+				'29 of 44 open jobs post pay (66%), on Ashby, Lever and Breezy boards. Greenhouse’s list doesn’t include pay, so its 1 job isn’t counted here.'
+			)
+		).toBeVisible();
+		expect(await violations(page)).toEqual([]);
+	});
+});
+
+test.describe('Insights: motion', () => {
+	const firstBar = (page: Page) =>
+		page
+			.getByRole('figure', { name: /Remote, hybrid or on site/ })
+			.locator('[data-reveal="bar"]')
+			.first();
+	const width = async (page: Page) =>
+		firstBar(page).evaluate((el) => el.getBoundingClientRect().width);
+
+	test('grows a chart’s bars as it scrolls into view, with no CSP errors', async ({ page }) => {
+		const blocked: string[] = [];
+		page.on('console', (message) => {
+			if (/Content.Security.Policy|Refused to apply/i.test(message.text())) {
+				blocked.push(message.text());
+			}
+		});
+		await page.goto('/insights');
+		// Below the fold, the bars wait at the baseline until they're seen.
+		await expect.poll(() => width(page)).toBeLessThan(1);
+		await firstBar(page).scrollIntoViewIfNeeded();
+		await expect.poll(() => width(page), { timeout: 5000 }).toBeGreaterThan(5);
+		expect(blocked).toEqual([]);
+	});
+
+	test('keeps everything still and complete under reduced motion', async ({ page }) => {
+		await page.emulateMedia({ reducedMotion: 'reduce' });
+		await page.goto('/insights');
+		await page.waitForLoadState('networkidle');
+		expect(await width(page)).toBeGreaterThan(5);
+	});
+
+	test('shows every chart complete without JavaScript', async ({ browser }) => {
+		const context = await browser.newContext({ javaScriptEnabled: false });
+		const page = await context.newPage();
+		await page.goto('/insights');
+		expect(await width(page)).toBeGreaterThan(5);
+		await expect(page.getByRole('listitem').filter({ hasText: 'Example Co 43' })).toBeVisible();
+		await context.close();
+	});
+});

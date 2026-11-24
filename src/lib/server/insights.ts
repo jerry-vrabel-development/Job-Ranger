@@ -2,10 +2,11 @@
  * The counts behind the Insights page (design note 0007), read when the page
  * loads, so they can't go stale. What they mean is in #lib/insights/.
  */
+import type { MarketCounts } from '#lib/insights/market.ts';
 import type { SearchCounts } from '#lib/insights/search.ts';
 import type { DayCount } from '#lib/insights/trend.ts';
 import type { Source } from '#lib/jobs/posting.ts';
-import { count, source as sourceOf, text } from './db.ts';
+import { count, rowsOf, source as sourceOf, text, workplace } from './db.ts';
 
 export async function searchCounts(db: D1Database): Promise<SearchCounts> {
 	const row = await db
@@ -74,4 +75,43 @@ export async function companyCounts(db: D1Database, since: string): Promise<Comp
 		}
 	}
 	return [...companies.values()];
+}
+
+/** Open postings on boards I'm watching (paused boards aren't fetched, so they're left out). */
+const WATCHED_OPEN = `FROM postings p JOIN boards b ON b.source = p.source AND b.token = p.board
+	WHERE p.closed_at IS NULL AND b.paused = 0`;
+
+/** The open jobs I'm watching, by company and by workplace, and how many post pay. */
+export async function marketCounts(db: D1Database): Promise<MarketCounts> {
+	const [companies, workplaces, pay] = await db.batch<Record<string, unknown>>([
+		db.prepare(
+			`SELECT b.company, COUNT(p.id) AS open
+			 FROM boards b
+			 LEFT JOIN postings p ON p.source = b.source AND p.board = b.token AND p.closed_at IS NULL
+			 WHERE b.paused = 0
+			 GROUP BY b.source, b.token`
+		),
+		db.prepare(`SELECT p.workplace, COUNT(*) AS open ${WATCHED_OPEN} GROUP BY p.workplace`),
+		db.prepare(
+			`SELECT
+				COUNT(CASE WHEN p.source <> 'greenhouse' THEN 1 END) AS listed,
+				COUNT(CASE WHEN p.source <> 'greenhouse' AND p.pay_summary IS NOT NULL THEN 1 END) AS posted,
+				COUNT(CASE WHEN p.source = 'greenhouse' THEN 1 END) AS unlisted
+			 ${WATCHED_OPEN}`
+		)
+	]);
+	const payRow = rowsOf(pay)[0];
+	return {
+		byCompany: rowsOf(companies).map((row) => ({
+			company: text(row, 'company'),
+			open: count(row, 'open')
+		})),
+		byWorkplace: rowsOf(workplaces).map((row) => ({
+			workplace: workplace(row),
+			open: count(row, 'open')
+		})),
+		payListed: count(payRow, 'listed'),
+		payPosted: count(payRow, 'posted'),
+		payUnlisted: count(payRow, 'unlisted')
+	};
 }

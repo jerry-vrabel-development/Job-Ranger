@@ -60,7 +60,8 @@ export function rowsOf(result: D1Result<Row> | undefined): Row[] {
 
 const WORKPLACES: readonly string[] = ['remote', 'hybrid', 'on-site', 'unknown'];
 
-function workplace(row: Row): Workplace {
+/** A row's workplace, checked: a bad row fails loudly. */
+export function workplace(row: Row): Workplace {
 	const value = text(row, 'workplace');
 	if (!WORKPLACES.includes(value)) throw new StoredDataError('workplace is not known');
 	return value as Workplace;

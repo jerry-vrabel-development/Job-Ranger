@@ -527,6 +527,17 @@ describe('resume summary drafts', () => {
 		expect(await jobDraftingCost(db, job)).toBe(7000);
 	});
 
+	it('passes API errors on, keeps no draft, and keeps the one already there', async () => {
+		await draftSummary(db, using(letter([[{ text: BACKED, facts: [factId] }]])), job);
+		const refused = vi.fn<typeof fetch>(() => Promise.resolve(new Response('', { status: 401 })));
+		expect((await draftSummary(db, using(refused), job)).message).toBe(
+			'Couldn’t draft: the API key was refused (401).'
+		);
+		expect((await getSummaryDraft(db, job))?.paragraphs).toEqual([
+			[{ text: BACKED, facts: [factId] }]
+		]);
+	});
+
 	it('flags a sentence without facts, and doesn’t ask for the company', async () => {
 		const fetcher = letter([
 			[

@@ -7,6 +7,15 @@
 	--accent: #1f5c3f;
 	--rule: #d5dad6;
 	--focus: #1f5c3f;
+	/* Charts (design note 0007). Ordered steps, like a funnel, take one blue,
+	   light to dark, checked with the dataviz palette validator against
+	   --surface: monotone, distinct steps, the lightest still 2:1. */
+	--ordinal-1: #86b6ef;
+	--ordinal-2: #5598e7;
+	--ordinal-3: #2a78d6;
+	--ordinal-4: #1c5cab;
+	--ordinal-5: #104281;
+	--chart-track: #eceeec;
 	font-family:
 		system-ui,
 		-apple-system,
@@ -27,6 +36,13 @@
 		--accent: #8fd3ad;
 		--rule: #36403a;
 		--focus: #8fd3ad;
+		/* Dark mode runs the other way: the step nearest the surface is darkest. */
+		--ordinal-1: #184f95;
+		--ordinal-2: #256abf;
+		--ordinal-3: #3987e5;
+		--ordinal-4: #6da7ec;
+		--ordinal-5: #9ec5f4;
+		--chart-track: #262c28;
 	}
 }
 

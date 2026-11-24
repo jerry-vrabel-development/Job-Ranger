@@ -55,7 +55,7 @@
 		"typescript-eslint": "^8.58.1",
 		"vite": "^8.0.12",
 		"vitest": "^5.1.1",
-		"wrangler": "^4.81.0"
+		"wrangler": "^4.166.0"
 	},
 	"overrides": {
 		"playwright-core": "$@playwright/test"

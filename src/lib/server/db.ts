@@ -66,7 +66,8 @@ function workplace(row: Row): Workplace {
 	return value as Workplace;
 }
 
-function source(row: Row): Board['source'] {
+/** A row's source, checked: a bad row fails loudly. */
+export function source(row: Row): Board['source'] {
 	const value = row['source'];
 	if (!isSource(value)) throw new StoredDataError('source is not known');
 	return value;

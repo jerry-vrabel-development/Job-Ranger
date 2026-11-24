@@ -135,9 +135,9 @@
 				{#if !fact.confirmed && !fact.retired}
 					<form method="POST" action="?/confirm" use:enhance={afterAction}>
 						<input type="hidden" name="id" value={fact.id} />
-						<button type="submit"
-							>Confirm<span class="visually-hidden">{` ${shortText(fact.text)}`}</span></button
-						>
+						<button type="submit">
+							Confirm<span class="visually-hidden">{` ${shortText(fact.text)}`}</span>
+						</button>
 					</form>
 				{/if}
 				<form
@@ -146,11 +146,11 @@
 					use:enhance={afterAction}
 				>
 					<input type="hidden" name="id" value={fact.id} />
-					<button type="submit"
-						>{fact.retired ? 'Restore' : 'Retire'}<span class="visually-hidden"
-							>{` ${shortText(fact.text)}`}</span
-						></button
-					>
+					<button type="submit">
+						{fact.retired ? 'Restore' : 'Retire'}<span class="visually-hidden">
+							{` ${shortText(fact.text)}`}
+						</span>
+					</button>
 				</form>
 			</div>
 			<details>
@@ -194,9 +194,9 @@
 						maxlength={PERIOD_MAX}
 						defaultValue={fact.period}
 					/>
-					<button type="submit"
-						>Save<span class="visually-hidden">{` ${shortText(fact.text)}`}</span></button
-					>
+					<button type="submit">
+						Save<span class="visually-hidden">{` ${shortText(fact.text)}`}</span>
+					</button>
 				</form>
 			</details>
 			<details>
@@ -207,9 +207,9 @@
 				</p>
 				<form method="POST" action="?/remove" use:enhance={afterAction}>
 					<input type="hidden" name="id" value={fact.id} />
-					<button type="submit" class="danger"
-						>Remove<span class="visually-hidden">{` ${shortText(fact.text)}`}</span></button
-					>
+					<button type="submit" class="danger">
+						Remove<span class="visually-hidden">{` ${shortText(fact.text)}`}</span>
+					</button>
 				</form>
 			</details>
 		</article>
@@ -235,17 +235,15 @@
 		For the top of your resumes. They stay in Job Ranger and are never sent to a model.
 	</p>
 	<details open={details !== undefined || data.profile.name === ''}>
-		<summary
-			>{data.profile.name === ''
-				? 'Add your details…'
-				: `Edit your details (${data.profile.name})…`}</summary
-		>
+		<summary>
+			{data.profile.name === '' ? 'Add your details…' : `Edit your details (${data.profile.name})…`}
+		</summary>
 		<form method="POST" action="?/profile" use:enhance={afterAction} novalidate class="details">
 			{#each DETAIL_FIELDS as item (item.name)}
 				<div class="field">
-					<label for="detail-{item.name}"
-						>{item.label} <span class="optional">(optional)</span></label
-					>
+					<label for="detail-{item.name}">
+						{item.label} <span class="optional">(optional)</span>
+					</label>
 					{#if item.hint !== ''}
 						<p class="hint" id="detail-{item.name}-hint">{item.hint}</p>
 					{/if}

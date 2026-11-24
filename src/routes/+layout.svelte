@@ -32,6 +32,12 @@
 				Tracker
 			</a>
 			<a
+				href={resolve('/insights')}
+				aria-current={page.url.pathname === '/insights' ? 'page' : undefined}
+			>
+				Insights
+			</a>
+			<a
 				href={resolve('/companies')}
 				aria-current={page.url.pathname === '/companies' ? 'page' : undefined}
 			>

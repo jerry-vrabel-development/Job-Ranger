@@ -1,6 +1,6 @@
 # 0007 — Dashboards: my search, the companies, the market
 
-- **Status:** Proposed
+- **Status:** Accepted. Part 1 (My search) built
 - **Builds on:** [0002](0002-connectors-company-insight-dashboards.md) (dashboards and
   company insight), [0005](0005-honest-signals.md), [0006](0006-tracking.md)
 
@@ -60,11 +60,18 @@ stored, worked out when the page loads, like "No reply" in 0006.
 
 ### The views
 
-**My search.** The funnel: found → saved → applied → replied → interviewing
-→ offer, each step a count with the share of the step before. "Replied"
-includes rejected and withdrawn by the company, since an answer is an
-answer. Beside it: follow-ups due, no reply (0006), median days to a reply.
-Counts below 5 show the numbers but no percentages.
+**My search** (built). How many jobs were found and are open, then the
+funnel: saved → applied → replied → interviewing → offer, each step a count
+with the share of the step before. Found is a number above the funnel, not
+a bar: it's hundreds where the rest are a handful, and as a bar it would
+shrink them to slivers. Each step counts what got at least that far:
+saved includes jobs applied to without saving; replied means interviewing,
+an offer or a rejection (a rejection is an answer); withdrawn isn't counted
+as a reply, since the record doesn't say whether they'd answered. Beside
+it: follow-ups due, waiting, and no reply (0006). Counts below 5 show the
+numbers but no percentages. Median days to a reply waits for a status
+history: only the latest status date is stored, so today it would measure
+the latest answer, not the first.
 
 **Trending companies (hiring).** For each watched company: open jobs now,
 change over 7 and 30 days, and a small line of daily counts. Sorted by
@@ -108,14 +115,15 @@ without an API stay out (0002: no scraping).
   table that's also there without JavaScript.
 - One palette, checked for contrast in light and dark and for color-blind
   separation, defined once as CSS variables.
-- Motion with Svelte's `tweened`, off under `prefers-reduced-motion`.
+- Motion in CSS (bars grow in), off under `prefers-reduced-motion`; it needs
+  no JavaScript, so the page reads the same without it.
 - Days work like the rest of the app: counted in UTC (the daily fetch runs
   at 11:23 UTC, early morning in Chicago, so each count is one fetch), and
   dates shown in Chicago time.
 
 ## Build order (one small PR each)
 
-1. Chart parts (bar, line, table, palette) and **Insights** with **My search**.
+1. ~~Chart parts (funnel, table, palette) and **Insights** with **My search**.~~ Built.
 2. **Trending companies (hiring)**, plus a small trend line on the Companies list.
 3. **The market I watch.**
 4. **Signals and costs.**

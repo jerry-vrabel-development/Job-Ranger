@@ -1,6 +1,6 @@
 # 0007 — Dashboards: my search, the companies, the market
 
-- **Status:** Accepted. Part 1 (My search) built
+- **Status:** Accepted. Parts 1–6 built; layoffs next.
 - **Builds on:** [0002](0002-connectors-company-insight-dashboards.md) (dashboards and
   company insight), [0005](0005-honest-signals.md), [0006](0006-tracking.md)
 
@@ -94,6 +94,23 @@ Ashby, Lever and Breezy, whose lists can show pay; Greenhouse's jobs are
 left out and the page says so (0005). New and closed jobs per day, and jobs
 by source, come later.
 
+**Open jobs by state** (built, part of The market I watch). A US map
+(Albers USA, Alaska and Hawaii inset), each state shaded by its open jobs on
+one blue ramp, light to dark, in up to five steps. The steps are quantiles of
+the distinct counts, so one big state doesn't wash out the rest, and the key
+gives each step's real range. A state is read from the location text by the
+same matcher as the pay signal (`#lib/geo/states.ts`), so the two never
+disagree; a job naming several states counts in each, and the summary says
+how many did. Remote jobs with no state, and jobs naming no US state, are
+counted beside the map, not guessed onto it. States with a pay-range law in
+effect carry a hatch, named in the key (never color alone). Every state has
+its count in words (its accessible name and the readout); the map is one tab
+stop, and the arrow keys move to the nearest state in that direction. "Show
+the numbers" lists each state with jobs or a pay law. The shapes are
+`us-states.json`, written once by `scripts/us-states.ts` from `us-atlas`
+(Census boundaries, simplified to 10% of their points, 17 KB); the app ships
+no map library, and the server sends only the numbers.
+
 **Signals and costs** (built). How many open jobs on watched boards carry
 each 0005 warning, run with the same rules the Jobs list uses, so the counts
 always match the flags on the jobs. Each warning lists its jobs (up to 50,
@@ -158,8 +175,9 @@ that keeps every rule above:
 - **D3 for the math, Svelte for the drawing.** `d3-scale` and `d3-shape`
   work out scales, ticks and line paths; Svelte renders the SVG. D3 never
   touches the page, so everything stays an attribute, the CSP stays strict,
-  and the markup stays accessible. The US map of open jobs by state, when
-  it comes, uses `d3-geo` the same way.
+  and the markup stays accessible. The US map of open jobs by state uses
+  `d3-geo` the same way, at build time only: a script turns the shapes
+  into SVG paths once, and the page just draws them.
 - **GSAP for motion.** For movement CSS can't do well (the trending list
   reordering smoothly, sections revealing on scroll). It runs only in the
   browser and sets styles from JavaScript, which the CSP allows; the server
@@ -178,7 +196,8 @@ that keeps every rule above:
 3. ~~**The market I watch.**~~ Built, with GSAP's scroll reveals.
 4. ~~**Signals and costs.**~~ Built.
 5. ~~**Company page** with the summary from my own data.~~ Built.
-6. Layoffs research, then a design addition before any code.
+6. ~~**Open jobs by state** (a US map).~~ Built.
+7. Layoffs research, then a design addition before any code.
 
 Each PR: unit tests for the shaping functions at 100%, worker tests for the
 queries, and browser tests with axe for the page, including keyboard use,

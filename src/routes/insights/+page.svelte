@@ -5,6 +5,7 @@
 	import BarChart from '#lib/charts/BarChart.svelte';
 	import LineChart from '#lib/charts/LineChart.svelte';
 	import Reveal from '#lib/charts/Reveal.svelte';
+	import UsMap from '#lib/charts/UsMap.svelte';
 	import { pageTitle } from '#lib/site.ts';
 	import type { PageProps } from './$types';
 
@@ -129,6 +130,23 @@
 			/>
 		</Reveal>
 	</div>
+	<h3>Where the jobs are</h3>
+	<Reveal>
+		<UsMap
+			title="Open jobs by state"
+			summary={data.map.summary}
+			states={data.map.states}
+			legend={data.map.legend}
+			remote={data.map.remote}
+			elsewhere={data.map.elsewhere}
+		/>
+	</Reveal>
+	<p class="how">
+		A state is read from the posting’s location, the same way as the pay signal. A job naming more
+		than one state counts in each. Darker means more jobs; each shade’s range is in the key. A hatch
+		marks states whose law requires a pay range in postings, which is information, not legal advice:
+		see Signals for postings that may fall under one.
+	</p>
 	<h3>Pay</h3>
 	<p>{data.market.pay}</p>
 </section>

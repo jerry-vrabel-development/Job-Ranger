@@ -87,15 +87,7 @@ test.describe('the company page', () => {
 		expect(response?.status()).toBe(404);
 	});
 
-	test('passes the accessibility checks in light and dark, and works without JavaScript', async ({
-		page,
-		browser
-	}) => {
-		for (const colorScheme of ['light', 'dark'] as const) {
-			await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
-			await page.goto('/companies/ashby/example');
-			expect(await violations(page)).toEqual([]);
-		}
+	test('works without JavaScript', async ({ browser }) => {
 		const context = await browser.newContext({ javaScriptEnabled: false });
 		const still = await context.newPage();
 		await still.goto('/companies/ashby/example');
@@ -106,3 +98,18 @@ test.describe('the company page', () => {
 		await context.close();
 	});
 });
+
+// Each theme loads the page in that theme from the start, as a phone set to it does, rather
+// than switching on a page already open (WebKit's emulation didn't always recompute inherited
+// colors after a switch). Axe runs once the page has settled: hydration and lazy chunks done.
+for (const colorScheme of ['light', 'dark'] as const) {
+	test.describe(`the company page in ${colorScheme} mode`, () => {
+		test.use({ colorScheme, reducedMotion: 'reduce' });
+
+		test('passes the accessibility checks', async ({ page }) => {
+			await page.goto('/companies/ashby/example');
+			await page.waitForLoadState('networkidle');
+			expect(await violations(page)).toEqual([]);
+		});
+	});
+}

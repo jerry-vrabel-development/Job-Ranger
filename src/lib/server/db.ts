@@ -379,10 +379,12 @@ export interface BoardStatus extends Board {
 	readonly paused: boolean;
 	/** Open postings on this board, paused or not. */
 	readonly openJobs: number;
+	/** When I started watching it. */
+	readonly addedAt: string;
 }
 
 const STATUS_SQL = `SELECT b.source, b.token, b.company, b.last_fetched_at, b.last_fetch_ok,
-	b.last_fetch_note, b.paused,
+	b.last_fetch_note, b.paused, b.added_at,
 	(SELECT COUNT(*) FROM postings p
 	 WHERE p.source = b.source AND p.board = b.token AND p.closed_at IS NULL) AS open_jobs
 	FROM boards b`;
@@ -399,7 +401,8 @@ function toBoardStatus(row: Row): BoardStatus {
 		lastFetchOk: ok === null ? null : ok === 1,
 		lastFetchNote: textOrNull(row, 'last_fetch_note'),
 		paused: paused === 1,
-		openJobs: count(row, 'open_jobs')
+		openJobs: count(row, 'open_jobs'),
+		addedAt: text(row, 'added_at')
 	};
 }
 

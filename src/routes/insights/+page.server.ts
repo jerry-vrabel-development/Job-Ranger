@@ -87,6 +87,8 @@ export const load: PageServerLoad = async ({ url }) => {
 	const trends = byChange(
 		companies.map((c) => ({
 			key: `${c.source}:${c.board}`,
+			source: c.source,
+			board: c.board,
 			company: c.company,
 			trend: trend(c.counts, today, range),
 			points: points(c.counts, days)

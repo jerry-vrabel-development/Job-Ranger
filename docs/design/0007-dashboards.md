@@ -105,11 +105,17 @@ month and in all (UTC days, from `model_usage`), and the cost per application
 (from `applications.drafting_micros`). Half cents now round up: `dollars()`
 rounds to whole cents before formatting.
 
-**Company summary.** One page per company, every fact with its source and
-date (0002): open jobs and their momentum chart, jobs closed and reposted,
-how many I saved, passed and applied to, where those applications stand,
-its signals, and its interests. A model-written outlook comes later, with
-the faithfulness eval 0002 describes.
+**Company page** (built, `/companies/[source]/[board]`, linked from
+Companies and from Trending companies). The company in one sentence; its
+own job board (a link to its public page), when I started watching, how the
+last fetch went, and its interests; hiring momentum in words for 7 and 30
+days with the 30-day chart; open jobs, each with its warnings (from the same
+rules as everywhere else) and a link to its apply kit; jobs that closed in
+the last 30 days, with the honest note that a board doesn't say whether a
+job was filled, pulled or expired; and my history with it, newest first,
+where an application shows instead of the "saved" mark before it. A
+model-written outlook comes later, with the faithfulness eval 0002
+describes.
 
 ### Layoffs
 
@@ -171,7 +177,7 @@ that keeps every rule above:
 2. ~~**Trending companies (hiring)**~~ Built. A small trend line on the Companies list comes with the company page.
 3. ~~**The market I watch.**~~ Built, with GSAP's scroll reveals.
 4. ~~**Signals and costs.**~~ Built.
-5. **Company page** with the summary from my own data.
+5. ~~**Company page** with the summary from my own data.~~ Built.
 6. Layoffs research, then a design addition before any code.
 
 Each PR: unit tests for the shaping functions at 100%, worker tests for the

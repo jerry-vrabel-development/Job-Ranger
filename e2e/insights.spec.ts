@@ -6,9 +6,13 @@ import { expect, test, type Page } from '@playwright/test';
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
+/** Each violation with the elements behind it and why, so a CI log says what to fix. */
 async function violations(page: Page) {
 	return (await new AxeBuilder({ page }).withTags(WCAG).analyze()).violations.map(
-		(v) => `${v.id}: ${v.help}`
+		(v) =>
+			`${v.id}: ${v.help}\n${v.nodes
+				.map((node) => `  ${node.target.join(' ')}: ${node.failureSummary ?? ''}`)
+				.join('\n')}`
 	);
 }
 

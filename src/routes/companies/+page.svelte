@@ -118,7 +118,14 @@
 				<li>
 					<article aria-labelledby="company-{company.key}">
 						<h3 id="company-{company.key}">
-							{company.company}{#if company.paused}<span class="tag">Paused</span>{/if}
+							<a
+								href={resolve('/companies/[source]/[board]', {
+									source: company.source,
+									board: company.token
+								})}
+							>
+								{company.company}
+							</a>{#if company.paused}<span class="tag">Paused</span>{/if}
 						</h3>
 						<dl>
 							<div>

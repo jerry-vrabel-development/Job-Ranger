@@ -85,7 +85,16 @@
 				<!-- When the order changes (7 to 30 days), each company slides to its new place. -->
 				<li animate:flip={{ duration: prefersReducedMotion.current ? 0 : 400 }}>
 					<article aria-labelledby={`trend-${item.key}`}>
-						<h3 id={`trend-${item.key}`}>{item.company}</h3>
+						<h3 id={`trend-${item.key}`}>
+							<a
+								href={resolve('/companies/[source]/[board]', {
+									source: item.source,
+									board: item.board
+								})}
+							>
+								{item.company}
+							</a>
+						</h3>
 						<p class={`direction ${item.trend.direction}`}>{item.trend.words}</p>
 						<Reveal>
 							<LineChart label={item.company} data={item.points} />

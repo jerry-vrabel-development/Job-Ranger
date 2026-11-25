@@ -4,9 +4,11 @@
  */
 import type { MarketCounts } from '#lib/insights/market.ts';
 import type { SearchCounts } from '#lib/insights/search.ts';
+import type { CheckedJob, OpenJob } from '#lib/insights/signals.ts';
 import type { DayCount } from '#lib/insights/trend.ts';
 import type { Source } from '#lib/jobs/posting.ts';
-import { count, rowsOf, source as sourceOf, text, workplace } from './db.ts';
+import { scamSignals } from '#lib/signals/scam.ts';
+import { count, rowsOf, source as sourceOf, text, toStoredPosting, workplace } from './db.ts';
 
 export async function searchCounts(db: D1Database): Promise<SearchCounts> {
 	const row = await db
@@ -114,4 +116,54 @@ export async function marketCounts(db: D1Database): Promise<MarketCounts> {
 		payPosted: count(payRow, 'posted'),
 		payUnlisted: count(payRow, 'unlisted')
 	};
+}
+
+/** Every open job on a board I watch, for the signal rules (they're code, not SQL). */
+export async function openJobs(db: D1Database): Promise<OpenJob[]> {
+	const { results } = await db
+		.prepare(`SELECT p.* ${WATCHED_OPEN} ORDER BY p.company, p.title`)
+		.all();
+	return results.map(toStoredPosting);
+}
+
+/**
+ * Open jobs on watched boards whose full text I've pasted or read into an apply
+ * kit, with the scam patterns found in it. Only these can be checked.
+ */
+export async function checkedJobs(db: D1Database): Promise<CheckedJob[]> {
+	const { results } = await db
+		.prepare(
+			`SELECT p.source, p.board, p.id, p.company, p.title, k.posting_text
+			 FROM kits k
+			 JOIN postings p ON p.source = k.source AND p.board = k.board AND p.id = k.posting_id
+			 JOIN boards b ON b.source = p.source AND b.token = p.board
+			 WHERE k.posting_text <> '' AND p.closed_at IS NULL AND b.paused = 0`
+		)
+		.all();
+	return results.map((row) => ({
+		source: sourceOf(row),
+		board: text(row, 'board'),
+		id: text(row, 'id'),
+		company: text(row, 'company'),
+		title: text(row, 'title'),
+		flags: scamSignals(text(row, 'posting_text'))
+	}));
+}
+
+/** Drafting spend today, this month (both UTC, like the daily cap) and in all, in millionths of a dollar. */
+export async function spendingTotals(
+	db: D1Database,
+	today: string
+): Promise<{ today: number; month: number; total: number }> {
+	const row = await db
+		.prepare(
+			`SELECT
+				COALESCE(SUM(CASE WHEN day = ?1 THEN cost_micros END), 0) AS today,
+				COALESCE(SUM(CASE WHEN substr(day, 1, 7) = substr(?1, 1, 7) THEN cost_micros END), 0) AS month,
+				COALESCE(SUM(cost_micros), 0) AS total
+			 FROM model_usage`
+		)
+		.bind(today)
+		.first();
+	return { today: count(row, 'today'), month: count(row, 'month'), total: count(row, 'total') };
 }

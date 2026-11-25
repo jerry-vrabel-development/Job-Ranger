@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Adapter } from '#lib/models/types.ts';
-import { chooseModel, PROVIDERS, type ProviderInfo } from './model.ts';
+import { chooseModel, PROVIDERS, setupStatus, type ProviderInfo } from './model.ts';
 
 describe('chooseModel', () => {
 	const fake: Adapter = { provider: 'other', send: vi.fn() };
@@ -66,6 +66,22 @@ describe('chooseModel', () => {
 			ok: false,
 			message:
 				'Drafting isn’t set up: there’s no price on file for the model “claude-latest”, so the daily cap couldn’t be kept.'
+		});
+	});
+});
+
+describe('setupStatus', () => {
+	const settings = (values: Record<string, string>) => (name: string) => values[name] ?? '';
+
+	it('names the model when drafting is on, and gives the reason when it isn’t', () => {
+		expect(
+			setupStatus(
+				chooseModel(PROVIDERS, settings({ ANTHROPIC_API_KEY: 'sk' }), vi.fn<typeof fetch>())
+			)
+		).toEqual({ ready: true, label: 'Claude (Anthropic), claude-sonnet-5-5' });
+		expect(setupStatus(chooseModel(PROVIDERS, settings({}), vi.fn<typeof fetch>()))).toEqual({
+			ready: false,
+			reason: 'Drafting isn’t set up yet: the Worker has no API key.'
 		});
 	});
 });

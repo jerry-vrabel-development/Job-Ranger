@@ -27,7 +27,10 @@ import { addAnswer, checkAnswer } from './answers.ts';
 import { complete } from '#lib/models/complete.ts';
 import type { TokenUsage } from '#lib/models/types.ts';
 import type { Setup } from './models/model.ts';
+import { dollars } from '#lib/money.ts';
 import { count, StoredDataError, text } from './db.ts';
+
+export { dollars };
 import { listFacts } from './facts.ts';
 import { getKit, getPosting, type JobKey, type Result } from './kits.ts';
 
@@ -86,11 +89,6 @@ export async function appliedDraftingCost(
 		.prepare('SELECT COUNT(*) AS n, COALESCE(SUM(drafting_micros), 0) AS micros FROM applications')
 		.first<Row>();
 	return { applications: count(row, 'n'), micros: count(row, 'micros') };
-}
-
-/** "$0.04". */
-export function dollars(micros: number): string {
-	return `$${(micros / 1_000_000).toFixed(2)}`;
 }
 
 /** The daily cap from the DRAFT_DAILY_CAP_USD setting, in millionths of a dollar; $1 if unset or unreadable. */

@@ -124,6 +124,63 @@
 	<p>{data.market.pay}</p>
 </section>
 
+<section aria-labelledby="signals">
+	<h2 id="signals">Signals and costs</h2>
+	<p class="found">{data.signals.summary}</p>
+	<Reveal>
+		<BarChart
+			title="Open jobs with a warning"
+			summary="Each warning is a reason to look closer, not a verdict."
+			rows={data.signals.bars}
+			columns={{ label: 'Warning', count: 'Jobs', detail: 'Out of' }}
+		/>
+	</Reveal>
+	<p class="how">
+		A possible ghost job has been open {data.signals.rules.ghostDays} days or more, or reposted
+		{data.signals.rules.ghostReposts} times or more. Pay missing means no pay on a board whose list shows
+		pay, in a state whose law may require a range; whether the law covers the employer is yours to judge.
+		Scam patterns are checked in a posting’s full text, which Job Ranger has once you prepare an apply
+		kit.
+	</p>
+	{#each data.signals.lists as list (list.title)}
+		{#if list.jobs.length > 0}
+			<details class="flagged">
+				<summary>
+					{list.title}<span class="count">({list.jobs.length}{list.more ? '+' : ''})</span>
+				</summary>
+				<ul>
+					{#each list.jobs as job (`${job.source}:${job.board}:${job.id}`)}
+						<li>
+							<a
+								href={resolve('/apply/[source]/[board]/[id]', {
+									source: job.source,
+									board: job.board,
+									id: job.id
+								})}
+							>
+								{job.company}: {job.title}
+							</a>
+							<span class="why">{job.why}</span>
+						</li>
+					{/each}
+				</ul>
+				{#if list.more}
+					<p class="how">{list.more}</p>
+				{/if}
+			</details>
+		{/if}
+	{/each}
+
+	<h3>Drafting costs</h3>
+	<p>{data.costs.status}</p>
+	<ul class="waiting">
+		{#each data.costs.tiles as tile (tile.label)}
+			<li><span class="number">{tile.value}</span> {tile.label.toLowerCase()}</li>
+		{/each}
+	</ul>
+	<p>{data.costs.perApplication}</p>
+</section>
+
 <style>
 	.found {
 		font-size: 1.25rem;
@@ -182,6 +239,37 @@
 	.ranges button[aria-pressed='true']::before {
 		content: '✓';
 		margin-right: 0.375rem;
+	}
+
+	.flagged {
+		margin-top: 0.75rem;
+		padding: 0.25rem 1rem;
+		background: var(--surface);
+		border: 1px solid var(--rule);
+		border-radius: 8px;
+	}
+
+	/* A flex summary drops the space before the count, so the gap puts it back. */
+	.flagged summary {
+		cursor: pointer;
+		min-height: 44px;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		column-gap: 0.375rem;
+		font-weight: 600;
+	}
+
+	.flagged ul {
+		margin: 0 0 0.75rem;
+		padding-left: 1.25rem;
+		display: grid;
+		gap: 0.5rem;
+	}
+
+	.why {
+		display: block;
+		color: var(--muted);
 	}
 
 	.charts {

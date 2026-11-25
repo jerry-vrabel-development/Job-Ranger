@@ -6,9 +6,13 @@ import { expect, test, type Page } from '@playwright/test';
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
+/** Each violation with the elements behind it and why, so a CI log says what to fix. */
 async function violations(page: Page) {
 	return (await new AxeBuilder({ page }).withTags(WCAG).analyze()).violations.map(
-		(v) => `${v.id}: ${v.help}`
+		(v) =>
+			`${v.id}: ${v.help}\n${v.nodes
+				.map((node) => `  ${node.target.join(' ')}: ${node.failureSummary ?? ''}`)
+				.join('\n')}`
 	);
 }
 
@@ -198,6 +202,95 @@ test.describe('Insights: The market I watch', () => {
 	});
 });
 
+// From e2e/seed.sql: Chicago is 42 of the open jobs; one job lists 6 states (Illinois, New
+// York, California, Texas, Colorado, Washington) and Flight's names Austin, so Texas has 2.
+// Civic's "Remote - US" names no state; "Location not given" names none either.
+test.describe('Insights: the map of open jobs by state', () => {
+	const map = (page: Page) => page.getByRole('figure', { name: /Open jobs by state/ });
+
+	test('says the counts in words, with pay-law states named, and a table', async ({ page }) => {
+		await page.goto('/insights');
+		const figure = map(page);
+		await expect(
+			figure.getByText(
+				'Open jobs name 6 states; the most are in Illinois (42). Beside the map: 1 remote with no state; 1 naming no US state; 1 naming more than one, counted in each.'
+			)
+		).toBeVisible();
+		await expect(
+			figure.getByRole('img', { name: 'Illinois: 42 open jobs; pay-range law in effect' })
+		).toBeVisible();
+		await expect(figure.getByRole('img', { name: 'Texas: 2 open jobs' })).toBeVisible();
+		await expect(
+			figure.getByRole('img', { name: 'Maine: no open jobs; pay-range law in effect' })
+		).toBeAttached();
+		await expect(figure.getByRole('img', { name: 'Ohio: no open jobs' })).toBeAttached();
+		await expect(figure.getByRole('list', { name: 'Key' }).getByRole('listitem')).toHaveText([
+			'No open jobs',
+			'1 job',
+			'2 jobs',
+			'42 jobs',
+			'Pay-range law in effect'
+		]);
+
+		await figure.getByText('Show the numbers').click();
+		const rows = figure.getByRole('table').getByRole('row');
+		await expect(rows.first()).toHaveText('StateOpen jobsPay-range law');
+		await expect(rows.filter({ hasText: 'Illinois' })).toHaveText('Illinois42Yes');
+		await expect(rows.filter({ hasText: 'Texas' })).toHaveText('Texas2—');
+		await expect(rows.filter({ hasText: 'Maine' })).toHaveText('Maine0Yes');
+		await expect(rows.filter({ hasText: 'Remote, no state' })).toHaveText('Remote, no state1—');
+		await expect(rows.filter({ hasText: 'No US state named' })).toHaveText('No US state named1—');
+		await expect(rows.filter({ hasText: 'Ohio' })).toHaveCount(0);
+	});
+
+	test('moves between states with the arrow keys, and says each one', async ({ page }) => {
+		await page.goto('/insights');
+		const figure = map(page);
+		const readout = figure.locator('.readout');
+		await expect(readout).toHaveText('Illinois: 42 open jobs; pay-range law in effect');
+		await figure.getByRole('img', { name: /^Illinois/ }).focus();
+		await page.keyboard.press('ArrowRight');
+		await expect(figure.getByRole('img', { name: 'Indiana: no open jobs' })).toBeFocused();
+		await expect(readout).toHaveText('Indiana: no open jobs');
+		await page.keyboard.press('ArrowLeft');
+		await page.keyboard.press('ArrowUp');
+		await expect(figure.getByRole('img', { name: 'Wisconsin: no open jobs' })).toBeFocused();
+		await page.keyboard.press('End');
+		await expect(readout).toHaveText('Wyoming: no open jobs');
+		// One tab stop for the whole map: the state being read.
+		await expect(figure.locator('path[tabindex="0"]')).toHaveCount(1);
+		await figure.getByRole('img', { name: /^Texas/ }).hover();
+		await expect(readout).toHaveText('Texas: 2 open jobs');
+	});
+
+	test('passes the accessibility checks in light and dark, with the table open', async ({
+		page
+	}) => {
+		await page.goto('/insights');
+		await map(page).getByText('Show the numbers').click();
+		await map(page)
+			.getByRole('img', { name: /^Illinois/ })
+			.focus();
+		expect(await violations(page)).toEqual([]);
+		await page.emulateMedia({ colorScheme: 'dark' });
+		expect(await violations(page)).toEqual([]);
+	});
+
+	test('is complete without JavaScript', async ({ browser }) => {
+		const context = await browser.newContext({ javaScriptEnabled: false });
+		const page = await context.newPage();
+		await page.goto('/insights');
+		const figure = map(page);
+		await expect(figure.locator('path.state')).toHaveCount(51);
+		await expect(figure.locator('path.law').first()).toBeVisible();
+		await figure.getByText('Show the numbers').click();
+		await expect(
+			figure.getByRole('table').getByRole('row').filter({ hasText: 'Illinois' })
+		).toHaveText('Illinois42Yes');
+		await context.close();
+	});
+});
+
 test.describe('Insights: motion', () => {
 	const firstBar = (page: Page) =>
 		page
@@ -220,6 +313,19 @@ test.describe('Insights: motion', () => {
 		await firstBar(page).scrollIntoViewIfNeeded();
 		await expect.poll(() => width(page), { timeout: 5000 }).toBeGreaterThan(5);
 		expect(blocked).toEqual([]);
+	});
+
+	test('fades the map’s states in as it scrolls into view, ending fully shown', async ({
+		page
+	}) => {
+		await page.goto('/insights');
+		const illinois = page
+			.getByRole('figure', { name: /Open jobs by state/ })
+			.getByRole('img', { name: /^Illinois/ });
+		const opacity = () => illinois.evaluate((el) => Number(getComputedStyle(el).opacity));
+		await expect.poll(opacity).toBeLessThan(0.1);
+		await illinois.scrollIntoViewIfNeeded();
+		await expect.poll(opacity, { timeout: 5000 }).toBe(1);
 	});
 
 	test('keeps everything still and complete under reduced motion', async ({ page }) => {

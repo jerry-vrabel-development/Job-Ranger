@@ -27,6 +27,7 @@ import {
 	trendSummary,
 	windowDays
 } from '#lib/insights/trend.ts';
+import { mapStates, mapSummary, stateCounts } from '#lib/insights/map.ts';
 import { listed, signalBars, signalCounts, signalSummary } from '#lib/insights/signals.ts';
 import { GHOST_DAYS, GHOST_REPOSTS } from '#lib/signals/ghost.ts';
 import { appliedDraftingCost, capMicros } from '#lib/server/drafts.ts';
@@ -74,6 +75,8 @@ export const load: PageServerLoad = async ({ url }) => {
 		appliedDraftingCost(db)
 	]);
 	const signals = signalCounts(open, checked, now);
+	const byState = stateCounts(open);
+	const map = mapStates(byState, now);
 	const spending = {
 		setup: setupStatus(chooseModel(PROVIDERS, setting, fetch)),
 		capMicros: capMicros(setting('DRAFT_DAILY_CAP_USD')),
@@ -112,6 +115,13 @@ export const load: PageServerLoad = async ({ url }) => {
 			companyTable: companyRows(market),
 			workplaces: workplaceBars(market),
 			pay: payLine(market)
+		},
+		map: {
+			summary: mapSummary(byState),
+			states: map.states,
+			legend: map.legend,
+			remote: byState.remote,
+			elsewhere: byState.elsewhere
 		},
 		signals: {
 			summary: signalSummary(signals),

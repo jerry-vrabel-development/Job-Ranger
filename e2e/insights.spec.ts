@@ -6,9 +6,13 @@ import { expect, test, type Page } from '@playwright/test';
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
+/** Each violation with the elements behind it and why, so a CI log says what to fix. */
 async function violations(page: Page) {
 	return (await new AxeBuilder({ page }).withTags(WCAG).analyze()).violations.map(
-		(v) => `${v.id}: ${v.help}`
+		(v) =>
+			`${v.id}: ${v.help}\n${v.nodes
+				.map((node) => `  ${node.target.join(' ')}: ${node.failureSummary ?? ''}`)
+				.join('\n')}`
 	);
 }
 
@@ -198,6 +202,95 @@ test.describe('Insights: The market I watch', () => {
 	});
 });
 
+// From e2e/seed.sql: Chicago is 42 of the open jobs; one job lists 6 states (Illinois, New
+// York, California, Texas, Colorado, Washington) and Flight's names Austin, so Texas has 2.
+// Civic's "Remote - US" names no state; "Location not given" names none either.
+test.describe('Insights: the map of open jobs by state', () => {
+	const map = (page: Page) => page.getByRole('figure', { name: /Open jobs by state/ });
+
+	test('says the counts in words, with pay-law states named, and a table', async ({ page }) => {
+		await page.goto('/insights');
+		const figure = map(page);
+		await expect(
+			figure.getByText(
+				'Open jobs name 6 states; the most are in Illinois (42). Beside the map: 1 remote with no state; 1 naming no US state; 1 naming more than one, counted in each.'
+			)
+		).toBeVisible();
+		await expect(
+			figure.getByRole('img', { name: 'Illinois: 42 open jobs; pay-range law in effect' })
+		).toBeVisible();
+		await expect(figure.getByRole('img', { name: 'Texas: 2 open jobs' })).toBeVisible();
+		await expect(
+			figure.getByRole('img', { name: 'Maine: no open jobs; pay-range law in effect' })
+		).toBeAttached();
+		await expect(figure.getByRole('img', { name: 'Ohio: no open jobs' })).toBeAttached();
+		await expect(figure.getByRole('list', { name: 'Key' }).getByRole('listitem')).toHaveText([
+			'No open jobs',
+			'1 job',
+			'2 jobs',
+			'42 jobs',
+			'Pay-range law in effect'
+		]);
+
+		await figure.getByText('Show the numbers').click();
+		const rows = figure.getByRole('table').getByRole('row');
+		await expect(rows.first()).toHaveText('StateOpen jobsPay-range law');
+		await expect(rows.filter({ hasText: 'Illinois' })).toHaveText('Illinois42Yes');
+		await expect(rows.filter({ hasText: 'Texas' })).toHaveText('Texas2—');
+		await expect(rows.filter({ hasText: 'Maine' })).toHaveText('Maine0Yes');
+		await expect(rows.filter({ hasText: 'Remote, no state' })).toHaveText('Remote, no state1—');
+		await expect(rows.filter({ hasText: 'No US state named' })).toHaveText('No US state named1—');
+		await expect(rows.filter({ hasText: 'Ohio' })).toHaveCount(0);
+	});
+
+	test('moves between states with the arrow keys, and says each one', async ({ page }) => {
+		await page.goto('/insights');
+		const figure = map(page);
+		const readout = figure.locator('.readout');
+		await expect(readout).toHaveText('Illinois: 42 open jobs; pay-range law in effect');
+		await figure.getByRole('img', { name: /^Illinois/ }).focus();
+		await page.keyboard.press('ArrowRight');
+		await expect(figure.getByRole('img', { name: 'Indiana: no open jobs' })).toBeFocused();
+		await expect(readout).toHaveText('Indiana: no open jobs');
+		await page.keyboard.press('ArrowLeft');
+		await page.keyboard.press('ArrowUp');
+		await expect(figure.getByRole('img', { name: 'Wisconsin: no open jobs' })).toBeFocused();
+		await page.keyboard.press('End');
+		await expect(readout).toHaveText('Wyoming: no open jobs');
+		// One tab stop for the whole map: the state being read.
+		await expect(figure.locator('path[tabindex="0"]')).toHaveCount(1);
+		await figure.getByRole('img', { name: /^Texas/ }).hover();
+		await expect(readout).toHaveText('Texas: 2 open jobs');
+	});
+
+	test('passes the accessibility checks in light and dark, with the table open', async ({
+		page
+	}) => {
+		await page.goto('/insights');
+		await map(page).getByText('Show the numbers').click();
+		await map(page)
+			.getByRole('img', { name: /^Illinois/ })
+			.focus();
+		expect(await violations(page)).toEqual([]);
+		await page.emulateMedia({ colorScheme: 'dark' });
+		expect(await violations(page)).toEqual([]);
+	});
+
+	test('is complete without JavaScript', async ({ browser }) => {
+		const context = await browser.newContext({ javaScriptEnabled: false });
+		const page = await context.newPage();
+		await page.goto('/insights');
+		const figure = map(page);
+		await expect(figure.locator('path.state')).toHaveCount(51);
+		await expect(figure.locator('path.law').first()).toBeVisible();
+		await figure.getByText('Show the numbers').click();
+		await expect(
+			figure.getByRole('table').getByRole('row').filter({ hasText: 'Illinois' })
+		).toHaveText('Illinois42Yes');
+		await context.close();
+	});
+});
+
 test.describe('Insights: motion', () => {
 	const firstBar = (page: Page) =>
 		page
@@ -222,6 +315,19 @@ test.describe('Insights: motion', () => {
 		expect(blocked).toEqual([]);
 	});
 
+	test('fades the map’s states in as it scrolls into view, ending fully shown', async ({
+		page
+	}) => {
+		await page.goto('/insights');
+		const illinois = page
+			.getByRole('figure', { name: /Open jobs by state/ })
+			.getByRole('img', { name: /^Illinois/ });
+		const opacity = () => illinois.evaluate((el) => Number(getComputedStyle(el).opacity));
+		await expect.poll(opacity).toBeLessThan(0.1);
+		await illinois.scrollIntoViewIfNeeded();
+		await expect.poll(opacity, { timeout: 5000 }).toBe(1);
+	});
+
 	test('keeps everything still and complete under reduced motion', async ({ page }) => {
 		await page.emulateMedia({ reducedMotion: 'reduce' });
 		await page.goto('/insights');
@@ -236,5 +342,77 @@ test.describe('Insights: motion', () => {
 		expect(await width(page)).toBeGreaterThan(5);
 		await expect(page.getByRole('listitem').filter({ hasText: 'Example Co 43' })).toBeVisible();
 		await context.close();
+	});
+});
+
+// From e2e/seed.sql: of 45 open jobs, 1 is reposted twice (a possible ghost job), 14 have no
+// pay in a state whose law may require it, and 1 of the 1 kit with posting text has scam
+// patterns. No API key in tests, so drafting is off; the seeded applications carry $0.20.
+test.describe('Insights: Signals and costs', () => {
+	test('counts each warning, lists the jobs behind it, and links to them', async ({ page }) => {
+		await page.goto('/insights');
+		const signals = page.getByRole('region', { name: 'Signals and costs' });
+		await expect(
+			signals.getByText('15 jobs have at least one warning, out of 45 open jobs.')
+		).toBeVisible();
+		await expect(
+			signals.getByRole('figure', { name: /Open jobs with a warning/ }).getByRole('listitem')
+		).toHaveText([
+			'Possible ghost job 1 · 2% of open jobs',
+			'Pay missing 14 · 31% of open jobs',
+			'Scam patterns 1 · out of 1 posting checked'
+		]);
+
+		const pay = signals.locator('details.flagged', {
+			has: page.getByText('Pay missing where a state law may require it')
+		});
+		await pay.locator('summary').click();
+		const payJobs = pay.getByRole('listitem');
+		await expect(payJobs).toHaveCount(14);
+		// Natural order: 3 before 12.
+		await expect(payJobs.nth(1)).toHaveText('Example Co: Software Engineer 3 Illinois');
+		await expect(payJobs.nth(2)).toHaveText('Example Co: Software Engineer 6 Illinois');
+
+		const scam = signals.locator('details.flagged').filter({
+			has: page.locator('summary', { hasText: 'Scam patterns' })
+		});
+		await scam.locator('summary').click();
+		await expect(scam.getByRole('listitem')).toHaveText([
+			'Example Co: Software Engineer 1 Check for equipment, Chat-app contact'
+		]);
+		await scam.getByRole('link', { name: 'Example Co: Software Engineer 1' }).click();
+		await expect(page).toHaveURL(/\/apply\/ashby\/example\//);
+		await expect(page.getByRole('heading', { level: 1 })).toContainText('Software Engineer 1');
+	});
+
+	test('says plainly that drafting is off, and what it has cost', async ({ page }) => {
+		await page.goto('/insights');
+		const signals = page.getByRole('region', { name: 'Signals and costs' });
+		await expect(
+			signals.getByText(
+				'Drafting isn’t set up yet: the Worker has no API key. Nothing is spent until it is.'
+			)
+		).toBeVisible();
+		await expect(signals.getByRole('list').last().getByRole('listitem')).toHaveText([
+			'$0.00 today, of a $1.00 cap',
+			'$0.00 this month',
+			'$0.00 in all'
+		]);
+		await expect(
+			signals.getByText('$0.20 across 4 applications, $0.05 each on average.')
+		).toBeVisible();
+	});
+
+	test('passes the accessibility checks in light and dark, with every list open', async ({
+		page
+	}) => {
+		for (const colorScheme of ['light', 'dark'] as const) {
+			await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+			await page.goto('/insights');
+			for (const summary of await page.locator('details.flagged summary').all()) {
+				await summary.click();
+			}
+			expect(await violations(page)).toEqual([]);
+		}
 	});
 });

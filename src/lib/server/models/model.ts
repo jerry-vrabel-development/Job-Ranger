@@ -67,3 +67,12 @@ export function chooseModel(
 	}
 	return { ok: true, adapter: info.make(fetcher), model, apiKey, label: `${info.label}, ${model}` };
 }
+
+/** Whether drafting is set up, for a page to say: the model in use, or why it's off. */
+export function setupStatus(
+	setup: Setup
+):
+	| { readonly ready: true; readonly label: string }
+	| { readonly ready: false; readonly reason: string } {
+	return setup.ok ? { ready: true, label: setup.label } : { ready: false, reason: setup.message };
+}

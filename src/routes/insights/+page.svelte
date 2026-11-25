@@ -5,6 +5,7 @@
 	import BarChart from '#lib/charts/BarChart.svelte';
 	import LineChart from '#lib/charts/LineChart.svelte';
 	import Reveal from '#lib/charts/Reveal.svelte';
+	import UsMap from '#lib/charts/UsMap.svelte';
 	import { pageTitle } from '#lib/site.ts';
 	import type { PageProps } from './$types';
 
@@ -85,7 +86,16 @@
 				<!-- When the order changes (7 to 30 days), each company slides to its new place. -->
 				<li animate:flip={{ duration: prefersReducedMotion.current ? 0 : 400 }}>
 					<article aria-labelledby={`trend-${item.key}`}>
-						<h3 id={`trend-${item.key}`}>{item.company}</h3>
+						<h3 id={`trend-${item.key}`}>
+							<a
+								href={resolve('/companies/[source]/[board]', {
+									source: item.source,
+									board: item.board
+								})}
+							>
+								{item.company}
+							</a>
+						</h3>
 						<p class={`direction ${item.trend.direction}`}>{item.trend.words}</p>
 						<Reveal>
 							<LineChart label={item.company} data={item.points} />
@@ -120,8 +130,82 @@
 			/>
 		</Reveal>
 	</div>
+	<h3>Where the jobs are</h3>
+	<Reveal>
+		<UsMap
+			title="Open jobs by state"
+			summary={data.map.summary}
+			states={data.map.states}
+			legend={data.map.legend}
+			remote={data.map.remote}
+			elsewhere={data.map.elsewhere}
+		/>
+	</Reveal>
+	<p class="how">
+		A state is read from the posting’s location, the same way as the pay signal. A job naming more
+		than one state counts in each. Darker means more jobs; each shade’s range is in the key. A hatch
+		marks states whose law requires a pay range in postings, which is information, not legal advice:
+		see Signals for postings that may fall under one.
+	</p>
 	<h3>Pay</h3>
 	<p>{data.market.pay}</p>
+</section>
+
+<section aria-labelledby="signals">
+	<h2 id="signals">Signals and costs</h2>
+	<p class="found">{data.signals.summary}</p>
+	<Reveal>
+		<BarChart
+			title="Open jobs with a warning"
+			summary="Each warning is a reason to look closer, not a verdict."
+			rows={data.signals.bars}
+			columns={{ label: 'Warning', count: 'Jobs', detail: 'Out of' }}
+		/>
+	</Reveal>
+	<p class="how">
+		A possible ghost job has been open {data.signals.rules.ghostDays} days or more, or reposted
+		{data.signals.rules.ghostReposts} times or more. Pay missing means no pay on a board whose list shows
+		pay, in a state whose law may require a range; whether the law covers the employer is yours to judge.
+		Scam patterns are checked in a posting’s full text, which Job Ranger has once you prepare an apply
+		kit.
+	</p>
+	{#each data.signals.lists as list (list.title)}
+		{#if list.jobs.length > 0}
+			<details class="flagged">
+				<summary>
+					{list.title}<span class="count">({list.jobs.length}{list.more ? '+' : ''})</span>
+				</summary>
+				<ul>
+					{#each list.jobs as job (`${job.source}:${job.board}:${job.id}`)}
+						<li>
+							<a
+								href={resolve('/apply/[source]/[board]/[id]', {
+									source: job.source,
+									board: job.board,
+									id: job.id
+								})}
+							>
+								{job.company}: {job.title}
+							</a>
+							<span class="why">{job.why}</span>
+						</li>
+					{/each}
+				</ul>
+				{#if list.more}
+					<p class="how">{list.more}</p>
+				{/if}
+			</details>
+		{/if}
+	{/each}
+
+	<h3>Drafting costs</h3>
+	<p>{data.costs.status}</p>
+	<ul class="waiting">
+		{#each data.costs.tiles as tile (tile.label)}
+			<li><span class="number">{tile.value}</span> {tile.label.toLowerCase()}</li>
+		{/each}
+	</ul>
+	<p>{data.costs.perApplication}</p>
 </section>
 
 <style>
@@ -182,6 +266,37 @@
 	.ranges button[aria-pressed='true']::before {
 		content: '✓';
 		margin-right: 0.375rem;
+	}
+
+	.flagged {
+		margin-top: 0.75rem;
+		padding: 0.25rem 1rem;
+		background: var(--surface);
+		border: 1px solid var(--rule);
+		border-radius: 8px;
+	}
+
+	/* A flex summary drops the space before the count, so the gap puts it back. */
+	.flagged summary {
+		cursor: pointer;
+		min-height: 44px;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		column-gap: 0.375rem;
+		font-weight: 600;
+	}
+
+	.flagged ul {
+		margin: 0 0 0.75rem;
+		padding-left: 1.25rem;
+		display: grid;
+		gap: 0.5rem;
+	}
+
+	.why {
+		display: block;
+		color: var(--muted);
 	}
 
 	.charts {

@@ -188,7 +188,8 @@ describe('boards', () => {
 				lastFetchOk: null,
 				lastFetchNote: null,
 				paused: false,
-				openJobs: 0
+				openJobs: 0,
+				addedAt: expect.any(String) as string
 			},
 			{
 				source: 'ashby',
@@ -198,7 +199,8 @@ describe('boards', () => {
 				lastFetchOk: false,
 				lastFetchNote: 'Board not found (404)',
 				paused: false,
-				openJobs: 0
+				openJobs: 0,
+				addedAt: expect.any(String) as string
 			}
 		]);
 	});

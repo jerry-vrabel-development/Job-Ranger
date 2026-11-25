@@ -1,5 +1,7 @@
 /* Job Ranger: plain, calm and readable. Every color pair meets WCAG 2.2 AA. */
 :root {
+	/* Both themes are ours, so the browser's own defaults (text, scrollbars, form controls) follow the one in use. */
+	color-scheme: light dark;
 	--bg: #fbfaf7;
 	--surface: #ffffff;
 	--text: #1d2421;

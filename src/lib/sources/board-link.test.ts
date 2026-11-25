@@ -1,6 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { isToken, nameFromToken, parseBoardLink } from './board-link.ts';
+import { isToken, nameFromToken, parseBoardLink, publicBoardUrl } from './board-link.ts';
 
 describe('parseBoardLink', () => {
 	it.each([
@@ -123,5 +123,24 @@ describe('nameFromToken', () => {
 		['4dx', '4dx']
 	])('makes %s into %s', (token, name) => {
 		expect(nameFromToken(token)).toBe(name);
+	});
+});
+
+describe('publicBoardUrl', () => {
+	it('gives each board’s own public page, which parses back to the same board', () => {
+		const boards = [
+			['ashby', 'suno', 'https://jobs.ashbyhq.com/suno'],
+			['greenhouse', 'zipline', 'https://job-boards.greenhouse.io/zipline'],
+			['lever', 'Spotify', 'https://jobs.lever.co/Spotify'],
+			['breezy', 'community-solutions', 'https://community-solutions.breezy.hr']
+		] as const;
+		for (const [source, token, url] of boards) {
+			expect(publicBoardUrl(source, token)).toBe(url);
+			expect(parseBoardLink(url)).toMatchObject({ ok: true, source, token });
+		}
+	});
+
+	it('escapes a board name with a space', () => {
+		expect(publicBoardUrl('ashby', 'acme co')).toBe('https://jobs.ashbyhq.com/acme%20co');
 	});
 });

@@ -134,3 +134,21 @@ export function parseBoardLink(input: string): BoardLink {
 		`Job Ranger reads Ashby, Greenhouse, Lever and Breezy boards, and that link is on ${host}. If the company's careers page has a link to jobs.ashbyhq.com, job-boards.greenhouse.io, jobs.lever.co or a breezy.hr address, paste that one.`
 	);
 }
+
+/**
+ * The board's own public page, for people to visit (the reverse of
+ * parseBoardLink). Not used for fetching: each adapter reads its source's API.
+ */
+export function publicBoardUrl(source: Source, token: string): string {
+	const name = encodeURIComponent(token);
+	switch (source) {
+		case 'ashby':
+			return `https://jobs.ashbyhq.com/${name}`;
+		case 'greenhouse':
+			return `https://job-boards.greenhouse.io/${name}`;
+		case 'lever':
+			return `https://jobs.lever.co/${name}`;
+		case 'breezy':
+			return `https://${name}.breezy.hr`;
+	}
+}

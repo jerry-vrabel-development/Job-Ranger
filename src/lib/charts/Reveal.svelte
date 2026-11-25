@@ -8,7 +8,8 @@
 	already on screen when the page loads isn't hidden and replayed (no flash).
 	Under reduced motion nothing moves (gsap.matchMedia). GSAP sets styles from
 	JavaScript, which the CSP allows; it writes no style attributes into the HTML.
-	Marks opt in with data-reveal="bar" or data-reveal="line".
+	Marks opt in with data-reveal="bar", "line", or "fade" (the map's states,
+	which fade in west to east: each carries its delay in data-delay).
 -->
 <script lang="ts">
 	import { onMount, type Snippet } from 'svelte';
@@ -44,6 +45,19 @@
 						ease: 'power2.out',
 						stagger: 0.06
 					});
+				}
+				const fades = [...root.querySelectorAll<SVGElement | HTMLElement>('[data-reveal="fade"]')];
+				if (fades.length > 0) {
+					timeline.from(
+						fades,
+						{
+							opacity: 0,
+							duration: 0.4,
+							ease: 'power1.out',
+							stagger: (i) => Number(fades[i]?.dataset['delay'] ?? 0)
+						},
+						0
+					);
 				}
 				if (lines.length > 0) {
 					timeline.from(

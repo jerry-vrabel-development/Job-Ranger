@@ -117,7 +117,7 @@
 	/*
 	 * Every row shares the list's columns (subgrid), so all the bar tracks are
 	 * the same length and the bars share one scale, however long a label or
-	 * value is. On a narrow screen each bar takes its own line under its label.
+	 * value is. On a narrow screen label, bar and value stack.
 	 */
 	.bars {
 		list-style: none;
@@ -136,13 +136,10 @@
 		row-gap: 0.25rem;
 	}
 
+	/* Narrow screens: label, bar and value each take a line, so a long value can't crowd the label. */
 	@media (max-width: 30rem) {
 		.bars {
-			grid-template-columns: minmax(0, 1fr) max-content;
-		}
-		.track {
-			grid-column: 1 / -1;
-			grid-row: 2;
+			grid-template-columns: minmax(0, 1fr);
 		}
 	}
 

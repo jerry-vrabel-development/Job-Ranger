@@ -238,3 +238,75 @@ test.describe('Insights: motion', () => {
 		await context.close();
 	});
 });
+
+// From e2e/seed.sql: of 45 open jobs, 1 is reposted twice (a possible ghost job), 14 have no
+// pay in a state whose law may require it, and 1 of the 1 kit with posting text has scam
+// patterns. No API key in tests, so drafting is off; the seeded applications carry $0.20.
+test.describe('Insights: Signals and costs', () => {
+	test('counts each warning, lists the jobs behind it, and links to them', async ({ page }) => {
+		await page.goto('/insights');
+		const signals = page.getByRole('region', { name: 'Signals and costs' });
+		await expect(
+			signals.getByText('15 jobs have at least one warning, out of 45 open jobs.')
+		).toBeVisible();
+		await expect(
+			signals.getByRole('figure', { name: /Open jobs with a warning/ }).getByRole('listitem')
+		).toHaveText([
+			'Possible ghost job 1 · 2% of open jobs',
+			'Pay missing 14 · 31% of open jobs',
+			'Scam patterns 1 · out of 1 posting checked'
+		]);
+
+		const pay = signals.locator('details.flagged', {
+			has: page.getByText('Pay missing where a state law may require it')
+		});
+		await pay.locator('summary').click();
+		const payJobs = pay.getByRole('listitem');
+		await expect(payJobs).toHaveCount(14);
+		// Natural order: 3 before 12.
+		await expect(payJobs.nth(1)).toHaveText('Example Co: Software Engineer 3 Illinois');
+		await expect(payJobs.nth(2)).toHaveText('Example Co: Software Engineer 6 Illinois');
+
+		const scam = signals.locator('details.flagged').filter({
+			has: page.locator('summary', { hasText: 'Scam patterns' })
+		});
+		await scam.locator('summary').click();
+		await expect(scam.getByRole('listitem')).toHaveText([
+			'Example Co: Software Engineer 1 Check for equipment, Chat-app contact'
+		]);
+		await scam.getByRole('link', { name: 'Example Co: Software Engineer 1' }).click();
+		await expect(page).toHaveURL(/\/apply\/ashby\/example\//);
+		await expect(page.getByRole('heading', { level: 1 })).toContainText('Software Engineer 1');
+	});
+
+	test('says plainly that drafting is off, and what it has cost', async ({ page }) => {
+		await page.goto('/insights');
+		const signals = page.getByRole('region', { name: 'Signals and costs' });
+		await expect(
+			signals.getByText(
+				'Drafting isn’t set up yet: the Worker has no API key. Nothing is spent until it is.'
+			)
+		).toBeVisible();
+		await expect(signals.getByRole('list').last().getByRole('listitem')).toHaveText([
+			'$0.00 today, of a $1.00 cap',
+			'$0.00 this month',
+			'$0.00 in all'
+		]);
+		await expect(
+			signals.getByText('$0.20 across 4 applications, $0.05 each on average.')
+		).toBeVisible();
+	});
+
+	test('passes the accessibility checks in light and dark, with every list open', async ({
+		page
+	}) => {
+		for (const colorScheme of ['light', 'dark'] as const) {
+			await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+			await page.goto('/insights');
+			for (const summary of await page.locator('details.flagged summary').all()) {
+				await summary.click();
+			}
+			expect(await violations(page)).toEqual([]);
+		}
+	});
+});

@@ -1,6 +1,14 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { getPosting, markApplied, type JobKey } from './kits.ts';
-import { companyCounts, marketCounts, searchCounts } from './insights.ts';
+import { recordUsage } from './drafts.ts';
+import {
+	checkedJobs,
+	companyCounts,
+	marketCounts,
+	openJobs,
+	searchCounts,
+	spendingTotals
+} from './insights.ts';
 import { markJob } from './marks.ts';
 import { addBoard, migratedDb } from './test-db.ts';
 import { setStatus } from './tracker.ts';
@@ -29,7 +37,7 @@ async function apply(id: string) {
 beforeEach(async () => {
 	db = await migratedDb();
 	await db.batch(
-		['job_marks', 'applications', 'board_counts', 'postings', 'boards'].map((t) =>
+		['job_marks', 'applications', 'board_counts', 'kits', 'postings', 'boards'].map((t) =>
 			db.prepare(`DELETE FROM ${t}`)
 		)
 	);
@@ -160,5 +168,61 @@ describe('the counts behind The market I watch', () => {
 			{ workplace: 'remote', open: 2 }
 		]);
 		expect(market).toMatchObject({ payListed: 2, payPosted: 1, payUnlisted: 2 });
+	});
+});
+
+describe('the inputs behind Signals and costs', () => {
+	async function posting(id: string, closed = false) {
+		await db
+			.prepare(
+				`INSERT INTO postings (source, board, id, company, title, location, workplace, apply_url,
+				 first_seen_at, last_seen_at, closed_at, reopen_count) VALUES ('lever', 'Flight', ?1,
+				 'Flight Co', ?1, 'Chicago, IL', 'on-site', 'https://x.test/1', ?2, ?2, ?3, 2)`
+			)
+			.bind(id, NOW, closed ? NOW : null)
+			.run();
+	}
+
+	it('reads every open watched job, with what the signal rules need', async () => {
+		await posting('open');
+		await posting('gone', true);
+		const jobs = await openJobs(db);
+		expect(jobs.map((j) => j.id)).toEqual(['open']);
+		expect(jobs[0]).toMatchObject({ location: 'Chicago, IL', reopenCount: 2, pay: null });
+	});
+
+	it('checks only open jobs whose kit has the posting’s text', async () => {
+		for (const id of ['scam', 'clean', 'empty', 'gone']) await posting(id, id === 'gone');
+		const kit = async (id: string, text: string) => {
+			await db
+				.prepare(
+					`INSERT INTO kits (source, board, posting_id, questions, posting_text)
+					 VALUES ('lever', 'Flight', ?1, '[]', ?2)`
+				)
+				.bind(id, text)
+				.run();
+		};
+		await kit('scam', 'Great role. Message us on WhatsApp to start your interview today.');
+		await kit('clean', 'We build delivery drones. Apply through this page.');
+		await kit('empty', '');
+		await kit('gone', 'Message us on WhatsApp to start.');
+		const checked = await checkedJobs(db);
+		expect(checked.map((j) => [j.id, j.flags.map((f) => f.label)]).sort()).toEqual([
+			['clean', []],
+			['scam', ['Chat-app contact']]
+		]);
+	});
+
+	it('adds up drafting spend for today, this month and in all', async () => {
+		await db.prepare('DELETE FROM model_usage').run();
+		expect(await spendingTotals(db, '2026-11-25')).toEqual({ today: 0, month: 0, total: 0 });
+		await recordUsage(db, '2026-11-25', 'm', { inputTokens: 1, outputTokens: 1 }, 30_000);
+		await recordUsage(db, '2026-11-02', 'm', { inputTokens: 1, outputTokens: 1 }, 20_000);
+		await recordUsage(db, '2026-10-31', 'm', { inputTokens: 1, outputTokens: 1 }, 100_000);
+		expect(await spendingTotals(db, '2026-11-25')).toEqual({
+			today: 30_000,
+			month: 50_000,
+			total: 150_000
+		});
 	});
 });

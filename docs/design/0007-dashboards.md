@@ -94,8 +94,16 @@ Ashby, Lever and Breezy, whose lists can show pay; Greenhouse's jobs are
 left out and the page says so (0005). New and closed jobs per day, and jobs
 by source, come later.
 
-**Signals and costs.** How many open jobs carry each 0005 flag, and the
-drafting cost per application and in all (from `draft_costs`).
+**Signals and costs** (built). How many open jobs on watched boards carry
+each 0005 warning, run with the same rules the Jobs list uses, so the counts
+always match the flags on the jobs. Each warning lists its jobs (up to 50,
+the rest counted in words), with the reason in a few words, linking to the
+apply kit. Scam checks need a posting's full text, which exists only for jobs
+with an apply kit, so that count says "out of N postings checked". Costs:
+whether drafting is on (or why it's off), today against the daily cap, this
+month and in all (UTC days, from `model_usage`), and the cost per application
+(from `applications.drafting_micros`). Half cents now round up: `dollars()`
+rounds to whole cents before formatting.
 
 **Company summary.** One page per company, every fact with its source and
 date (0002): open jobs and their momentum chart, jobs closed and reposted,
@@ -162,7 +170,7 @@ that keeps every rule above:
 1. ~~Chart parts (funnel, table, palette) and **Insights** with **My search**.~~ Built.
 2. ~~**Trending companies (hiring)**~~ Built. A small trend line on the Companies list comes with the company page.
 3. ~~**The market I watch.**~~ Built, with GSAP's scroll reveals.
-4. **Signals and costs.**
+4. ~~**Signals and costs.**~~ Built.
 5. **Company page** with the summary from my own data.
 6. Layoffs research, then a design addition before any code.
 

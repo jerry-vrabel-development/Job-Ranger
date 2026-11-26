@@ -521,3 +521,24 @@ describe('migration 0018: application status', () => {
 		).rejects.toThrow();
 	});
 });
+
+describe('migration 0019: preferences', () => {
+	it('keeps one row of checked preferences', async () => {
+		await applyD1Migrations(db, [...MIGRATIONS]);
+		expect(await first('SELECT * FROM preferences')).toBeNull();
+		await db.prepare('INSERT INTO preferences (id) VALUES (1)').run();
+		expect(
+			await first('SELECT workplaces, area, levels, pay_floor, looking_for FROM preferences')
+		).toEqual({ workplaces: '[]', area: '', levels: '[]', pay_floor: null, looking_for: '' });
+		const bad = [
+			'INSERT INTO preferences (id) VALUES (2)',
+			"UPDATE preferences SET workplaces = 'remote'",
+			"UPDATE preferences SET levels = '{}'",
+			'UPDATE preferences SET pay_floor = 0',
+			'UPDATE preferences SET pay_floor = 10000001',
+			`UPDATE preferences SET area = '${'x'.repeat(101)}'`,
+			`UPDATE preferences SET looking_for = '${'x'.repeat(601)}'`
+		];
+		for (const sql of bad) await expect(db.prepare(sql).run()).rejects.toThrow();
+	});
+});

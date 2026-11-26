@@ -22,6 +22,8 @@ import {
 	saveProfile,
 	type ProfileField
 } from '#lib/server/profile.ts';
+import { getPreferences, savePreferences } from '#lib/server/preferences.ts';
+import { AREA_MAX, checkPreferences, LOOKING_FOR_MAX } from '#lib/preferences.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 function database(): D1Database {
@@ -32,8 +34,12 @@ function database(): D1Database {
 
 export const load: PageServerLoad = async () => {
 	const db = database();
-	const [facts, profile] = await Promise.all([listFacts(db), getProfile(db)]);
-	return { facts, profile };
+	const [facts, profile, preferences] = await Promise.all([
+		listFacts(db),
+		getProfile(db),
+		getPreferences(db)
+	]);
+	return { facts, profile, preferences };
 };
 
 function value(form: FormData, name: string, max: number): string {
@@ -65,6 +71,28 @@ async function onFact(
 }
 
 export const actions: Actions = {
+	preferences: async ({ request }) => {
+		const form = await request.formData();
+		const words = (name: string) =>
+			form
+				.getAll(name)
+				.filter((v): v is string => typeof v === 'string')
+				.slice(0, 20);
+		const values = {
+			workplaces: words('workplaces'),
+			area: value(form, 'area', AREA_MAX * 4),
+			levels: words('levels'),
+			payFloor: value(form, 'payFloor', 40),
+			lookingFor: value(form, 'lookingFor', LOOKING_FOR_MAX * 4)
+		};
+		const checked = checkPreferences(values);
+		if (!checked.ok) {
+			return fail(400, {
+				wanted: { field: checked.field, message: checked.message, values }
+			});
+		}
+		return { result: await savePreferences(database(), checked.preferences) };
+	},
 	profile: async ({ request }) => {
 		const form = await request.formData();
 		const values = Object.fromEntries(

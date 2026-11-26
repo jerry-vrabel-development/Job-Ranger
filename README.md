@@ -35,7 +35,9 @@ email, documents and AI assistants is in
 missing pay, scams) are in [design note 0005](docs/design/0005-honest-signals.md). Tracking is in [design note
 0006](docs/design/0006-tracking.md). How applying will work (answers, tailored
 resumes and cover letters, never applying for you) is in
-[design note 0004](docs/design/0004-applying-resumes-cover-letters.md).
+[design note 0004](docs/design/0004-applying-resumes-cover-letters.md). The dashboards are in
+[design note 0007](docs/design/0007-dashboards.md), and scoring jobs with a model, with the evals that
+check it, is proposed in [design note 0008](docs/design/0008-scoring-and-evals.md).
 
 ## What makes it different
 

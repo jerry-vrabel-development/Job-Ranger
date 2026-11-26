@@ -13,6 +13,14 @@
 		TEXT_MAX
 	} from '#lib/facts.ts';
 	import { countLabel } from '#lib/jobs/display.ts';
+	import {
+		AREA_MAX,
+		LEVEL_LABELS,
+		LEVELS,
+		LOOKING_FOR_MAX,
+		WORKPLACE_LABELS,
+		WORKPLACES
+	} from '#lib/preferences.ts';
 	import { pageTitle } from '#lib/site.ts';
 	import type { PageProps } from './$types';
 
@@ -34,6 +42,23 @@
 	/** A problem with Your details, and what was typed. */
 	const details = $derived(form && 'details' in form ? form.details : undefined);
 	const detail = (name: keyof typeof data.profile) => details?.values[name] ?? data.profile[name];
+	/** A problem with What you're looking for, and what was sent. */
+	const wanted = $derived(form && 'wanted' in form ? form.wanted : undefined);
+	const chosen = (list: 'workplaces' | 'levels', word: string) => {
+		const words: readonly string[] = wanted?.values[list] ?? data.preferences[list];
+		return words.includes(word);
+	};
+	const wantedText = (name: 'area' | 'lookingFor') =>
+		wanted?.values[name] ?? data.preferences[name];
+	const payText = $derived(
+		wanted?.values.payFloor ??
+			(data.preferences.payFloor === null ? '' : String(data.preferences.payFloor))
+	);
+	function wantedDescribedBy(name: string): string {
+		return wanted?.field === name
+			? `wanted-${name}-error wanted-${name}-hint`
+			: `wanted-${name}-hint`;
+	}
 	const DETAIL_FIELDS = [
 		{
 			name: 'name',
@@ -84,6 +109,7 @@
 			if (field) inputs[field]?.focus();
 			else if (paste) pasteBox?.focus();
 			else if (details) inputs[`detail-${details.field}`]?.focus();
+			else if (wanted) inputs[`wanted-${wanted.field}`]?.focus();
 			else status?.focus();
 		};
 
@@ -274,6 +300,101 @@
 			<button type="submit">Save your details</button>
 		</form>
 	</details>
+</section>
+
+<section aria-labelledby="wanted-heading">
+	<h2 id="wanted-heading">What you’re looking for</h2>
+	<p class="hint">
+		Sent with your confirmed facts when a job is scored. Leave anything blank and it isn’t a factor.
+	</p>
+	<form method="POST" action="?/preferences" use:enhance={afterAction} novalidate class="details">
+		<fieldset>
+			<legend>Where you’ll work <span class="optional">(optional)</span></legend>
+			{#each WORKPLACES as workplace (workplace)}
+				<label class="choice">
+					<input
+						type="checkbox"
+						name="workplaces"
+						value={workplace}
+						checked={chosen('workplaces', workplace)}
+					/>
+					{WORKPLACE_LABELS[workplace]}
+				</label>
+			{/each}
+		</fieldset>
+		<div class="field">
+			<label for="wanted-area">Area <span class="optional">(optional)</span></label>
+			<p class="hint" id="wanted-area-hint">For hybrid and on-site jobs: “Chicago area”.</p>
+			{#if wanted?.field === 'area'}
+				<p class="error" id="wanted-area-error"><strong>Error:</strong> {wanted.message}</p>
+			{/if}
+			<input
+				id="wanted-area"
+				name="area"
+				type="text"
+				maxlength={AREA_MAX}
+				value={browser ? undefined : wantedText('area')}
+				defaultValue={wantedText('area')}
+				aria-invalid={wanted?.field === 'area' ? 'true' : undefined}
+				aria-describedby={wantedDescribedBy('area')}
+				bind:this={inputs['wanted-area']}
+			/>
+		</div>
+		<fieldset>
+			<legend>Levels <span class="optional">(optional)</span></legend>
+			{#each LEVELS as level (level)}
+				<label class="choice">
+					<input type="checkbox" name="levels" value={level} checked={chosen('levels', level)} />
+					{LEVEL_LABELS[level]}
+				</label>
+			{/each}
+		</fieldset>
+		<div class="field">
+			<label for="wanted-payFloor">Pay floor <span class="optional">(optional)</span></label>
+			<p class="hint" id="wanted-payFloor-hint">
+				The least you’d take a year, in US dollars: 120000 or $120k.
+			</p>
+			{#if wanted?.field === 'payFloor'}
+				<p class="error" id="wanted-payFloor-error"><strong>Error:</strong> {wanted.message}</p>
+			{/if}
+			<input
+				id="wanted-payFloor"
+				name="payFloor"
+				type="text"
+				inputmode="numeric"
+				value={browser ? undefined : payText}
+				defaultValue={payText}
+				aria-invalid={wanted?.field === 'payFloor' ? 'true' : undefined}
+				aria-describedby={wantedDescribedBy('payFloor')}
+				bind:this={inputs['wanted-payFloor']}
+			/>
+		</div>
+		<div class="field">
+			<label for="wanted-lookingFor">
+				What you’re looking for <span class="optional">(optional)</span>
+			</label>
+			<p class="hint" id="wanted-lookingFor-hint">
+				A few sentences in your own words: the work, the people, the kind of company.
+			</p>
+			{#if wanted?.field === 'lookingFor'}
+				<p class="error" id="wanted-lookingFor-error">
+					<strong>Error:</strong>
+					{wanted.message}
+				</p>
+			{/if}
+			<textarea
+				id="wanted-lookingFor"
+				name="lookingFor"
+				rows="4"
+				maxlength={LOOKING_FOR_MAX}
+				value={browser ? undefined : wantedText('lookingFor')}
+				defaultValue={wantedText('lookingFor')}
+				aria-invalid={wanted?.field === 'lookingFor' ? 'true' : undefined}
+				aria-describedby={wantedDescribedBy('lookingFor')}
+				bind:this={inputs['wanted-lookingFor']}></textarea>
+		</div>
+		<button type="submit">Save what you’re looking for</button>
+	</form>
 </section>
 
 <section aria-labelledby="add-heading">
@@ -492,9 +613,38 @@
 		min-width: 0;
 	}
 
-	label {
+	label,
+	legend {
 		display: block;
 		font-weight: 600;
+	}
+
+	fieldset {
+		margin: 0 0 1rem;
+		padding: 0.5rem 0.75rem;
+		border: 1px solid var(--rule);
+		border-radius: 4px;
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+		gap: 0 1rem;
+	}
+
+	legend {
+		padding: 0 0.25rem;
+	}
+
+	label.choice {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		min-height: 44px;
+		font-weight: 400;
+	}
+
+	.choice input {
+		width: 1.4rem;
+		height: 1.4rem;
+		flex: none;
 	}
 
 	input[type='text'],

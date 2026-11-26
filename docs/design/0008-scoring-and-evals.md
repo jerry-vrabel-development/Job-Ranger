@@ -173,8 +173,9 @@ short Markdown report, committed with the PR that changed the prompt.
 ## Build order
 
 1. This note.
-2. **Score core** (pure, tested): prompt builder, schema, the code checks,
-   reading level, the keyword baseline. Recorded responses as fixtures.
+2. ~~**Score core**~~ (built): prompt builder, schema, the code checks,
+   reading level, the keyword baseline, in `src/lib/scoring/`. Tested with
+   hand-written answers in the model's shape until real ones are recorded.
 3. **Preferences** on the Facts page (migration).
 4. **Scoring and traces:** migration 0019, the scorer in the daily fetch
    with its cap, "Score now", costs on Insights.

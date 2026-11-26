@@ -71,7 +71,9 @@ describe('ashby.parse on a recorded-shape board', () => {
 				max: 180000,
 				currency: 'USD',
 				interval: '1 YEAR'
-			}
+			},
+			textHash: '82b4ed0c',
+			text: 'Build things people can use.'
 		});
 	});
 

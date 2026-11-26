@@ -63,7 +63,9 @@ describe('lever.parse on a board in the documented shape', () => {
 				max: 190000,
 				currency: 'USD',
 				interval: 'per-year-salary'
-			}
+			},
+			textHash: '42ca2b0d',
+			text: 'Not stored.'
 		});
 	});
 
@@ -174,5 +176,27 @@ describe('parseSalary', () => {
 				expect(pay === null || typeof pay.summary === 'string').toBe(true);
 			})
 		);
+	});
+});
+
+describe('lever posting text', () => {
+	it('reads the opening, each list with its heading, and the closing', () => {
+		expect(
+			first({
+				descriptionPlain: 'We build maps.',
+				lists: [
+					{ text: 'What you need', content: '<li>5 years of TypeScript</li><li>D3</li>' },
+					'not a list',
+					{ text: 'Nice to have' }
+				],
+				additionalPlain: 'We pay fairly.'
+			})?.text
+		).toBe(
+			'We build maps.\nWhat you need\n5 years of TypeScript. D3.\nNice to have\nWe pay fairly.'
+		);
+	});
+
+	it('has no text when Lever sends none, or lists that aren’t a list', () => {
+		expect(first({ lists: 'nope' })).toMatchObject({ text: '', textHash: '' });
 	});
 });

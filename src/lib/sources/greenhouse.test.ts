@@ -59,7 +59,9 @@ describe('greenhouse.parse on a recorded-shape board', () => {
 			applyUrl: 'https://job-boards.greenhouse.io/example/jobs/4206440009',
 			jobUrl: 'https://job-boards.greenhouse.io/example/jobs/4206440009',
 			postedAt: '2026-11-10T14:00:00.000Z',
-			pay: null
+			pay: null,
+			textHash: '82b4ed0c',
+			text: 'Build things people can use.'
 		});
 	});
 

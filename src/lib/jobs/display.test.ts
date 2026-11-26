@@ -26,6 +26,7 @@ const stored: StoredPosting = {
 	jobUrl: 'https://jobs.ashbyhq.com/example/a',
 	postedAt: '2026-11-12T15:00:00.000Z',
 	pay: { summary: '$150K - $180K', min: 150000, max: 180000, currency: 'USD', interval: '1 YEAR' },
+	textHash: '',
 	firstSeenAt: NOW,
 	lastSeenAt: NOW,
 	closedAt: null,

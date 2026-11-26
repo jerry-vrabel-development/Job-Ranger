@@ -542,3 +542,27 @@ describe('migration 0019: preferences', () => {
 		for (const sql of bad) await expect(db.prepare(sql).run()).rejects.toThrow();
 	});
 });
+
+describe('migration 0020: posting texts', () => {
+	it('starts every posting with no text, and only takes text for a stored posting', async () => {
+		await applyD1Migrations(db, MIGRATIONS.slice(0, 19));
+		await db
+			.prepare("INSERT INTO boards (source, token, company) VALUES ('lever', 'f', 'F')")
+			.run();
+		await db
+			.prepare(
+				`INSERT INTO postings (source, board, id, company, title, location, workplace, apply_url, first_seen_at, last_seen_at)
+				 VALUES ('lever', 'f', '1', 'F', 'T', 'L', 'remote', 'https://x.co', 'd', 'd')`
+			)
+			.run();
+		await applyD1Migrations(db, [...MIGRATIONS]);
+		expect(await first('SELECT text_hash FROM postings')).toEqual({ text_hash: '' });
+		await db.prepare("INSERT INTO posting_texts VALUES ('lever', 'f', '1', 'Words.')").run();
+		const bad = [
+			"INSERT INTO posting_texts VALUES ('lever', 'f', '2', 'No posting.')",
+			"UPDATE posting_texts SET text = ''",
+			`UPDATE posting_texts SET text = '${'x'.repeat(30001)}'`
+		];
+		for (const sql of bad) await expect(db.prepare(sql).run()).rejects.toThrow();
+	});
+});

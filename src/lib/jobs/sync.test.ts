@@ -22,6 +22,7 @@ function posting(id: string, overrides: Partial<Posting> = {}): Posting {
 		jobUrl: null,
 		postedAt: DAY1,
 		pay: null,
+		textHash: '',
 		...overrides
 	};
 }
@@ -131,6 +132,7 @@ describe('sameDetails', () => {
 		});
 		expect(sameDetails(base, { ...base })).toBe(true);
 		expect(sameDetails(base, { ...base, location: 'Chicago' })).toBe(false);
+		expect(sameDetails(base, { ...base, textHash: 'abcd1234' })).toBe(false);
 		expect(sameDetails(base, { ...base, pay: null })).toBe(false);
 		expect(sameDetails({ ...base, pay: null }, { ...base, pay: null })).toBe(true);
 		expect(

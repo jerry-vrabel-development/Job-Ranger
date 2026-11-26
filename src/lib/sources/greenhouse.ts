@@ -13,7 +13,16 @@
  * Greenhouse's apply form is on the job's own page, so the apply link and the
  * posting link are the same URL.
  */
-import { cleanText, httpsUrl, isoDate, type Posting, type Workplace } from '#lib/jobs/posting.ts';
+import {
+	cleanText,
+	httpsUrl,
+	isoDate,
+	postingText,
+	withText,
+	type FetchedPosting,
+	type Workplace
+} from '#lib/jobs/posting.ts';
+import { contentText } from '#lib/kit/match.ts';
 import { noneSkipped, SourceFormatError, type BoardResult, type JobSource } from './source.ts';
 
 type Json = Record<string, unknown>;
@@ -57,7 +66,7 @@ export const greenhouse: JobSource = {
 		}
 
 		const skipped = noneSkipped();
-		const postings: Posting[] = [];
+		const postings: FetchedPosting[] = [];
 		let companyName: string | null = null;
 		for (const job of body['jobs']) {
 			if (companyName === null && isObject(job)) companyName = cleanText(job['company_name'], 200);
@@ -79,21 +88,28 @@ export const greenhouse: JobSource = {
 			const location =
 				(isObject(job['location']) ? cleanText(job['location']['name'], 300) : null) ??
 				'Location not given';
-			postings.push({
-				source: 'greenhouse',
-				board: board.token,
-				id,
-				company: board.company,
-				title,
-				location,
-				workplace: workplaceFrom(location),
-				employmentType: null,
-				department: firstName(job['departments']),
-				applyUrl: url,
-				jobUrl: url,
-				postedAt: isoDate(job['first_published']),
-				pay: null
-			});
+			const content = job['content'];
+			const text = postingText([typeof content === 'string' ? contentText(content) : null]);
+			postings.push(
+				withText(
+					{
+						source: 'greenhouse',
+						board: board.token,
+						id,
+						company: board.company,
+						title,
+						location,
+						workplace: workplaceFrom(location),
+						employmentType: null,
+						department: firstName(job['departments']),
+						applyUrl: url,
+						jobUrl: url,
+						postedAt: isoDate(job['first_published']),
+						pay: null
+					},
+					text
+				)
+			);
 		}
 		return { postings, skipped, companyName };
 	}

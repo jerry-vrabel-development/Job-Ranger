@@ -103,6 +103,7 @@ export function toStoredPosting(row: Row): StoredPosting {
 		jobUrl: textOrNull(row, 'job_url'),
 		postedAt: textOrNull(row, 'posted_at'),
 		pay: pay(row),
+		textHash: text(row, 'text_hash'),
 		firstSeenAt: text(row, 'first_seen_at'),
 		lastSeenAt: text(row, 'last_seen_at'),
 		closedAt: textOrNull(row, 'closed_at'),
@@ -160,6 +161,7 @@ function toColumns(posting: StoredPosting) {
 		pay_max: posting.pay?.max ?? null,
 		pay_currency: posting.pay?.currency ?? null,
 		pay_interval: posting.pay?.interval ?? null,
+		text_hash: posting.textHash,
 		first_seen_at: posting.firstSeenAt,
 		last_seen_at: posting.lastSeenAt,
 		closed_at: posting.closedAt,
@@ -183,6 +185,7 @@ const COLUMNS = Object.keys(
 		jobUrl: null,
 		postedAt: null,
 		pay: null,
+		textHash: '',
 		firstSeenAt: '',
 		lastSeenAt: '',
 		closedAt: null,
@@ -208,16 +211,38 @@ function chunks<T>(items: readonly T[], size: number): T[][] {
 	return out;
 }
 
-/** Writes one board's sync plan, all or nothing (a D1 batch is one transaction). */
+/**
+ * Writes one board's sync plan, all or nothing (a D1 batch is one
+ * transaction). `texts` holds today's text by posting id; only postings that
+ * are new or changed have theirs written, one statement each, so no single
+ * statement carries more than one posting's text.
+ */
 export async function writePlan(
 	db: D1Database,
 	board: Board,
 	plan: SyncPlan,
-	now: string
+	now: string,
+	texts: ReadonlyMap<string, string> = new Map()
 ): Promise<void> {
 	const statements: D1PreparedStatement[] = [];
-	for (const group of chunks([...plan.insert, ...plan.update], WRITE_CHUNK)) {
+	const written = [...plan.insert, ...plan.update];
+	for (const group of chunks(written, WRITE_CHUNK)) {
 		statements.push(db.prepare(UPSERT_SQL).bind(JSON.stringify(group.map(toColumns))));
+	}
+	for (const posting of written) {
+		const text = texts.get(posting.id) ?? '';
+		statements.push(
+			text === ''
+				? db
+						.prepare('DELETE FROM posting_texts WHERE source = ?1 AND board = ?2 AND id = ?3')
+						.bind(board.source, board.token, posting.id)
+				: db
+						.prepare(
+							`INSERT INTO posting_texts (source, board, id, text) VALUES (?1, ?2, ?3, ?4)
+							 ON CONFLICT (source, board, id) DO UPDATE SET text = excluded.text`
+						)
+						.bind(board.source, board.token, posting.id, text)
+		);
 	}
 	for (const ids of chunks(plan.touch, WRITE_CHUNK)) {
 		statements.push(
@@ -276,6 +301,18 @@ export async function recordFetch(
 		);
 	}
 	await db.batch(statements);
+}
+
+/** A posting's stored text, or "" when its board sent none (design note 0008). */
+export async function postingTextOf(
+	db: D1Database,
+	key: { readonly source: string; readonly board: string; readonly id: string }
+): Promise<string> {
+	const row = await db
+		.prepare('SELECT text FROM posting_texts WHERE source = ?1 AND board = ?2 AND id = ?3')
+		.bind(key.source, key.board, key.id)
+		.first<Row>();
+	return row === null ? '' : text(row, 'text');
 }
 
 /** Postings on boards that aren't paused. */

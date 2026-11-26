@@ -13,6 +13,7 @@ import {
 	listOpenPostings,
 	loadBoard,
 	markAllSeen,
+	postingTextOf,
 	recordFetch,
 	listCounts,
 	removeBoard,
@@ -26,6 +27,7 @@ import { addBoard, migratedDb } from './test-db.ts';
 
 const DAY1 = '2026-11-16T11:23:00.000Z';
 const DAY2 = '2026-11-17T11:23:00.000Z';
+const DAY3 = '2026-11-18T11:23:00.000Z';
 
 const example: Board = { source: 'ashby', token: 'example', company: 'Example Co' };
 const other: Board = { source: 'ashby', token: 'other', company: 'Another Co' };
@@ -51,6 +53,7 @@ function posting(id: string, overrides: Partial<Posting> = {}): Posting {
 			currency: 'USD',
 			interval: '1 YEAR'
 		},
+		textHash: '',
 		...overrides
 	};
 }
@@ -128,6 +131,65 @@ describe('writePlan and loadBoard', () => {
 		const bad = { ...posting('a'), applyUrl: 'http://example.com/apply' };
 		await expect(sync(db, example, [bad], DAY1)).rejects.toThrow();
 		expect(await loadBoard(db, example)).toEqual([]);
+	});
+});
+
+describe('posting texts', () => {
+	const key = (id: string) => ({ source: 'ashby', board: 'example', id });
+	const texted = (id: string, text: string) => ({
+		...posting(id),
+		textHash: text === '' ? '' : `h-${text}`
+	});
+
+	it('stores text for new and changed postings only, and clears it when the board stops sending it', async () => {
+		const write = async (rows: [string, string][], now: string) => {
+			const plan = planSync(
+				await loadBoard(db, example),
+				rows.map(([id, t]) => texted(id, t)),
+				now
+			);
+			await writePlan(db, example, plan, now, new Map(rows));
+			return plan;
+		};
+		await write(
+			[
+				['a', 'First words.'],
+				['b', '']
+			],
+			DAY1
+		);
+		expect(await postingTextOf(db, key('a'))).toBe('First words.');
+		expect(await postingTextOf(db, key('b'))).toBe('');
+
+		const unchanged = await write(
+			[
+				['a', 'First words.'],
+				['b', '']
+			],
+			DAY2
+		);
+		expect(unchanged.touch).toEqual(['a', 'b']);
+
+		const changed = await write(
+			[
+				['a', ''],
+				['b', 'Now some words.']
+			],
+			DAY3
+		);
+		expect(changed.update.map((p) => p.id)).toEqual(['a', 'b']);
+		expect(await postingTextOf(db, key('a'))).toBe('');
+		expect(await postingTextOf(db, key('b'))).toBe('Now some words.');
+		expect((await loadBoard(db, example)).find((p) => p.id === 'b')?.textHash).toBe(
+			'h-Now some words.'
+		);
+	});
+
+	it('goes when its company is removed', async () => {
+		const plan = planSync([], [texted('a', 'Words.')], DAY1);
+		await writePlan(db, example, plan, DAY1, new Map([['a', 'Words.']]));
+		await removeBoard(db, 'ashby', 'example');
+		expect(await db.prepare('SELECT COUNT(*) AS n FROM posting_texts').first()).toEqual({ n: 0 });
 	});
 });
 
@@ -314,7 +376,8 @@ describe('toStoredPosting', () => {
 		last_seen_at: DAY1,
 		closed_at: null,
 		reopen_count: null,
-		seen_at: null
+		seen_at: null,
+		text_hash: ''
 	};
 
 	it('reads a valid row', () => {

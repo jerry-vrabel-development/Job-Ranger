@@ -46,7 +46,10 @@ the feature; the evals are the point.
 ### 1. What the model sees
 
 - **The posting:** title, company, location, workplace, team, and the
-  posting text (cut at 6,000 characters, the cut said in the prompt).
+  posting text (cut at 6,000 characters, the cut said in the prompt). The
+  text is stored by the daily fetch (step 4a): Greenhouse, Ashby and Lever
+  send it with the list Job Ranger already reads; Breezy sends none, so its
+  jobs say there's no text to score.
 - **My profile:** confirmed facts only (the fact bank, 0004), each with its
   id; my interests (0003), each with its id; and my preferences (below).
   "Your details" (contact info) are never sent, as in 0004.
@@ -110,7 +113,7 @@ letter checks in 0004.
 
 ### 5. Traces
 
-Every scoring call is stored (migration 0020, `job_scores`): the job, prompt
+Every scoring call is stored (migration 0021, `job_scores`): the job, prompt
 version, profile version, model, score, reasons, what code dropped and why,
 tokens, cost, time, and when. No posting text or profile text is copied into
 the trace; they're already in the database. Logs carry counts only.
@@ -179,16 +182,22 @@ short Markdown report, committed with the PR that changed the prompt.
    reading level, the keyword baseline, in `src/lib/scoring/`. Tested with
    hand-written answers in the model's shape until real ones are recorded.
 3. ~~**Preferences**~~ (built) on the Facts page (migration 0019).
-4. **Scoring and traces:** migration 0020, the scorer in the daily fetch
+4. ~~**Posting text** (4a)~~ (built): the daily fetch keeps each posting's
+   text (migration 0020, `posting_texts`). A fingerprint on each posting is
+   compared like any other detail, so unchanged text is never rewritten; the
+   first fetch after deploy fills in every posting's text. (This note first
+   assumed the text was already stored; it was only kept for jobs with a
+   kit.)
+5. **Scoring and traces:** migration 0021, the scorer in the daily fetch
    with its cap, "Score now", costs on Insights.
-5. **Jobs page:** "Best fit" order, score, summary, reasons with sources.
-6. **Evals:** labels export, the fixed set, `npm run eval:score`, results
+6. **Jobs page:** "Best fit" order, score, summary, reasons with sources.
+7. **Evals:** labels export, the fixed set, `npm run eval:score`, results
    and report, the eval page.
-7. **First published run:** Haiku vs Sonnet vs the keyword baseline, which
+8. **First published run:** Haiku vs Sonnet vs the keyword baseline, which
    decides the default model.
 
-Steps 2–6 work and are tested without an API key (recorded responses).
-Step 7 needs the key.
+Steps 2–7 work and are tested without an API key (recorded responses).
+Step 8 needs the key.
 
 ## Open questions (Jerry)
 

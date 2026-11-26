@@ -5,8 +5,12 @@ import {
 	isoDate,
 	isSource,
 	known,
+	fingerprint,
 	normaliseToken,
-	postingKey
+	POSTING_TEXT_MAX,
+	postingKey,
+	postingText,
+	withText
 } from './posting.ts';
 
 describe('postingKey', () => {
@@ -84,5 +88,49 @@ describe('known', () => {
 		expect(known(map, 'hasOwnProperty')).toBeUndefined();
 		expect(known(map, 7)).toBeUndefined();
 		expect(known(map, undefined)).toBeUndefined();
+	});
+});
+
+describe('posting text', () => {
+	it('joins the parts it gets, plain, one line per part', () => {
+		expect(postingText(['  Build  things.\t', null, 7, '\n\nFor   people.\u0007 ', ''])).toBe(
+			'Build things.\nFor people.'
+		);
+		expect(postingText([])).toBe('');
+		expect(postingText([null, '   '])).toBe('');
+	});
+
+	it('keeps at most the limit', () => {
+		expect(postingText(['x'.repeat(POSTING_TEXT_MAX + 5)])).toHaveLength(POSTING_TEXT_MAX);
+	});
+
+	it('fingerprints text so a change shows, and nothing as ""', () => {
+		expect(fingerprint('')).toBe('');
+		expect(fingerprint('Build things.')).toMatch(/^[0-9a-f]{8}$/);
+		expect(fingerprint('Build things.')).toBe(fingerprint('Build things.'));
+		expect(fingerprint('Build things.')).not.toBe(fingerprint('Build things!'));
+		expect(fingerprint('a')).toBe('e40c292c');
+	});
+
+	it('adds the text and its fingerprint to a posting', () => {
+		const posting = withText(
+			{
+				source: 'ashby',
+				board: 'b',
+				id: '1',
+				company: 'C',
+				title: 'T',
+				location: 'L',
+				workplace: 'remote',
+				employmentType: null,
+				department: null,
+				applyUrl: 'https://x.co',
+				jobUrl: null,
+				postedAt: null,
+				pay: null
+			},
+			'Words.'
+		);
+		expect(posting).toMatchObject({ text: 'Words.', textHash: fingerprint('Words.') });
 	});
 });

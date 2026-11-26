@@ -54,7 +54,9 @@ describe('breezy.parse on a board in the shape third-party readers describe', ()
 			applyUrl: 'https://example.breezy.hr/p/a1b2c3d4e5f6-data-systems-advisor',
 			jobUrl: 'https://example.breezy.hr/p/a1b2c3d4e5f6-data-systems-advisor',
 			postedAt: '2026-11-10T15:00:00.000Z',
-			pay: { summary: '$76,000 - $97,000', min: null, max: null, currency: null, interval: null }
+			pay: { summary: '$76,000 - $97,000', min: null, max: null, currency: null, interval: null },
+			textHash: '',
+			text: ''
 		});
 	});
 

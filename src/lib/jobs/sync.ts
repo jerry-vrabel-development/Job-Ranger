@@ -52,6 +52,7 @@ export function sameDetails(a: Posting, b: Posting): boolean {
 		a.applyUrl === b.applyUrl &&
 		a.jobUrl === b.jobUrl &&
 		a.postedAt === b.postedAt &&
+		a.textHash === b.textHash &&
 		samePay(a.pay, b.pay)
 	);
 }
@@ -71,7 +72,8 @@ function details(posting: Posting): Posting {
 		applyUrl: posting.applyUrl,
 		jobUrl: posting.jobUrl,
 		postedAt: posting.postedAt,
-		pay: posting.pay
+		pay: posting.pay,
+		textHash: posting.textHash
 	};
 }
 

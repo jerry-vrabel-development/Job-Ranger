@@ -148,6 +148,8 @@ describe('spending', () => {
 		expect(capMicros('2.50')).toBe(2_500_000);
 		expect(capMicros(' 3 ')).toBe(3_000_000);
 		for (const odd of ['', 'lots', '-1', '1.234']) expect(capMicros(odd)).toBe(1_000_000);
+		expect(capMicros('', 0.1)).toBe(100_000);
+		expect(capMicros('0.25', 0.1)).toBe(250_000);
 	});
 });
 

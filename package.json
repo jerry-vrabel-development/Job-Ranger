@@ -19,7 +19,7 @@
 		"prepare": "svelte-kit sync || echo ''",
 		"cf-typegen": "rm -rf .svelte-kit/cloudflare && wrangler types",
 		"typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings && tsc --noEmit -p e2e",
-		"lint": "eslint . --max-warnings 0",
+		"lint": "svelte-kit sync && eslint . --max-warnings 0",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
 		"test": "vitest run",

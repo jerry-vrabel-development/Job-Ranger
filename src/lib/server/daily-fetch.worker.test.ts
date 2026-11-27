@@ -12,7 +12,7 @@ import {
 	successNote
 } from './daily-fetch.ts';
 import { listBoardStatus, listCounts, listOpenPostings, StoredDataError } from './db.ts';
-import { scheduled } from './scheduled.ts';
+import { scheduled, SCORING_DEADLINE_MS } from './scheduled.ts';
 import { addBoard, migratedDb } from './test-db.ts';
 
 const DAY1 = new Date('2026-11-16T11:23:00.000Z');
@@ -198,6 +198,115 @@ describe('scheduled', () => {
 		expect(logged).not.toContain('Example');
 		expect(logged).not.toContain('example');
 		expect((await listBoardStatus(db))[0]?.lastFetchedAt).toBe(DAY1.toISOString());
+		log.mockRestore();
+	});
+});
+
+describe('scheduled scoring', () => {
+	/** An Anthropic messages answer in the documented tool-use shape (not recorded live). */
+	const scoreAnswer = () =>
+		Response.json({
+			id: 'msg_01',
+			type: 'message',
+			role: 'assistant',
+			content: [
+				{
+					type: 'tool_use',
+					id: 'toolu_01',
+					name: 'score_job',
+					input: {
+						score: 4,
+						summary: 'It is a build role.',
+						reasons: [
+							{
+								direction: 'for',
+								text: 'You like building.',
+								cites: [{ quote: 'things people can use' }]
+							}
+						]
+					}
+				}
+			],
+			model: 'claude-haiku-5-5',
+			stop_reason: 'tool_use',
+			stop_sequence: null,
+			usage: { input_tokens: 3000, output_tokens: 300 }
+		});
+
+	it('skips scoring, and says so, when there is no API key', async () => {
+		await addBoard(db, example);
+		const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+		await scheduled(
+			{ scheduledTime: DAY1.getTime() },
+			{ DB: db },
+			network({ example: json(recorded) })
+		);
+		expect(log).toHaveBeenLastCalledWith(
+			JSON.stringify({ event: 'scoring', skipped: 'not set up' })
+		);
+		log.mockRestore();
+	});
+
+	it('scores the new jobs after the fetch, checks each answer against its own posting, and logs counts only', async () => {
+		await addBoard(db, example);
+		const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+		const fetcher = network({ example: json(recorded), messages: scoreAnswer });
+		await scheduled(
+			{ scheduledTime: DAY1.getTime() },
+			{ DB: db, ANTHROPIC_API_KEY: ' sk-test ', SCORE_DAILY_CAP_USD: '0.25' },
+			fetcher
+		);
+		// The same answer quotes the first job's words, so the second ("Test everything.") stays unscored.
+		const { results } = await db
+			.prepare('SELECT ok, score, why FROM job_scores ORDER BY ok DESC')
+			.all();
+		expect(results).toEqual([
+			{ ok: 1, score: 4, why: '' },
+			{
+				ok: 0,
+				score: null,
+				why: 'None of the model’s reasons could be traced, so it isn’t scored.'
+			}
+		]);
+		expect(log).toHaveBeenLastCalledWith(
+			JSON.stringify({
+				event: 'scoring',
+				scored: 1,
+				unscored: 1,
+				waiting: 0,
+				spentMicros: 900,
+				stopped: null
+			})
+		);
+		const [, init] =
+			fetcher.mock.calls.find(([input]) =>
+				(input instanceof Request ? input.url : input.toString()).includes('anthropic')
+			) ?? [];
+		expect(new Headers(init?.headers).get('x-api-key')).toBe('sk-test');
+		expect(log.mock.calls.flat().join(' ')).not.toContain('Example');
+		log.mockRestore();
+	});
+
+	it('stops when the scoring deadline has passed', async () => {
+		await addBoard(db, example);
+		const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+		let now = 0;
+		await scheduled(
+			{ scheduledTime: DAY1.getTime() },
+			{ DB: db, ANTHROPIC_API_KEY: 'sk-test' },
+			network({ example: json(recorded), messages: scoreAnswer }),
+			() => (now += SCORING_DEADLINE_MS)
+		);
+		expect(log).toHaveBeenLastCalledWith(
+			JSON.stringify({
+				event: 'scoring',
+				scored: 0,
+				unscored: 0,
+				waiting: 2,
+				spentMicros: 0,
+				stopped: 'time'
+			})
+		);
 		log.mockRestore();
 	});
 });

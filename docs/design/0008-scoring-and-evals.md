@@ -188,9 +188,14 @@ short Markdown report, committed with the PR that changed the prompt.
    first fetch after deploy fills in every posting's text. (This note first
    assumed the text was already stored; it was only kept for jobs with a
    kit.)
-5. **Scoring and traces:** migration 0021, the scorer in the daily fetch
-   with its cap, "Score now", costs on Insights.
-6. **Jobs page:** "Best fit" order, score, summary, reasons with sources.
+5. ~~**Scoring and traces**~~ (built): migration 0021 `job_scores`; the
+   scorer runs after the daily fetch (until 13 minutes into the run), with
+   Haiku unless `SCORE_MODEL` says otherwise, under `SCORE_DAILY_CAP_USD`
+   ($0.10 by default), kept apart from drafting's cap; an API failure stops
+   the run until tomorrow; Insights shows scoring costs. "Score now" moves to
+   step 6, with the Jobs page.
+6. **Jobs page:** "Best fit" order, score, summary, reasons with sources,
+   and "Score now".
 7. **Evals:** labels export, the fixed set, `npm run eval:score`, results
    and report, the eval page.
 8. **First published run:** Haiku vs Sonnet vs the keyword baseline, which

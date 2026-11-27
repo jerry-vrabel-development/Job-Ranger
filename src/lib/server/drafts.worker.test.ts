@@ -230,7 +230,7 @@ describe('draftLetter', () => {
 	it('passes API errors on in words, and charges for an answer in the wrong shape', async () => {
 		const refused = vi.fn<typeof fetch>(() => Promise.resolve(new Response('', { status: 401 })));
 		expect((await draftLetter(db, using(refused), job, 'letter_full')).message).toBe(
-			'Couldn’t draft: the API key was refused (401).'
+			'Couldn’t draft. The API key was refused (401).'
 		);
 		expect((await draftLetter(db, using(letter('nonsense')), job, 'letter_full')).message).toBe(
 			'The model didn’t return a letter in the shape asked for ($0.01 spent). Try again.'
@@ -258,7 +258,9 @@ describe('draftLetter', () => {
 					'letter_full'
 				)
 			).message
-		).toBe('There’s no price on file for the model “unpriced”, so it can’t be called.');
+		).toBe(
+			'Couldn’t draft. There’s no price on file for the model “unpriced”, so it can’t be called.'
+		);
 		expect(fetcher).not.toHaveBeenCalled();
 	});
 
@@ -533,7 +535,7 @@ describe('resume summary drafts', () => {
 		await draftSummary(db, using(letter([[{ text: BACKED, facts: [factId] }]])), job);
 		const refused = vi.fn<typeof fetch>(() => Promise.resolve(new Response('', { status: 401 })));
 		expect((await draftSummary(db, using(refused), job)).message).toBe(
-			'Couldn’t draft: the API key was refused (401).'
+			'Couldn’t draft. The API key was refused (401).'
 		);
 		expect((await getSummaryDraft(db, job))?.paragraphs).toEqual([
 			[{ text: BACKED, facts: [factId] }]

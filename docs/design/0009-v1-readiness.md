@@ -36,11 +36,11 @@ before code. Status words: **Built**, **Next**, **Planned**, **Later**.
 
 ### v0.4.0 (proposed)
 
-1. **"Couldn't draft:" fix.** Failed model calls say what failed. _Built_
-   (branch `fix/model-error-words`), not yet merged.
-2. **Installable on my phone (a PWA).** _Next._ Moved up from "nice to
-   have" because it makes smoke testing each release a tap from the home
-   screen.
+1. ~~**"Couldn't draft:" fix.**~~ Failed model calls say what failed.
+   _Built_ (#98).
+2. **Installable on my phone (a PWA).** _Built, waiting on the iPhone
+   check below._ Moved up from "nice to have" because it makes smoke
+   testing each release a tap from the home screen.
    - A web app manifest (name, icons, `display: standalone`, theme colors
      for light and dark), app icons made from the favicon, and the Apple
      touch icon and status-bar tags iOS needs.
@@ -50,7 +50,9 @@ before code. Status words: **Built**, **Next**, **Planned**, **Later**.
      iOS has to be tried on the phone before this counts as done.
    - A small service worker only if it earns its place: an "offline" page
      instead of a browser error. No caching of job data, so nothing on the
-     phone goes stale or outlives a sign-out.
+     phone goes stale or outlives a sign-out. **Built without one:** Chrome
+     reports the app installable with no service worker, so none ships
+     yet.
    - Done when: installed on my iPhone from Safari, it opens full screen,
      signs in, and shows the Jobs page.
 3. **0008 step 8: the first published eval run.** _Next, needs me._ 40–50

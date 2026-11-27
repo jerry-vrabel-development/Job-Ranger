@@ -31,6 +31,7 @@
 		"e2e:seed": "wrangler d1 execute DB --local --file e2e/seed.sql",
 		"eval:labels": "node scripts/run-ts.ts scripts/eval-labels.ts",
 		"eval:score": "node scripts/run-ts.ts scripts/eval-score.ts",
+		"icons": "node scripts/icons.ts",
 		"map:states": "node scripts/us-states.ts && prettier --write src/lib/geo/us-states.json",
 		"e2e:serve": "npm run build && npm run db:migrate:local && npm run e2e:seed && wrangler dev --port 4173 --var ACCESS_LOCAL_DEV:true",
 		"deploy": "npm run build && wrangler d1 migrations apply DB --remote && wrangler deploy"
@@ -59,6 +60,7 @@
 		"globals": "^17.4.0",
 		"prettier": "^3.8.1",
 		"prettier-plugin-svelte": "^4.2.0",
+		"sharp": "0.35.5",
 		"svelte": "^5.59.1",
 		"svelte-check": "^4.4.6",
 		"topojson-client": "^3.1.0",

@@ -5,15 +5,10 @@
  * call. Scoring has its own daily cap, apart from drafting's.
  */
 import { fingerprint } from '#lib/jobs/posting.ts';
-import { complete } from '#lib/models/complete.ts';
 import { forScoring } from '#lib/preferences.ts';
+import { askModel } from '#lib/scoring/ask.ts';
 import {
-	checkAnswer,
 	PROMPT_VERSION,
-	SCORE_TOOL,
-	systemPrompt,
-	userPrompt,
-	type Checked,
 	type CheckedReason,
 	type Profile,
 	type Score
@@ -31,8 +26,6 @@ type Row = Record<string, unknown>;
 export const SCORE_CAP_USD = 0.1;
 /** Most jobs one run scores, whatever the cap allows. */
 export const MAX_SCORES_PER_RUN = 300;
-export const SCORE_TIMEOUT_MS = 30_000;
-export const SCORE_MAX_OUTPUT = 1_200;
 
 /** What the model is told about me: confirmed, current facts; interests not paused; preferences set. */
 export async function scoringProfile(db: D1Database): Promise<Profile> {
@@ -149,25 +142,9 @@ export async function scoreJob(
 	now: Date
 ): Promise<ScoreResult> {
 	const scoring = { ...job, postingText: await postingTextOf(db, job) };
-	const answer = await complete(
-		setup.adapter,
-		{
-			model: setup.model,
-			system: systemPrompt(),
-			user: userPrompt(scoring, profile),
-			maxOutputTokens: SCORE_MAX_OUTPUT,
-			timeoutMs: SCORE_TIMEOUT_MS,
-			json: SCORE_TOOL
-		},
-		setup.apiKey
-	);
-	if (!answer.ok) return { kind: 'error', message: answer.error.message };
-	const checked: Checked =
-		answer.stopReason === 'refusal'
-			? { ok: false, why: 'The model declined to score this job.', dropped: [] }
-			: answer.stopReason === 'max_tokens'
-				? { ok: false, why: 'The model’s answer was cut off before it finished.', dropped: [] }
-				: checkAnswer(answer.output, scoring, profile);
+	const asked = await askModel(setup, scoring, profile);
+	if (!asked.ok) return { kind: 'error', message: asked.message };
+	const { checked } = asked;
 	await db
 		.prepare(
 			`INSERT INTO job_scores (source, board, posting_id, prompt_version, profile_version, model,
@@ -181,7 +158,7 @@ export async function scoreJob(
 			job.id,
 			PROMPT_VERSION,
 			version,
-			answer.model,
+			asked.model,
 			checked.ok ? 1 : 0,
 			checked.ok ? checked.score : null,
 			checked.ok ? checked.summary : '',
@@ -189,15 +166,15 @@ export async function scoreJob(
 			JSON.stringify(checked.dropped),
 			checked.ok ? '' : checked.why,
 			checked.ok ? checked.grade : null,
-			answer.usage.inputTokens,
-			answer.usage.outputTokens,
-			answer.cost.micros,
-			answer.cost.priceTable,
-			answer.latencyMs,
+			asked.usage.inputTokens,
+			asked.usage.outputTokens,
+			asked.cost.micros,
+			asked.cost.priceTable,
+			asked.latencyMs,
 			now.toISOString()
 		)
 		.run();
-	return { kind: checked.ok ? 'scored' : 'unscored', costMicros: answer.cost.micros };
+	return { kind: checked.ok ? 'scored' : 'unscored', costMicros: asked.cost.micros };
 }
 
 /** Counts only, for the run's log line: no companies, titles or text. */

@@ -27,3 +27,6 @@ test-results
 /coverage
 .dev.vars*
 /dist
+
+# Eval inputs and per-job results: my facts and job history (design note 0008)
+/evals/private/

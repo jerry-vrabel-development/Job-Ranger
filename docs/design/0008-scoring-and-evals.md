@@ -134,10 +134,18 @@ Run with `npm run eval:score` on my machine, with my key in my shell
 (never in the repo or a chat). Results go to `evals/results/` as JSON and a
 short Markdown report, committed with the PR that changed the prompt.
 
-- **Labels from use.** Saved, applied, interviewing and offer are "wanted";
-  passed is "not wanted". A labelled set is exported from the database
-  (`npm run eval:labels`) with posting text, so evals don't depend on jobs
-  still being open. Scores I override later are labels too.
+- **Labels from use.** Saved, applied, interviewing and offer are "wanted"
+  (and rejected: I applied, so I wanted it); passed is "not wanted"; a
+  withdrawn application is left out, since it says neither. A labelled set
+  is exported from the database (`npm run eval:labels`) with posting text,
+  so evals don't depend on jobs still being open. Scores I override later
+  will be labels too (there's no override yet).
+- **What's public.** The repo is public, so a committed run holds numbers
+  and the made-up cases only: no job keys, titles or the model's words about
+  real jobs. The labels, my profile and each call's details stay in
+  `evals/private/`, which git ignores. A run that stopped early (cap or
+  error) isn't written to `evals/results/`, so it can't be committed by
+  accident.
 - **A fixed set** of made-up postings with known answers
   (`src/lib/evals/fixed-set.ts`): clear fits, clear misses, and traps (a
   perfect title with the wrong skills; a dream company with a role far off;
@@ -214,8 +222,14 @@ short Markdown report, committed with the PR that changed the prompt.
      unusable, unstable and cost, each with how many items it rests on;
      the fixed set; the keyword baseline's results on it pinned in a test
      (7 of 13: it falls for every trap that needs reading).
-   - 7b. `npm run eval:labels` and `npm run eval:score`, results and
-     report in `evals/results/`, tested with recorded responses.
+   - 7b. ~~**The eval commands**~~ (built): `npm run eval:labels`
+     exports the database with wrangler, loads it into Node's SQLite and
+     reads my profile and labels with the app's own code
+     (`src/lib/evals/sqlite-d1.ts`); `npm run eval:score` scores through
+     the same call the app makes (`src/lib/scoring/ask.ts`), retries a
+     rate limit or server error once, stops before a cap (default $1), and
+     writes the JSON and Markdown report. Tested with answers written in
+     the model's shape; real responses come with step 8.
    - 7c. The eval page.
 8. **First published run:** Haiku vs Sonnet vs the keyword baseline, which
    decides the default model.

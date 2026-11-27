@@ -76,7 +76,8 @@
 		<p>
 			{SITE.name} is open source under the MIT License.
 			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- external link -->
-			<a href={SITE.repository}>The code is on GitHub</a>.
+			<a href={SITE.repository}>The code is on GitHub</a>, and
+			<a href={resolve('/evals')}>how well its job scoring works</a> is measured in the open.
 		</p>
 	</div>
 </footer>

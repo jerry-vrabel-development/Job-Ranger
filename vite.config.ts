@@ -88,8 +88,13 @@ export default defineConfig({
 			provider: 'istanbul',
 			// hooks.server.ts only hands the Worker's env to src/lib/server/handle.ts.
 			include: ['src/lib/**/*.{ts,js}'],
-			// contract.ts is a test kit (tests any model adapter can run), not app code.
-			exclude: ['src/**/*.{test,spec}.ts', 'src/lib/models/contract.ts'],
+			// contract.ts is a test kit (tests any model adapter can run), not app code;
+			// evals/testing.ts builds sample runs for tests (its retry wait is never needed).
+			exclude: [
+				'src/**/*.{test,spec}.ts',
+				'src/lib/models/contract.ts',
+				'src/lib/evals/testing.ts'
+			],
 			reporter: ['text', 'json-summary', 'html'],
 			// 100%, so a branch without a test fails CI instead of slipping by.
 			// Code that truly can't be tested is excluded above, with a reason.

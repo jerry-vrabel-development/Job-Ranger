@@ -230,7 +230,12 @@ short Markdown report, committed with the PR that changed the prompt.
      rate limit or server error once, stops before a cap (default $1), and
      writes the JSON and Markdown report. Tested with answers written in
      the model's shape; real responses come with step 8.
-   - 7c. The eval page.
+   - 7c. ~~**The eval page**~~ (built): `/evals`, linked from Insights and
+     the footer. It reads the runs committed in `evals/results/` at build
+     time (a file in the wrong shape, or a stopped run, is skipped and
+     counted), shows the newest three side by side beside keyword matching
+     on the made-up postings (worked out live, so the page has real numbers
+     before any run is published), with every number in words and counts.
 8. **First published run:** Haiku vs Sonnet vs the keyword baseline, which
    decides the default model.
 

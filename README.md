@@ -135,6 +135,19 @@ npx wrangler secret put ACCESS_AUD             # the AUD tag (comma-separate sev
 npx wrangler secret put ACCESS_ALLOWED_EMAILS  # your email (comma-separate several)
 ```
 
+### On your phone
+
+Job Ranger installs like an app, which makes checking a release on a phone
+quick (design note 0009). On an iPhone: open the site in Safari, sign in,
+then Share → **Add to Home Screen**. On Android, Chrome offers **Install
+app**. It opens full screen on the Jobs page.
+
+Every path is behind Cloudflare Access, so the manifest is fetched with the
+sign-in cookie (`crossorigin="use-credentials"`). There's no service worker:
+nothing is cached on the phone, so nothing goes stale or outlives a
+sign-out. The icons are made from the favicon's shapes by `npm run icons`
+and committed.
+
 ### Cover letter drafts (Claude API, or another model)
 
 Drafting a cover letter on an apply kit calls the Claude API (Sonnet) from

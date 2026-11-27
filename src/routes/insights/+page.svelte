@@ -215,6 +215,10 @@
 		{/each}
 	</ul>
 	<p>{data.scoring.count}</p>
+	<p>
+		<a href={resolve('/evals')}>How well scoring works</a>: the model measured against made-up
+		postings and your own saved and passed jobs.
+	</p>
 </section>
 
 <style>

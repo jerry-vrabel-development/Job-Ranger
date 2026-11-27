@@ -4,34 +4,10 @@
  * show a job key, a title or the model's words about a real job.
  */
 import { dollars } from '#lib/money.ts';
-import type { CaseKind, CaseResult, FixedCase } from './fixed-set.ts';
-import type { Mean, Ranking, Share } from './metrics.ts';
+import type { CaseResult, FixedCase } from './fixed-set.ts';
+import { average, decimal, gap, outcome, passed, percent, perCall, seconds } from './format.ts';
+import type { Ranking } from './metrics.ts';
 import type { PublishedRun } from './run.ts';
-
-const percent = ({ share, of }: Share): string =>
-	share === null ? '— (none)' : `${String(Math.round(share * 100))}% (of ${String(of)})`;
-
-const decimal = ({ share, of }: Share): string =>
-	share === null ? '— (none)' : `${share.toFixed(2)} (of ${String(of)})`;
-
-const average = ({ mean, of }: Mean): string =>
-	mean === null ? '— (none)' : `${mean.toFixed(1)} (of ${String(of)})`;
-
-/** Per-call costs are fractions of a cent, so four places. */
-const perCall = ({ mean }: Mean): string =>
-	mean === null ? '—' : `$${(mean / 1_000_000).toFixed(4)}`;
-
-const seconds = ({ mean }: Mean): string => (mean === null ? '—' : `${(mean / 1000).toFixed(1)} s`);
-
-const passed = (results: readonly CaseResult[], kind?: CaseKind): string => {
-	const some = kind === undefined ? results : results.filter((r) => r.kind === kind);
-	return `${String(some.filter((r) => r.pass).length)} of ${String(some.length)}`;
-};
-
-const outcome = (result: CaseResult | undefined): string => {
-	if (result === undefined || result.score === null) return 'no answer, miss';
-	return `${String(result.score)}, ${result.pass ? 'pass' : 'miss'}`;
-};
 
 const row = (cells: readonly string[]) => `| ${cells.join(' | ')} |`;
 
@@ -52,11 +28,7 @@ function rankingRows(model: Ranking, baseline: Ranking): string[] {
 			average(model.separation.notWanted),
 			average(baseline.separation.notWanted)
 		]),
-		row([
-			'Gap (wanted minus not)',
-			model.separation.gap === null ? '—' : model.separation.gap.toFixed(1),
-			baseline.separation.gap === null ? '—' : baseline.separation.gap.toFixed(1)
-		])
+		row(['Gap (wanted minus not)', gap(model.separation.gap), gap(baseline.separation.gap)])
 	];
 }
 

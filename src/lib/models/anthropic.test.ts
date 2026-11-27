@@ -142,7 +142,7 @@ describe('reading Anthropic answers', () => {
 			error: {
 				kind: 'other',
 				status: 502,
-				message: 'Couldn’t draft: the API answered with an error (502).'
+				message: 'The API answered with an error (502).'
 			}
 		});
 	});

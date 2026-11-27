@@ -256,7 +256,7 @@ async function write(
 		},
 		go.setup.apiKey
 	);
-	if (!result.ok) return { ok: false, message: result.error.message };
+	if (!result.ok) return { ok: false, message: `Couldn’t draft. ${result.error.message}` };
 	const cost = result.cost.micros;
 	await recordUsage(db, go.day, go.setup.model, result.usage, cost);
 	await db

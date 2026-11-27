@@ -61,11 +61,11 @@ export function errorKindOf(status: number): ErrorKind {
 }
 
 const MESSAGES: Readonly<Record<ErrorKind, string>> = {
-	auth: 'the API key was refused',
-	refused: 'the API refused this request',
-	rate_limited: 'the API is busy, or the account’s rate or spending limit was reached',
-	timeout: 'the API didn’t answer in time',
-	other: 'the API answered with an error'
+	auth: 'The API key was refused',
+	refused: 'The API refused this request',
+	rate_limited: 'The API is busy, or the account’s rate or spending limit was reached',
+	timeout: 'The API didn’t answer in time',
+	other: 'The API answered with an error'
 };
 
 function tokens(value: unknown): number {
@@ -125,7 +125,8 @@ export function anthropic(fetcher: typeof fetch, clock: () => number = Date.now)
 				ok: false,
 				error: {
 					kind,
-					message: `Couldn’t draft: ${MESSAGES[kind]}${status === null || kind === 'timeout' ? '' : ` (${String(status)})`}.`,
+					// What went wrong, not what was being done: the caller says that ("Couldn’t draft.").
+					message: `${MESSAGES[kind]}${status === null || kind === 'timeout' ? '' : ` (${String(status)})`}.`,
 					status,
 					retryAfterMs: retryAfter
 				},

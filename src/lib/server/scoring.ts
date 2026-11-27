@@ -313,7 +313,7 @@ export async function scoreNow(
 	}
 	const profile = await scoringProfile(db);
 	const result = await scoreJob(db, setup, job, profile, profileVersion(profile), now);
-	if (result.kind === 'error') return { ok: false, message: `Scoring failed: ${result.message}` };
+	if (result.kind === 'error') return { ok: false, message: `Scoring failed. ${result.message}` };
 	return {
 		ok: true,
 		message:

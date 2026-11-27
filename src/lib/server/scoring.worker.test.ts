@@ -432,7 +432,7 @@ describe('scoreNow', () => {
 		expect(asked).toHaveLength(0);
 		expect(await scoreNow(db, setup, key, 100_000, NOW)).toEqual({
 			ok: false,
-			message: 'Scoring failed: The API key was rejected.'
+			message: 'Scoring failed. The API key was rejected.'
 		});
 		expect((await latestScores(db)).size).toBe(0);
 	});

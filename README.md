@@ -37,7 +37,8 @@ missing pay, scams) are in [design note 0005](docs/design/0005-honest-signals.md
 resumes and cover letters, never applying for you) is in
 [design note 0004](docs/design/0004-applying-resumes-cover-letters.md). The dashboards are in
 [design note 0007](docs/design/0007-dashboards.md), and scoring jobs with a model, with the evals that
-check it, is proposed in [design note 0008](docs/design/0008-scoring-and-evals.md).
+check it, is in [design note 0008](docs/design/0008-scoring-and-evals.md) (built through v0.3.0). What
+v1.0 needs, in order, is in [design note 0009](docs/design/0009-v1-readiness.md).
 
 ## What makes it different
 
@@ -133,6 +134,19 @@ npx wrangler secret put ACCESS_TEAM_DOMAIN     # https://<team>.cloudflareaccess
 npx wrangler secret put ACCESS_AUD             # the AUD tag (comma-separate several)
 npx wrangler secret put ACCESS_ALLOWED_EMAILS  # your email (comma-separate several)
 ```
+
+### On your phone
+
+Job Ranger installs like an app, which makes checking a release on a phone
+quick (design note 0009). On an iPhone: open the site in Safari, sign in,
+then Share → **Add to Home Screen**. On Android, Chrome offers **Install
+app**. It opens full screen on the Jobs page.
+
+Every path is behind Cloudflare Access, so the manifest is fetched with the
+sign-in cookie (`crossorigin="use-credentials"`). There's no service worker:
+nothing is cached on the phone, so nothing goes stale or outlives a
+sign-out. The icons are made from the favicon's shapes by `npm run icons`
+and committed.
 
 ### Cover letter drafts (Claude API, or another model)
 

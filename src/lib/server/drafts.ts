@@ -91,9 +91,12 @@ export async function appliedDraftingCost(
 	return { applications: count(row, 'n'), micros: count(row, 'micros') };
 }
 
-/** The daily cap from the DRAFT_DAILY_CAP_USD setting, in millionths of a dollar; $1 if unset or unreadable. */
-export function capMicros(setting: string): number {
-	const usd = /^\d+(?:\.\d{1,2})?$/.test(setting.trim()) ? Number(setting) : 1;
+/**
+ * A daily cap from a setting (DRAFT_DAILY_CAP_USD, SCORE_DAILY_CAP_USD), in
+ * millionths of a dollar; the fallback (in dollars) if unset or unreadable.
+ */
+export function capMicros(setting: string, fallbackUsd = 1): number {
+	const usd = /^\d+(?:\.\d{1,2})?$/.test(setting.trim()) ? Number(setting) : fallbackUsd;
 	return Math.round(usd * 1_000_000);
 }
 

@@ -1,6 +1,6 @@
 # 0007 — Dashboards: my search, the companies, the market
 
-- **Status:** Accepted. Parts 1–6 built; layoffs next.
+- **Status:** Accepted. Parts 1–6 built; layoffs deferred (see Layoffs).
 - **Builds on:** [0002](0002-connectors-company-insight-dashboards.md) (dashboards and
   company insight), [0005](0005-honest-signals.md), [0006](0006-tracking.md)
 
@@ -145,6 +145,22 @@ without false matches. Until then a company summary can hold a layoff note
 I add by hand, with its link and date. Review sites and aggregators
 without an API stay out (0002: no scraping).
 
+**Deferred (Nov 26, 2026), after the research.** WARN notices are required
+only from employers with 100+ full-time workers, for closings or layoffs of
+50+ at one site (with a third of the site, or 500+); some states go lower
+(New York: 50+ employers, 25+ workers, 90 days). GAO found notices for only
+about a quarter of covered mass layoffs. Most companies I watch are below
+the thresholds: Dutchie's 2022 cut (67 people, about 8%) and Agility's 2024
+cut ("a small number") had news coverage and no notice I could find, while
+Spotify's 2023 cut has New York notices. So "no notice" says nothing about
+most of my list. The data is also uneven: California publishes a PDF, New
+York a dashboard, Massachusetts and Texas spreadsheets, and aggregators
+miscount (the same notice three times; a year read as a head count). Big
+Local News (Stanford) consolidates the states into one dataset, the best
+option if this comes back. Layoffs are left out for now; the next step
+would be layoff notes I add by hand, with links to each state's official
+WARN page, and SEC filings for public companies (0002).
+
 ### How charts are built
 
 - **Small Svelte SVG components** (bar, line, funnel) instead of a chart
@@ -197,7 +213,7 @@ that keeps every rule above:
 4. ~~**Signals and costs.**~~ Built.
 5. ~~**Company page** with the summary from my own data.~~ Built.
 6. ~~**Open jobs by state** (a US map).~~ Built.
-7. Layoffs research, then a design addition before any code.
+7. ~~Layoffs research.~~ Done; layoffs deferred (see Layoffs). Next: scoring (0008).
 
 Each PR: unit tests for the shaping functions at 100%, worker tests for the
 queries, and browser tests with axe for the page, including keyboard use,

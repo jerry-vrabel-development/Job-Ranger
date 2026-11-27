@@ -521,3 +521,84 @@ describe('migration 0018: application status', () => {
 		).rejects.toThrow();
 	});
 });
+
+describe('migration 0019: preferences', () => {
+	it('keeps one row of checked preferences', async () => {
+		await applyD1Migrations(db, [...MIGRATIONS]);
+		expect(await first('SELECT * FROM preferences')).toBeNull();
+		await db.prepare('INSERT INTO preferences (id) VALUES (1)').run();
+		expect(
+			await first('SELECT workplaces, area, levels, pay_floor, looking_for FROM preferences')
+		).toEqual({ workplaces: '[]', area: '', levels: '[]', pay_floor: null, looking_for: '' });
+		const bad = [
+			'INSERT INTO preferences (id) VALUES (2)',
+			"UPDATE preferences SET workplaces = 'remote'",
+			"UPDATE preferences SET levels = '{}'",
+			'UPDATE preferences SET pay_floor = 0',
+			'UPDATE preferences SET pay_floor = 10000001',
+			`UPDATE preferences SET area = '${'x'.repeat(101)}'`,
+			`UPDATE preferences SET looking_for = '${'x'.repeat(601)}'`
+		];
+		for (const sql of bad) await expect(db.prepare(sql).run()).rejects.toThrow();
+	});
+});
+
+describe('migration 0020: posting texts', () => {
+	it('starts every posting with no text, and only takes text for a stored posting', async () => {
+		await applyD1Migrations(db, MIGRATIONS.slice(0, 19));
+		await db
+			.prepare("INSERT INTO boards (source, token, company) VALUES ('lever', 'f', 'F')")
+			.run();
+		await db
+			.prepare(
+				`INSERT INTO postings (source, board, id, company, title, location, workplace, apply_url, first_seen_at, last_seen_at)
+				 VALUES ('lever', 'f', '1', 'F', 'T', 'L', 'remote', 'https://x.co', 'd', 'd')`
+			)
+			.run();
+		await applyD1Migrations(db, [...MIGRATIONS]);
+		expect(await first('SELECT text_hash FROM postings')).toEqual({ text_hash: '' });
+		await db.prepare("INSERT INTO posting_texts VALUES ('lever', 'f', '1', 'Words.')").run();
+		const bad = [
+			"INSERT INTO posting_texts VALUES ('lever', 'f', '2', 'No posting.')",
+			"UPDATE posting_texts SET text = ''",
+			`UPDATE posting_texts SET text = '${'x'.repeat(30001)}'`
+		];
+		for (const sql of bad) await expect(db.prepare(sql).run()).rejects.toThrow();
+	});
+});
+
+describe('migration 0021: job scores', () => {
+	it('keeps a score only with its checks passed, and goes with its posting', async () => {
+		await applyD1Migrations(db, [...MIGRATIONS]);
+		await db
+			.prepare("INSERT INTO boards (source, token, company) VALUES ('lever', 'f', 'F')")
+			.run();
+		await db
+			.prepare(
+				`INSERT INTO postings (source, board, id, company, title, location, workplace, apply_url, first_seen_at, last_seen_at)
+				 VALUES ('lever', 'f', '1', 'F', 'T', 'L', 'remote', 'https://x.co', 'd', 'd')`
+			)
+			.run();
+		const insert = (ok: number, score: number | null, posting = '1') =>
+			db
+				.prepare(
+					`INSERT INTO job_scores (source, board, posting_id, prompt_version, profile_version, model,
+					 ok, score, input_tokens, output_tokens, cost_micros, price_table, latency_ms)
+					 VALUES ('lever', 'f', ?3, 'v', 'p', 'm', ?1, ?2, 1, 1, 1, 't', 1)`
+				)
+				.bind(ok, score, posting)
+				.run();
+		await insert(1, 4);
+		await insert(0, null);
+		for (const [ok, score, posting] of [
+			[1, null, '1'],
+			[1, 6, '1'],
+			[0, 3, '1'],
+			[1, 4, 'nope']
+		] as const) {
+			await expect(insert(ok, score, posting)).rejects.toThrow();
+		}
+		await db.prepare('DELETE FROM postings').run();
+		expect(await first('SELECT COUNT(*) AS n FROM job_scores')).toEqual({ n: 0 });
+	});
+});

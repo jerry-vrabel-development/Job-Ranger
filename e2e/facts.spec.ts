@@ -18,6 +18,7 @@ test.describe('the facts page', () => {
 		await expect(page.getByRole('heading', { level: 2 })).toHaveText([
 			'To check (1)',
 			'Your details',
+			'What you’re looking for',
 			'Add a fact',
 			'Confirmed facts'
 		]);
@@ -72,6 +73,24 @@ test.describe('the facts page', () => {
 		await expect(email).toHaveAttribute('aria-invalid', 'true');
 		await expect(email).toHaveAccessibleDescription(/doesn’t look complete/);
 		await expect(page.getByRole('textbox', { name: 'Name (optional)' })).toHaveValue('Jane Doe');
+	});
+
+	test('asks what you’re looking for, and checks the pay floor next to its field', async ({
+		page
+	}) => {
+		const wanted = page.getByRole('region', { name: 'What you’re looking for' });
+		await expect(wanted.getByRole('group', { name: 'Where you’ll work (optional)' })).toBeVisible();
+		await expect(
+			wanted.getByRole('group', { name: 'Levels (optional)' }).getByRole('checkbox')
+		).toHaveCount(7);
+		const pay = wanted.getByRole('textbox', { name: 'Pay floor (optional)' });
+		await wanted.getByRole('checkbox', { name: 'Remote' }).check();
+		await pay.fill('a lot');
+		await wanted.getByRole('button', { name: 'Save what you’re looking for' }).click();
+		await expect(pay).toBeFocused();
+		await expect(pay).toHaveAttribute('aria-invalid', 'true');
+		await expect(pay).toHaveAccessibleDescription(/yearly amount in US dollars/);
+		await expect(wanted.getByRole('checkbox', { name: 'Remote' })).toBeChecked();
 	});
 
 	test('is in the main navigation, marked when you are on it', async ({ page }) => {

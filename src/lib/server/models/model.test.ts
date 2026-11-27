@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Adapter } from '#lib/models/types.ts';
-import { chooseModel, PROVIDERS, setupStatus, type ProviderInfo } from './model.ts';
+import { chooseModel, PROVIDERS, SCORING, setupStatus, type ProviderInfo } from './model.ts';
 
 describe('chooseModel', () => {
 	const fake: Adapter = { provider: 'other', send: vi.fn() };
@@ -13,6 +13,28 @@ describe('chooseModel', () => {
 	};
 	const providers = { ...PROVIDERS, other };
 	const settings = (values: Record<string, string>) => (name: string) => values[name] ?? '';
+
+	it('scores with Haiku unless SCORE_MODEL says otherwise, and says “Scoring” in its messages', () => {
+		const fetcher = vi.fn<typeof fetch>();
+		expect(
+			chooseModel(providers, settings({ ANTHROPIC_API_KEY: 'sk' }), fetcher, SCORING)
+		).toMatchObject({
+			ok: true,
+			model: 'claude-haiku-5-5'
+		});
+		expect(
+			chooseModel(
+				providers,
+				settings({ ANTHROPIC_API_KEY: 'sk', SCORE_MODEL: 'claude-sonnet-5-5', DRAFT_MODEL: 'x' }),
+				fetcher,
+				SCORING
+			)
+		).toMatchObject({ ok: true, model: 'claude-sonnet-5-5' });
+		expect(chooseModel(providers, settings({}), fetcher, SCORING)).toEqual({
+			ok: false,
+			message: 'Scoring isn’t set up yet: the Worker has no API key.'
+		});
+	});
 
 	it('uses Anthropic and its default model unless told otherwise, keeping the key for the call', () => {
 		const setup = chooseModel(

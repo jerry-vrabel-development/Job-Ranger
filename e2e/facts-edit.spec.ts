@@ -66,3 +66,26 @@ test('saves your details', async ({ page }) => {
 	await expect(page.getByRole('status')).toHaveText('Saved your details.');
 	await expect(page.getByText('Edit your details (Jane Doe)…')).toBeVisible();
 });
+
+test('saves what you’re looking for, and shows it again on the next visit', async ({ page }) => {
+	await page.goto('/facts');
+	const wanted = page.getByRole('region', { name: 'What you’re looking for' });
+	await wanted.getByRole('checkbox', { name: 'Remote' }).check();
+	await wanted.getByRole('checkbox', { name: 'Hybrid' }).check();
+	await wanted.getByRole('textbox', { name: 'Area (optional)' }).fill('Chicago area');
+	await wanted.getByRole('checkbox', { name: 'Senior' }).check();
+	await wanted.getByRole('textbox', { name: 'Pay floor (optional)' }).fill('$130k');
+	await wanted
+		.getByRole('textbox', { name: 'What you’re looking for (optional)' })
+		.fill('Smart people making ingenious products.');
+	await wanted.getByRole('button', { name: 'Save what you’re looking for' }).click();
+	await expect(page.getByRole('status')).toHaveText('Saved what you’re looking for.');
+	await page.reload();
+	await expect(wanted.getByRole('checkbox', { name: 'Hybrid' })).toBeChecked();
+	await expect(wanted.getByRole('checkbox', { name: 'On site' })).not.toBeChecked();
+	await expect(wanted.getByRole('checkbox', { name: 'Senior' })).toBeChecked();
+	await expect(wanted.getByRole('textbox', { name: 'Pay floor (optional)' })).toHaveValue('130000');
+	await expect(
+		wanted.getByRole('textbox', { name: 'What you’re looking for (optional)' })
+	).toHaveValue('Smart people making ingenious products.');
+});

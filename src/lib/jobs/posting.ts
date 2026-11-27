@@ -75,6 +75,52 @@ export interface Posting {
 	/** ISO 8601, when the board says it was (last) published. */
 	readonly postedAt: string | null;
 	readonly pay: Pay | null;
+	/**
+	 * A fingerprint of the posting's text ("" when the board sends none), so
+	 * the daily fetch can tell when the text changed without reading it back.
+	 */
+	readonly textHash: string;
+}
+
+/** A posting as a board sends it today, with its text (stored apart, design note 0008). */
+export interface FetchedPosting extends Posting {
+	/** Plain text, at most POSTING_TEXT_MAX characters; "" when the board sends none. */
+	readonly text: string;
+}
+
+/** The longest posting text kept, the same limit as a kit's pasted text. */
+export const POSTING_TEXT_MAX = 30_000;
+
+/**
+ * A short fingerprint of a text (FNV-1a, 32 bits, as hex), for noticing a
+ * change, not for security. "" for no text.
+ */
+export function fingerprint(text: string): string {
+	if (text === '') return '';
+	let hash = 0x811c9dc5;
+	for (let i = 0; i < text.length; i++) {
+		hash ^= text.charCodeAt(i);
+		hash = Math.imul(hash, 0x01000193);
+	}
+	return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
+/** A posting's text made plain and kept within the limit; "" when there is none. */
+export function postingText(parts: readonly unknown[]): string {
+	const text = parts
+		.filter((part): part is string => typeof part === 'string')
+		.join('\n')
+		// eslint-disable-next-line no-control-regex -- removing control characters on purpose
+		.replace(/[\u0000-\u0009\u000b-\u001f\u007f]+/g, ' ')
+		.replace(/[ \t]+/g, ' ')
+		.replace(/\s*\n\s*/g, '\n')
+		.trim();
+	return text.length > POSTING_TEXT_MAX ? text.slice(0, POSTING_TEXT_MAX) : text;
+}
+
+/** A posting from a board, with its text and the text's fingerprint. */
+export function withText(posting: Omit<Posting, 'textHash'>, text: string): FetchedPosting {
+	return { ...posting, textHash: fingerprint(text), text };
 }
 
 /** The dedupe key: a posting is the same posting if its source, board and id match. */

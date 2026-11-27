@@ -11,8 +11,10 @@ import {
 	httpsUrl,
 	isoDate,
 	known,
+	postingText,
+	withText,
+	type FetchedPosting,
 	type Pay,
-	type Posting,
 	type Workplace
 } from '#lib/jobs/posting.ts';
 import { noneSkipped, SourceFormatError, type BoardResult, type JobSource } from './source.ts';
@@ -108,7 +110,7 @@ export const ashby: JobSource = {
 		}
 
 		const skipped = noneSkipped();
-		const postings: Posting[] = [];
+		const postings: FetchedPosting[] = [];
 		for (const job of body['jobs']) {
 			const id = isObject(job) ? cleanText(job['id'], 100) : null;
 			if (!isObject(job) || !id) {
@@ -130,22 +132,27 @@ export const ashby: JobSource = {
 				skipped['no-apply-link'] += 1;
 				continue;
 			}
-			postings.push({
-				source: 'ashby',
-				board: board.token,
-				id,
-				company: board.company,
-				title,
-				location: locations(job),
-				workplace: known(WORKPLACE, job['workplaceType']) ?? 'unknown',
-				employmentType:
-					known(EMPLOYMENT, job['employmentType']) ?? cleanText(job['employmentType'], 60),
-				department: team(job),
-				applyUrl,
-				jobUrl: httpsUrl(job['jobUrl']),
-				postedAt: isoDate(job['publishedAt']),
-				pay: parseCompensation(job['compensation'])
-			});
+			postings.push(
+				withText(
+					{
+						source: 'ashby',
+						board: board.token,
+						id,
+						company: board.company,
+						title,
+						location: locations(job),
+						workplace: known(WORKPLACE, job['workplaceType']) ?? 'unknown',
+						employmentType:
+							known(EMPLOYMENT, job['employmentType']) ?? cleanText(job['employmentType'], 60),
+						department: team(job),
+						applyUrl,
+						jobUrl: httpsUrl(job['jobUrl']),
+						postedAt: isoDate(job['publishedAt']),
+						pay: parseCompensation(job['compensation'])
+					},
+					postingText([job['descriptionPlain']])
+				)
+			);
 		}
 		return { postings, skipped };
 	}

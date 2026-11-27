@@ -167,3 +167,29 @@ export async function spendingTotals(
 		.first();
 	return { today: count(row, 'today'), month: count(row, 'month'), total: count(row, 'total') };
 }
+
+/** What scoring has cost today, this month and in all, and how its answers went (design note 0008). */
+export async function scoringTotals(
+	db: D1Database,
+	today: string
+): Promise<{ today: number; month: number; total: number; scored: number; unscored: number }> {
+	const row = await db
+		.prepare(
+			`SELECT
+				COALESCE(SUM(CASE WHEN substr(at, 1, 10) = ?1 THEN cost_micros END), 0) AS today,
+				COALESCE(SUM(CASE WHEN substr(at, 1, 7) = substr(?1, 1, 7) THEN cost_micros END), 0) AS month,
+				COALESCE(SUM(cost_micros), 0) AS total,
+				COALESCE(SUM(ok), 0) AS scored,
+				COUNT(*) - COALESCE(SUM(ok), 0) AS unscored
+			 FROM job_scores`
+		)
+		.bind(today)
+		.first();
+	return {
+		today: count(row, 'today'),
+		month: count(row, 'month'),
+		total: count(row, 'total'),
+		scored: count(row, 'scored'),
+		unscored: count(row, 'unscored')
+	};
+}

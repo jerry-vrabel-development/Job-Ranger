@@ -96,7 +96,7 @@ export async function storeResult(
 	now: string
 ): Promise<BoardCheck> {
 	const plan = planSync(await loadBoard(db, board), result.postings, now);
-	await writePlan(db, board, plan, now);
+	await writePlan(db, board, plan, now, new Map(result.postings.map((p) => [p.id, p.text])));
 	const open = plan.insert.length + plan.update.length + plan.touch.length;
 	const note = successNote(open, plan.insert.length, plan.close.length, result.skipped);
 	await recordFetch(db, board, now, true, note, open);

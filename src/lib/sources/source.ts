@@ -1,11 +1,11 @@
-import type { Board, Posting, Source } from '#lib/jobs/posting.ts';
+import type { Board, FetchedPosting, Source } from '#lib/jobs/posting.ts';
 import { SITE } from '#lib/site.ts';
 
 /** Why a posting on a board was left out. Counted, so a silent drop never hides. */
 export type SkipReason = 'no-apply-link' | 'missing-id' | 'missing-title' | 'unlisted';
 
 export interface BoardResult {
-	readonly postings: readonly Posting[];
+	readonly postings: readonly FetchedPosting[];
 	readonly skipped: Readonly<Record<SkipReason, number>>;
 	/** The company's name as the board gives it, when it does (Greenhouse does; Ashby doesn't). */
 	readonly companyName?: string | null;

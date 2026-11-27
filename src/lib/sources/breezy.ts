@@ -12,7 +12,14 @@
  * plain DNS label for it, and boardUrl refuses anything else, so the request
  * can only ever go to a breezy.hr address.
  */
-import { cleanText, httpsUrl, isoDate, type Pay, type Posting } from '#lib/jobs/posting.ts';
+import {
+	cleanText,
+	httpsUrl,
+	isoDate,
+	withText,
+	type FetchedPosting,
+	type Pay
+} from '#lib/jobs/posting.ts';
 import { workplaceFrom } from './greenhouse.ts';
 import { noneSkipped, SourceFormatError, type BoardResult, type JobSource } from './source.ts';
 
@@ -64,7 +71,7 @@ export const breezy: JobSource = {
 		if (!Array.isArray(body)) throw new SourceFormatError('Breezy response is not a list of jobs');
 
 		const skipped = noneSkipped();
-		const postings: Posting[] = [];
+		const postings: FetchedPosting[] = [];
 		let companyName: string | null = null;
 		for (const job of body) {
 			if (companyName === null && isObject(job)) companyName = named(job['company'], 200);
@@ -86,21 +93,27 @@ export const breezy: JobSource = {
 				continue;
 			}
 			const location = locationOf(job['location']);
-			postings.push({
-				source: 'breezy',
-				board: board.token,
-				id,
-				company: board.company,
-				title,
-				location,
-				workplace: remoteFlag(job['location']) ? 'remote' : workplaceFrom(location),
-				employmentType: named(job['type'], 60),
-				department: named(job['department']),
-				applyUrl: url,
-				jobUrl: url,
-				postedAt: isoDate(job['published_date']),
-				pay: salaryOf(job['salary'])
-			});
+			// Breezy's feed has no description: no text to store or score.
+			postings.push(
+				withText(
+					{
+						source: 'breezy',
+						board: board.token,
+						id,
+						company: board.company,
+						title,
+						location,
+						workplace: remoteFlag(job['location']) ? 'remote' : workplaceFrom(location),
+						employmentType: named(job['type'], 60),
+						department: named(job['department']),
+						applyUrl: url,
+						jobUrl: url,
+						postedAt: isoDate(job['published_date']),
+						pay: salaryOf(job['salary'])
+					},
+					''
+				)
+			);
 		}
 		return { postings, skipped, companyName };
 	}

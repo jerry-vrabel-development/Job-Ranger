@@ -206,6 +206,19 @@
 		{/each}
 	</ul>
 	<p>{data.costs.perApplication}</p>
+
+	<h3>Scoring costs</h3>
+	<p>{data.scoring.status}</p>
+	<ul class="waiting">
+		{#each data.scoring.tiles as tile (tile.label)}
+			<li><span class="number">{tile.value}</span> {tile.label.toLowerCase()}</li>
+		{/each}
+	</ul>
+	<p>{data.scoring.count}</p>
+	<p>
+		<a href={resolve('/evals')}>How well scoring works</a>: the model measured against made-up
+		postings and your own saved and passed jobs.
+	</p>
 </section>
 
 <style>

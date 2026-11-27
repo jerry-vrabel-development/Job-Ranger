@@ -35,7 +35,9 @@ email, documents and AI assistants is in
 missing pay, scams) are in [design note 0005](docs/design/0005-honest-signals.md). Tracking is in [design note
 0006](docs/design/0006-tracking.md). How applying will work (answers, tailored
 resumes and cover letters, never applying for you) is in
-[design note 0004](docs/design/0004-applying-resumes-cover-letters.md).
+[design note 0004](docs/design/0004-applying-resumes-cover-letters.md). The dashboards are in
+[design note 0007](docs/design/0007-dashboards.md), and scoring jobs with a model, with the evals that
+check it, is proposed in [design note 0008](docs/design/0008-scoring-and-evals.md).
 
 ## What makes it different
 
@@ -187,6 +189,26 @@ curl "http://localhost:4173/cdn-cgi/handler/scheduled?cron=23+11+*+*+*"   # run 
 
 The browser tests that change data (pause, remove) run last, in their own
 Playwright project, so they never disturb the others.
+
+### Scoring evals
+
+How well the job scoring works is measured, not claimed (design note 0008).
+Two commands, run on my machine:
+
+```sh
+npm run eval:labels          # my saved, passed and applied jobs, from production
+read -rs ANTHROPIC_API_KEY && export ANTHROPIC_API_KEY   # this terminal only
+npm run eval:score           # options: -- --model claude-sonnet-5-5 --repeat 3 --max-usd 1
+```
+
+`eval:labels` exports the database to this machine, reads my profile and the
+labelled jobs with the app's own code, writes `evals/private/labels.json` and
+deletes the export. `eval:score` scores 13 made-up postings (3 times, to check
+stability) and the labelled jobs with the model and the keyword baseline,
+stopping before a spending cap. A finished run writes a report to
+`evals/results/`: numbers and the made-up cases only, safe to commit. Every
+call's details stay in `evals/private/`, which git ignores. Committed runs show
+on the app's `/evals` page after the next deploy.
 
 Adding a dependency: some npm 10 versions fail with "Cannot read properties of
 null (reading 'edgesOut')". `npx npm@11 install <package>` works; `npm ci` is

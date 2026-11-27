@@ -393,7 +393,7 @@ test.describe('Insights: Signals and costs', () => {
 				'Drafting isn’t set up yet: the Worker has no API key. Nothing is spent until it is.'
 			)
 		).toBeVisible();
-		await expect(signals.getByRole('list').last().getByRole('listitem')).toHaveText([
+		await expect(signals.getByRole('list').nth(-2).getByRole('listitem')).toHaveText([
 			'$0.00 today, of a $1.00 cap',
 			'$0.00 this month',
 			'$0.00 in all'
@@ -401,6 +401,18 @@ test.describe('Insights: Signals and costs', () => {
 		await expect(
 			signals.getByText('$0.20 across 4 applications, $0.05 each on average.')
 		).toBeVisible();
+		await expect(
+			signals.getByText(
+				'Scoring isn’t set up yet: the Worker has no API key. Nothing is spent until it is.'
+			)
+		).toBeVisible();
+		await expect(signals.getByRole('list').last().getByRole('listitem')).toHaveText([
+			'$0.00 today, of a $0.10 cap',
+			'$0.00 this month',
+			'$0.00 in all'
+		]);
+		// Two seeded scores, at no cost.
+		await expect(signals.getByText('2 scores so far.')).toBeVisible();
 	});
 
 	test('passes the accessibility checks in light and dark, with every list open', async ({

@@ -25,6 +25,7 @@
 	const shown = $derived(data.jobs.length);
 	const failed = $derived(data.boards.filter((board) => board.lastFetchOk === false));
 	const lastCheck = $derived(latest(data.boards.map((board) => board.lastFetchedAt)));
+	const orderWords = $derived(data.filter.sort === 'fit' ? 'best fit first' : 'newest first');
 </script>
 
 {#snippet jobFields(job: { source: string; board: string; id: string })}
@@ -47,10 +48,10 @@
 {:else}
 	<p class="summary" role="status">
 		{#if data.filter.active}
-			{data.counts.matching} of {countLabel(data.counts.all, 'open job')} match, newest first.
+			{data.counts.matching} of {countLabel(data.counts.all, 'open job')} match, {orderWords}.
 		{:else}
 			{countLabel(data.counts.all, 'open job')} from {countLabel(data.boards.length, 'job board')},
-			newest first. {#if newCount > 0}{newCount} new.{/if}
+			{orderWords}. {#if newCount > 0}{newCount} new.{/if}
 		{/if}
 		{#if shown < data.counts.matching}
 			Showing the first {shown}; use the filters to narrow the list.
@@ -110,6 +111,13 @@
 				<option value="">All but passed</option>
 				<option value="saved">Saved only</option>
 				<option value="passed">Passed only</option>
+			</select>
+		</div>
+		<div class="field">
+			<label for="sort">Order</label>
+			<select id="sort" name="sort" value={data.filter.sort}>
+				<option value="newest">Newest first</option>
+				<option value="fit">Best fit first</option>
 			</select>
 		</div>
 		<div class="field check">
@@ -194,6 +202,36 @@
 						{#if job.why}
 							<p class="why"><span class="visually-hidden">Why it's listed:</span> {job.why}</p>
 						{/if}
+						{#if job.fit.kind === 'scored'}
+							<div class="fit">
+								<p><strong>Fit: {job.fit.label}.</strong> {job.fit.summary}</p>
+								{#if job.fit.stale}
+									<p class="hint">{data.staleNote}</p>
+								{/if}
+								<details>
+									<summary>
+										Why it scored {job.fit.label}<span class="visually-hidden">
+											{` for ${job.title} at ${job.company}`}
+										</span>
+									</summary>
+									<ul class="reasons">
+										{#each job.fit.reasons as reason, i (i)}
+											<li>
+												<strong>{reason.direction}:</strong>
+												{reason.text}
+												<ul class="sources">
+													{#each reason.sources as source, j (j)}
+														<li>{source}</li>
+													{/each}
+												</ul>
+											</li>
+										{/each}
+									</ul>
+								</details>
+							</div>
+						{:else}
+							<p class="fit unscored">{job.fit.why}</p>
+						{/if}
 						<dl>
 							<div>
 								<dt>Where</dt>
@@ -250,6 +288,16 @@
 							{/if}
 						</p>
 						<div class="marks">
+							{#if job.fit.kind === 'unscored' && job.fit.canScore}
+								<form method="POST" action="?/score" use:enhance={afterMark}>
+									{@render jobFields(job)}
+									<button type="submit">
+										Score now<span class="visually-hidden">
+											{` ${job.title} at ${job.company}`}
+										</span>
+									</button>
+								</form>
+							{/if}
 							{#if job.mark}
 								<form method="POST" action="?/unmark" use:enhance={afterMark}>
 									{@render jobFields(job)}
@@ -364,6 +412,35 @@
 		margin: 0.5rem 0 0;
 		border-left: 4px solid var(--accent);
 		padding-left: 0.75rem;
+	}
+
+	.fit {
+		margin: 0.5rem 0;
+	}
+
+	.fit p {
+		margin: 0.25rem 0;
+	}
+
+	.unscored,
+	.fit .hint {
+		color: var(--muted);
+	}
+
+	.reasons {
+		margin: 0.5rem 0 0;
+		padding-left: 1.25rem;
+	}
+
+	.reasons > li {
+		margin-bottom: 0.5rem;
+	}
+
+	.sources {
+		margin: 0.25rem 0 0;
+		padding-left: 1.25rem;
+		color: var(--muted);
+		font-size: 0.9375rem;
 	}
 
 	.why {

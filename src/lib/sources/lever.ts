@@ -14,13 +14,34 @@ import {
 	cleanText,
 	httpsUrl,
 	known,
+	postingText,
+	withText,
+	type FetchedPosting,
 	type Pay,
-	type Posting,
 	type Workplace
 } from '#lib/jobs/posting.ts';
+import { contentText } from '#lib/kit/match.ts';
 import { noneSkipped, SourceFormatError, type BoardResult, type JobSource } from './source.ts';
 
 type Json = Record<string, unknown>;
+
+/**
+ * A Lever posting's text: the opening, then each list (often the
+ * requirements) with its heading, then the closing. Lists are HTML.
+ */
+function leverText(job: Json): string {
+	const lists = Array.isArray(job['lists'])
+		? job['lists'].flatMap((list) =>
+				isObject(list)
+					? [
+							list['text'],
+							typeof list['content'] === 'string' ? contentText(list['content']) : null
+						]
+					: []
+			)
+		: [];
+	return postingText([job['descriptionPlain'], ...lists, job['additionalPlain']]);
+}
 
 function isObject(value: unknown): value is Json {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -118,7 +139,7 @@ export const lever: JobSource = {
 		if (!Array.isArray(body)) throw new SourceFormatError('Lever response is not a list of jobs');
 
 		const skipped = noneSkipped();
-		const postings: Posting[] = [];
+		const postings: FetchedPosting[] = [];
 		for (const job of body) {
 			const id = isObject(job) ? cleanText(job['id'], 100) : null;
 			if (!isObject(job) || !id) {
@@ -137,22 +158,27 @@ export const lever: JobSource = {
 				continue;
 			}
 			const categories = isObject(job['categories']) ? job['categories'] : {};
-			postings.push({
-				source: 'lever',
-				board: board.token,
-				id,
-				company: board.company,
-				title,
-				location: locations(categories),
-				workplace:
-					known(WORKPLACE, cleanText(job['workplaceType'], 30)?.toLowerCase()) ?? 'unknown',
-				employmentType: cleanText(categories['commitment'], 60),
-				department: team(categories),
-				applyUrl,
-				jobUrl,
-				postedAt: fromMillis(job['createdAt']),
-				pay: parseSalary(job['salaryRange'])
-			});
+			postings.push(
+				withText(
+					{
+						source: 'lever',
+						board: board.token,
+						id,
+						company: board.company,
+						title,
+						location: locations(categories),
+						workplace:
+							known(WORKPLACE, cleanText(job['workplaceType'], 30)?.toLowerCase()) ?? 'unknown',
+						employmentType: cleanText(categories['commitment'], 60),
+						department: team(categories),
+						applyUrl,
+						jobUrl,
+						postedAt: fromMillis(job['createdAt']),
+						pay: parseSalary(job['salaryRange'])
+					},
+					leverText(job)
+				)
+			);
 		}
 		return { postings, skipped };
 	}

@@ -4,6 +4,10 @@ Job Ranger finds jobs on employers' own job boards, ranks them against rules you
 set, tracks every application, and flags likely scams, ghost jobs and missing pay,
 each with the evidence behind the flag.
 
+**The app:** <https://job-ranger.forwardslash.workers.dev>. It's private:
+every page is behind sign-in (Cloudflare Access), and only its owner can
+open it. Everyone else sees the sign-in page.
+
 ## Status
 
 **Being built.** Working now: a daily fetch from employers' Ashby, Greenhouse, Lever and Breezy job
@@ -138,9 +142,9 @@ npx wrangler secret put ACCESS_ALLOWED_EMAILS  # your email (comma-separate seve
 ### On your phone
 
 Job Ranger installs like an app, which makes checking a release on a phone
-quick (design note 0009). On an iPhone: open the site in Safari, sign in,
-then Share → **Add to Home Screen**. On Android, Chrome offers **Install
-app**. It opens full screen on the Jobs page.
+quick (design note 0009). On Android: open the site in Chrome, sign in,
+then **⋮** → **Install app**. On an iPhone: Safari, then Share → **Add to
+Home Screen**. It opens full screen on the Jobs page.
 
 Every path is behind Cloudflare Access, so the manifest is fetched with the
 sign-in cookie (`crossorigin="use-credentials"`). There's no service worker:

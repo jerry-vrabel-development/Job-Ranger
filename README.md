@@ -37,7 +37,8 @@ missing pay, scams) are in [design note 0005](docs/design/0005-honest-signals.md
 resumes and cover letters, never applying for you) is in
 [design note 0004](docs/design/0004-applying-resumes-cover-letters.md). The dashboards are in
 [design note 0007](docs/design/0007-dashboards.md), and scoring jobs with a model, with the evals that
-check it, is proposed in [design note 0008](docs/design/0008-scoring-and-evals.md).
+check it, is in [design note 0008](docs/design/0008-scoring-and-evals.md) (built through v0.3.0). What
+v1.0 needs, in order, is in [design note 0009](docs/design/0009-v1-readiness.md).
 
 ## What makes it different
 

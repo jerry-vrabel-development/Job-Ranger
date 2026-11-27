@@ -1,6 +1,12 @@
 import { error } from '@sveltejs/kit';
 import { env } from 'cloudflare:workers';
-import { costTiles, draftingStatus, perApplication } from '#lib/insights/costs.ts';
+import {
+	costTiles,
+	draftingStatus,
+	perApplication,
+	scoringCount,
+	scoringStatus
+} from '#lib/insights/costs.ts';
 import {
 	companyBars,
 	companyRows,
@@ -37,9 +43,11 @@ import {
 	marketCounts,
 	openJobs,
 	searchCounts,
+	scoringTotals,
 	spendingTotals
 } from '#lib/server/insights.ts';
-import { chooseModel, PROVIDERS, setupStatus } from '#lib/server/models/model.ts';
+import { chooseModel, PROVIDERS, SCORING, setupStatus } from '#lib/server/models/model.ts';
+import { SCORE_CAP_USD } from '#lib/server/scoring.ts';
 import { listApplications } from '#lib/server/tracker.ts';
 import type { PageServerLoad } from './$types';
 
@@ -64,16 +72,18 @@ export const load: PageServerLoad = async ({ url }) => {
 	const today = now.slice(0, 10);
 	const range = parseRange(url.searchParams.get('range'));
 	const days = windowDays(today, range);
-	const [counts, apps, companies, market, open, checked, spent, applied] = await Promise.all([
-		searchCounts(db),
-		listApplications(db),
-		companyCounts(db, addDays(today, -LOOKBACK_DAYS)),
-		marketCounts(db),
-		openJobs(db),
-		checkedJobs(db),
-		spendingTotals(db, today),
-		appliedDraftingCost(db)
-	]);
+	const [counts, apps, companies, market, open, checked, spent, applied, scoringSpent] =
+		await Promise.all([
+			searchCounts(db),
+			listApplications(db),
+			companyCounts(db, addDays(today, -LOOKBACK_DAYS)),
+			marketCounts(db),
+			openJobs(db),
+			checkedJobs(db),
+			spendingTotals(db, today),
+			appliedDraftingCost(db),
+			scoringTotals(db, today)
+		]);
 	const signals = signalCounts(open, checked, now);
 	const byState = stateCounts(open);
 	const map = mapStates(byState, now);
@@ -85,6 +95,15 @@ export const load: PageServerLoad = async ({ url }) => {
 		totalMicros: spent.total,
 		applications: applied.applications,
 		appliedMicros: applied.micros
+	};
+	const scoring = {
+		setup: setupStatus(chooseModel(PROVIDERS, setting, fetch, SCORING)),
+		capMicros: capMicros(setting('SCORE_DAILY_CAP_USD'), SCORE_CAP_USD),
+		todayMicros: scoringSpent.today,
+		monthMicros: scoringSpent.month,
+		totalMicros: scoringSpent.total,
+		scored: scoringSpent.scored,
+		unscored: scoringSpent.unscored
 	};
 	const byCompany = companyBars(market);
 	const trends = byChange(
@@ -137,6 +156,11 @@ export const load: PageServerLoad = async ({ url }) => {
 			status: draftingStatus(spending),
 			tiles: costTiles(spending),
 			perApplication: perApplication(spending)
+		},
+		scoring: {
+			status: scoringStatus(scoring),
+			tiles: costTiles(scoring),
+			count: scoringCount(scoring)
 		}
 	};
 };

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { costTiles, draftingStatus, perApplication, type Spending } from './costs.ts';
+import {
+	costTiles,
+	draftingStatus,
+	perApplication,
+	scoringCount,
+	scoringStatus,
+	type ScoringSpending,
+	type Spending
+} from './costs.ts';
 
 const on: Spending = {
 	setup: { ready: true, label: 'Anthropic, claude-sonnet-5-5' },
@@ -47,5 +55,40 @@ describe('drafting costs', () => {
 			'Your one application didn’t use drafting.'
 		);
 		expect(perApplication({ ...off, applications: 0 })).toBe('No applications yet.');
+	});
+});
+
+describe('scoring costs', () => {
+	const scoring: ScoringSpending = {
+		setup: { ready: true, label: 'Claude (Anthropic), claude-haiku-5-5' },
+		capMicros: 100_000,
+		todayMicros: 4_500,
+		monthMicros: 310_000,
+		totalMicros: 310_000,
+		scored: 612,
+		unscored: 4
+	};
+
+	it('says whether scoring is on, with its own cap, or why not', () => {
+		expect(scoringStatus(scoring)).toBe(
+			'Scoring is on (Claude (Anthropic), claude-haiku-5-5), with a daily cap of $0.10.'
+		);
+		expect(
+			scoringStatus({
+				...scoring,
+				setup: { ready: false, reason: 'Scoring isn’t set up yet: the Worker has no API key.' }
+			})
+		).toBe('Scoring isn’t set up yet: the Worker has no API key. Nothing is spent until it is.');
+		expect(costTiles(scoring)[0]).toEqual({ label: 'Today, of a $0.10 cap', value: '$0.00' });
+	});
+
+	it('counts scores, and the answers that couldn’t be used', () => {
+		expect(scoringCount(scoring)).toBe(
+			'612 scores so far; 4 answers couldn’t be used, so those jobs stay unscored.'
+		);
+		expect(scoringCount({ ...scoring, scored: 1, unscored: 1 })).toBe(
+			'1 score so far; 1 answer couldn’t be used, so those jobs stay unscored.'
+		);
+		expect(scoringCount({ ...scoring, scored: 0, unscored: 0 })).toBe('0 scores so far.');
 	});
 });

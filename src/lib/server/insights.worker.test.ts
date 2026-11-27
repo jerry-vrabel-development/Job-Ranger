@@ -6,6 +6,7 @@ import {
 	companyCounts,
 	marketCounts,
 	openJobs,
+	scoringTotals,
 	searchCounts,
 	spendingTotals
 } from './insights.ts';
@@ -182,6 +183,38 @@ describe('the inputs behind Signals and costs', () => {
 			.bind(id, NOW, closed ? NOW : null)
 			.run();
 	}
+
+	it('totals scoring by day, month and in all, and counts its answers', async () => {
+		await posting('s');
+		const score = async (at: string, ok: number, micros: number) => {
+			await db
+				.prepare(
+					`INSERT INTO job_scores (source, board, posting_id, prompt_version, profile_version, model,
+					 ok, score, input_tokens, output_tokens, cost_micros, price_table, latency_ms, at)
+					 VALUES ('lever', 'Flight', 's', 'v', 'p', 'm', ?1, ?2, 1, 1, ?3, 't', 1, ?4)`
+				)
+				.bind(ok, ok === 1 ? 3 : null, micros, at)
+				.run();
+		};
+		expect(await scoringTotals(db, '2026-11-26')).toEqual({
+			today: 0,
+			month: 0,
+			total: 0,
+			scored: 0,
+			unscored: 0
+		});
+		await score('2026-11-26T12:00:00Z', 1, 500);
+		await score('2026-11-26T13:00:00Z', 0, 400);
+		await score('2026-11-02T13:00:00Z', 1, 300);
+		await score('2026-10-31T13:00:00Z', 1, 200);
+		expect(await scoringTotals(db, '2026-11-26')).toEqual({
+			today: 900,
+			month: 1200,
+			total: 1400,
+			scored: 3,
+			unscored: 1
+		});
+	});
 
 	it('reads every open watched job, with what the signal rules need', async () => {
 		await posting('open');

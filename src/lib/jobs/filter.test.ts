@@ -7,7 +7,8 @@ import {
 	parseFilter,
 	QUERY_MAX,
 	QUERY_WORDS,
-	searchWords
+	searchWords,
+	parseOrder
 } from './filter.ts';
 
 const params = (query: string) => new URLSearchParams(query);
@@ -84,5 +85,14 @@ describe('searchWords', () => {
 describe('boardKeyOf', () => {
 	it('writes a board as source:token', () => {
 		expect(boardKeyOf({ source: 'greenhouse', token: 'splice' })).toBe('greenhouse:splice');
+	});
+});
+
+describe('parseOrder', () => {
+	it('orders by best fit only when asked, newest first otherwise', () => {
+		expect(parseOrder(new URLSearchParams('sort=fit'))).toBe('fit');
+		for (const query of ['', 'sort=newest', 'sort=FIT', 'sort=oldest']) {
+			expect(parseOrder(new URLSearchParams(query))).toBe('newest');
+		}
 	});
 });

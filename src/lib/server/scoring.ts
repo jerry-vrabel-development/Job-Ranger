@@ -14,8 +14,11 @@ import {
 	systemPrompt,
 	userPrompt,
 	type Checked,
-	type Profile
+	type CheckedReason,
+	type Profile,
+	type Score
 } from '#lib/scoring/score.ts';
+import type { LatestScore } from '#lib/scoring/view.ts';
 import { count, postingTextOf, text } from './db.ts';
 import { listFacts } from './facts.ts';
 import { listInterests } from './interests.ts';
@@ -99,7 +102,11 @@ export async function jobsToScore(
 		)
 		.bind(promptVersion, profile, limit)
 		.all<Row>();
-	return results.map((row) => ({
+	return results.map(toJob);
+}
+
+function toJob(row: Row): JobToScore {
+	return {
 		source: text(row, 'source'),
 		board: text(row, 'board'),
 		id: text(row, 'id'),
@@ -108,7 +115,7 @@ export async function jobsToScore(
 		location: text(row, 'location'),
 		workplace: text(row, 'workplace'),
 		department: typeof row['department'] === 'string' ? row['department'] : null
-	}));
+	};
 }
 
 /** What scoring has cost on a day ("2026-11-26"), in millionths of a dollar. */
@@ -245,4 +252,96 @@ export async function scoreNewJobs(
 		spentMicros += result.costMicros;
 	}
 	return { scored, unscored, waiting: jobs.length - scored - unscored, spentMicros, stopped };
+}
+
+/** Each job's latest scoring answer, by job key ("source:board:id"), for the Jobs page. */
+export async function latestScores(db: D1Database): Promise<Map<string, LatestScore>> {
+	const { results } = await db
+		.prepare(
+			`SELECT s.source, s.board, s.posting_id, s.ok, s.score, s.summary, s.reasons, s.why,
+			 s.prompt_version, s.profile_version
+			 FROM job_scores s
+			 JOIN (SELECT MAX(id) AS id FROM job_scores GROUP BY source, board, posting_id) l ON l.id = s.id`
+		)
+		.all<Row>();
+	return new Map(
+		results.map((row) => [
+			`${text(row, 'source')}:${text(row, 'board')}:${text(row, 'posting_id')}`,
+			{
+				ok: row['ok'] === 1,
+				score: typeof row['score'] === 'number' ? (row['score'] as Score) : null,
+				summary: text(row, 'summary'),
+				reasons: JSON.parse(text(row, 'reasons')) as CheckedReason[],
+				why: text(row, 'why'),
+				promptVersion: text(row, 'prompt_version'),
+				profileVersion: text(row, 'profile_version')
+			}
+		])
+	);
+}
+
+/** Keys of the open jobs that have posting text to score. */
+export async function jobsWithText(db: D1Database): Promise<Set<string>> {
+	const { results } = await db
+		.prepare(
+			`SELECT t.source, t.board, t.id FROM posting_texts t
+			 JOIN postings p ON p.source = t.source AND p.board = t.board AND p.id = t.id
+			 WHERE p.closed_at IS NULL`
+		)
+		.all<Row>();
+	return new Set(
+		results.map((row) => `${text(row, 'source')}:${text(row, 'board')}:${text(row, 'id')}`)
+	);
+}
+
+/** One open job with text, as the scorer needs it; null if it's gone, closed or has no text. */
+export async function jobToScore(
+	db: D1Database,
+	key: { readonly source: string; readonly board: string; readonly id: string }
+): Promise<JobToScore | null> {
+	const row = await db
+		.prepare(
+			`SELECT p.source, p.board, p.id, p.title, p.company, p.location, p.workplace, p.department
+			 FROM postings p
+			 JOIN posting_texts t ON t.source = p.source AND t.board = p.board AND t.id = p.id
+			 WHERE p.source = ?1 AND p.board = ?2 AND p.id = ?3 AND p.closed_at IS NULL`
+		)
+		.bind(key.source, key.board, key.id)
+		.first<Row>();
+	return row === null ? null : toJob(row);
+}
+
+export type ScoreNow =
+	| { readonly ok: true; readonly message: string }
+	| { readonly ok: false; readonly message: string };
+
+/** "Score now" on one job (0008): the same checks, trace and daily cap as the daily run. */
+export async function scoreNow(
+	db: D1Database,
+	setup: Setup,
+	key: { readonly source: string; readonly board: string; readonly id: string },
+	capMicros: number,
+	now: Date
+): Promise<ScoreNow> {
+	if (!setup.ok) return { ok: false, message: setup.message };
+	const job = await jobToScore(db, key);
+	if (job === null) {
+		return { ok: false, message: 'That job is closed, gone, or has no posting text to score.' };
+	}
+	if ((await scoringSpentOn(db, now.toISOString().slice(0, 10))) >= capMicros) {
+		return {
+			ok: false,
+			message: 'Today’s scoring cap is used. It will be scored in tomorrow’s run.'
+		};
+	}
+	const profile = await scoringProfile(db);
+	const result = await scoreJob(db, setup, job, profile, profileVersion(profile), now);
+	if (result.kind === 'error') return { ok: false, message: `Scoring failed: ${result.message}` };
+	return {
+		ok: true,
+		message:
+			result.kind === 'scored'
+				? `Scored ${job.title} at ${job.company}.`
+				: `Couldn’t use the answer for ${job.title} at ${job.company}; it says why on the job.`
+	};
 }

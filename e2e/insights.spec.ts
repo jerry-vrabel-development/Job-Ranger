@@ -411,7 +411,8 @@ test.describe('Insights: Signals and costs', () => {
 			'$0.00 this month',
 			'$0.00 in all'
 		]);
-		await expect(signals.getByText('0 scores so far.')).toBeVisible();
+		// Two seeded scores, at no cost.
+		await expect(signals.getByText('2 scores so far.')).toBeVisible();
 	});
 
 	test('passes the accessibility checks in light and dark, with every list open', async ({

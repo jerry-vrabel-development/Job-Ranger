@@ -194,8 +194,12 @@ short Markdown report, committed with the PR that changed the prompt.
    ($0.10 by default), kept apart from drafting's cap; an API failure stops
    the run until tomorrow; Insights shows scoring costs. "Score now" moves to
    step 6, with the Jobs page.
-6. **Jobs page:** "Best fit" order, score, summary, reasons with sources,
-   and "Score now".
+6. ~~**Jobs page**~~ (built): an Order choice ("Newest first" or "Best fit
+   first", `?sort=fit`, not a filter), each job's fit from its latest answer
+   (score in words and summary; "Why" lists each reason, For or Against in
+   words, with its sources; a score from an older profile is shown and
+   marked), why a job has no score, and "Score now" for a job with text when
+   scoring is on, under the same cap.
 7. **Evals:** labels export, the fixed set, `npm run eval:score`, results
    and report, the eval page.
 8. **First published run:** Haiku vs Sonnet vs the keyword baseline, which

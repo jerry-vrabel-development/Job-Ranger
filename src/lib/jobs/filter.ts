@@ -98,3 +98,14 @@ export function isFiltered(filter: JobFilter): boolean {
 		filter.show !== null
 	);
 }
+
+/**
+ * How the list is ordered: newest first, or best fit first (design note
+ * 0008). It's in the address too (?sort=fit), but it isn't a filter: it
+ * changes the order, never which jobs or how many.
+ */
+export type JobOrder = 'newest' | 'fit';
+
+export function parseOrder(params: URLSearchParams): JobOrder {
+	return params.get('sort') === 'fit' ? 'fit' : 'newest';
+}

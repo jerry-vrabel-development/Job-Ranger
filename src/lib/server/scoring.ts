@@ -128,13 +128,18 @@ export type ScoreResult =
 	| { readonly kind: 'scored' | 'unscored'; readonly costMicros: number }
 	| { readonly kind: 'error'; readonly message: string };
 
-/** Asks the model about one job, checks the answer and records it. */
+/**
+ * Asks the model about one job, checks the answer and records it, stamped
+ * with the run's time, so the day the cap counts and the day the trace
+ * records always agree.
+ */
 export async function scoreJob(
 	db: D1Database,
 	setup: Extract<Setup, { ok: true }>,
 	job: JobToScore,
 	profile: Profile,
-	version: string
+	version: string,
+	now: Date
 ): Promise<ScoreResult> {
 	const scoring = { ...job, postingText: await postingTextOf(db, job) };
 	const answer = await complete(
@@ -160,8 +165,8 @@ export async function scoreJob(
 		.prepare(
 			`INSERT INTO job_scores (source, board, posting_id, prompt_version, profile_version, model,
 			 ok, score, summary, reasons, dropped, why, grade,
-			 input_tokens, output_tokens, cost_micros, price_table, latency_ms)
-			 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)`
+			 input_tokens, output_tokens, cost_micros, price_table, latency_ms, at)
+			 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)`
 		)
 		.bind(
 			job.source,
@@ -181,7 +186,8 @@ export async function scoreJob(
 			answer.usage.outputTokens,
 			answer.cost.micros,
 			answer.cost.priceTable,
-			answer.latencyMs
+			answer.latencyMs,
+			now.toISOString()
 		)
 		.run();
 	return { kind: checked.ok ? 'scored' : 'unscored', costMicros: answer.cost.micros };
@@ -228,7 +234,7 @@ export async function scoreNewJobs(
 		if (spent >= options.capMicros) stopped = 'cap';
 		else if (clock() >= options.deadline) stopped = 'time';
 		if (stopped !== null) break;
-		const result = await scoreJob(db, setup, job, profile, version);
+		const result = await scoreJob(db, setup, job, profile, version, options.now);
 		if (result.kind === 'error') {
 			stopped = 'error';
 			break;

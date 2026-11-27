@@ -187,7 +187,7 @@ describe('jobsToScore', () => {
 		]);
 		const { setup } = fakeModel(answered(good()));
 		const first = await firstJob();
-		await scoreJob(db, setup, first, await scoringProfile(db), 'p1');
+		await scoreJob(db, setup, first, await scoringProfile(db), 'p1', NOW);
 		expect((await jobsToScore(db, PROMPT_VERSION, 'p1', 10)).map((j) => j.id)).toEqual(['b', 'd']);
 		expect((await jobsToScore(db, PROMPT_VERSION, 'p2', 10)).map((j) => j.id)).toEqual([
 			'a',
@@ -209,7 +209,7 @@ describe('scoreJob', () => {
 	it('asks the model with the job’s text and records a checked score with its trace', async () => {
 		const { setup, asked } = fakeModel(answered(good()));
 		const job = await firstJob();
-		const result = await scoreJob(db, setup, job, await scoringProfile(db), 'p1');
+		const result = await scoreJob(db, setup, job, await scoringProfile(db), 'p1', NOW);
 		expect(result).toEqual({ kind: 'scored', costMicros: 450 });
 		expect(asked[0]).toMatchObject({ model: 'claude-haiku-5-5', json: { name: 'score_job' } });
 		expect(asked[0]?.user).toContain('We need TypeScript.');
@@ -257,7 +257,7 @@ describe('scoreJob', () => {
 			await db.prepare('DELETE FROM job_scores').run();
 			const { setup } = fakeModel(answer);
 			const job = await firstJob();
-			expect(await scoreJob(db, setup, job, await scoringProfile(db), 'p1')).toEqual({
+			expect(await scoreJob(db, setup, job, await scoringProfile(db), 'p1', NOW)).toEqual({
 				kind: 'unscored',
 				costMicros: 450
 			});
@@ -273,7 +273,7 @@ describe('scoreJob', () => {
 	it('records nothing when the API doesn’t answer', async () => {
 		const { setup } = fakeModel(failed);
 		const job = await firstJob();
-		expect(await scoreJob(db, setup, job, await scoringProfile(db), 'p1')).toEqual({
+		expect(await scoreJob(db, setup, job, await scoringProfile(db), 'p1', NOW)).toEqual({
 			kind: 'error',
 			message: 'The API key was rejected.'
 		});

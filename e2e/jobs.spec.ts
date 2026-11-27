@@ -179,3 +179,56 @@ test.describe('the jobs page', () => {
 		expect(violations).toEqual([]);
 	});
 });
+
+// From e2e/seed.sql: Benefits Access scored 5 and Flight Controls scored 2, both with an older
+// profile; no other job is scored, and scoring is off (no API key).
+test.describe('Jobs: fit scores', () => {
+	test('shows a score in words, with its reasons and sources, and says it will be scored again', async ({
+		page
+	}) => {
+		await page.goto('/jobs');
+		const civic = page.getByRole('article', { name: /Benefits Access/ });
+		await expect(civic.getByText('Fit: 5 · Strong fit.')).toBeVisible();
+		await expect(
+			civic.getByText('Civic tech work on accessible forms, which you know well.')
+		).toBeVisible();
+		await expect(
+			civic.getByText(/scored before your facts, interests or preferences/i)
+		).toBeVisible();
+		const why = civic.getByText('Why it scored 5 · Strong fit');
+		await why.click();
+		const reasons = civic.locator('ul.reasons > li');
+		await expect(reasons).toHaveCount(2);
+		await expect(reasons.first()).toContainText('For: It is accessible forms in TypeScript.');
+		await expect(reasons.first()).toContainText('Posting: “accessible forms in TypeScript”');
+		const flight = page.getByRole('article', { name: /Flight Controls/ });
+		await expect(flight.getByText('Fit: 2 · Weak fit.')).toBeVisible();
+		await flight.getByText('Why it scored 2 · Weak fit').click();
+		await expect(flight.locator('ul.reasons > li')).toContainText(
+			'Against: It needs ten years of embedded work.'
+		);
+	});
+
+	test('says why a job has no score, and offers no Score now while scoring is off', async ({
+		page
+	}) => {
+		await page.goto('/jobs');
+		const first = page.getByRole('article').first();
+		await expect(
+			first.getByText('Not scored: the board sent no posting text to read.')
+		).toBeVisible();
+		await expect(page.getByRole('button', { name: /^Score now/ })).toHaveCount(0);
+	});
+
+	test('orders by best fit when asked, keeping it in the address', async ({ page }) => {
+		await page.goto('/jobs');
+		await page.getByLabel('Order').selectOption('fit');
+		await page.getByRole('button', { name: 'Show jobs' }).click();
+		await expect(page).toHaveURL(/sort=fit/);
+		await expect(page.getByRole('status').first()).toContainText('best fit first');
+		const headings = page.getByRole('article').getByRole('heading', { level: 2 });
+		await expect(headings.nth(0)).toHaveText('Software Engineer, Benefits Access');
+		await expect(headings.nth(1)).toHaveText('Senior Firmware Engineer, Flight Controls');
+		await expect(page.getByLabel('Order')).toHaveValue('fit');
+	});
+});

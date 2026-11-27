@@ -1,5 +1,8 @@
 -- Browser-test data for the local D1 (npm run e2e:seed). Safe to run again:
 -- it starts from empty. Real-sized: long text, many jobs, every kind of card.
+DELETE FROM job_scores;
+DELETE FROM posting_texts;
+DELETE FROM preferences;
 DELETE FROM draft_costs;
 DELETE FROM resume_summaries;
 DELETE FROM applications;
@@ -171,3 +174,21 @@ INSERT INTO applications (source, board, posting_id, company, title, applied_at,
 		strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-20 days'), 50000, 'interviewing',
 		strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-2 days'), 'Call with Sam.');
 
+-- Scoring (design note 0008): two jobs with text and a score each, made with
+-- an older profile (so the page says they'll be scored again). Seeded costs
+-- are $0. Scoring itself is off in browser tests: there's no API key.
+INSERT INTO posting_texts (source, board, id, text) VALUES
+	('greenhouse', 'civic', '4206440009',
+		'Help people apply for benefits. You will build accessible forms in TypeScript.'),
+	('lever', 'flight', '6e5c2b1a-0f3d-4f1e-9a51-1c2d3e4f5a6b',
+		'Write firmware in C for flight controllers. Ten years of embedded work required.');
+INSERT INTO job_scores (source, board, posting_id, prompt_version, profile_version, model, ok, score,
+	summary, reasons, input_tokens, output_tokens, cost_micros, price_table, latency_ms, at) VALUES
+	('greenhouse', 'civic', '4206440009', '2026-11-26.1', 'seed', 'claude-haiku-5-5', 1, 5,
+		'Civic tech work on accessible forms, which you know well.',
+		'[{"direction":"for","text":"It is accessible forms in TypeScript.","cites":[{"quote":"accessible forms in TypeScript"}],"sources":["Posting: “accessible forms in TypeScript”"]},{"direction":"for","text":"It helps people get benefits.","cites":[{"quote":"apply for benefits"}],"sources":["Posting: “apply for benefits”"]}]',
+		3000, 300, 0, 'seed', 900, '2026-11-26T11:30:00.000Z'),
+	('lever', 'flight', '6e5c2b1a-0f3d-4f1e-9a51-1c2d3e4f5a6b', '2026-11-26.1', 'seed',
+		'claude-haiku-5-5', 1, 2, 'Firmware in C is far from your web work.',
+		'[{"direction":"against","text":"It needs ten years of embedded work.","cites":[{"quote":"Ten years of embedded work required"}],"sources":["Posting: “Ten years of embedded work required”"]}]',
+		3000, 300, 0, 'seed', 900, '2026-11-26T11:31:00.000Z');

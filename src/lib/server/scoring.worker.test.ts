@@ -3,14 +3,19 @@ import { withText, type Board, type FetchedPosting } from '#lib/jobs/posting.ts'
 import { planSync } from '#lib/jobs/sync.ts';
 import type { Adapter, Answered, Failed, ModelRequest } from '#lib/models/types.ts';
 import { PROMPT_VERSION } from '#lib/scoring/score.ts';
-import { loadBoard, setPaused, writePlan } from './db.ts';
+import { listOpenPostings, loadBoard, setPaused, writePlan } from './db.ts';
+import { NO_FILTER } from '#lib/jobs/filter.ts';
 import { addFact, pasteFacts } from './facts.ts';
 import { createInterest, setInterestPaused, listInterests } from './interests.ts';
 import type { Setup } from './models/model.ts';
 import { savePreferences } from './preferences.ts';
 import {
 	jobsToScore,
+	jobsWithText,
+	jobToScore,
+	latestScores,
 	profileVersion,
+	scoreNow,
 	scoreJob,
 	scoreNewJobs,
 	scoringProfile,
@@ -343,5 +348,92 @@ describe('scoreNewJobs', () => {
 			waiting: 3
 		});
 		vi.restoreAllMocks();
+	});
+});
+
+describe('what the Jobs page reads', () => {
+	it('gives each job its latest answer, and lists the jobs with text', async () => {
+		// The cap stops it after two jobs (a, then b): two answers are enough.
+		const first = fakeModel(answered(good(2)), answered(good(5)));
+		await scoreNewJobs(db, first.setup, { capMicros: 500, now: NOW, deadline: Infinity });
+		const again = fakeModel(answered({ score: 9 }));
+		const [a] = await jobsToScore(db, PROMPT_VERSION, 'other', 1);
+		if (a === undefined) throw new Error('no job to score');
+		await scoreJob(db, again.setup, a, await scoringProfile(db), 'other', NOW);
+
+		const scores = await latestScores(db);
+		expect([...scores.keys()].sort()).toEqual(['ashby:example:a', 'ashby:example:b']);
+		expect(scores.get('ashby:example:a')).toMatchObject({
+			ok: false,
+			score: null,
+			profileVersion: 'other'
+		});
+		expect(scores.get('ashby:example:b')).toMatchObject({
+			ok: true,
+			score: 5,
+			summary: 'It fits your TypeScript work.',
+			promptVersion: PROMPT_VERSION
+		});
+		expect(scores.get('ashby:example:b')?.reasons[0]?.sources).toEqual([
+			'Posting: “need TypeScript”'
+		]);
+		expect([...(await jobsWithText(db))].sort()).toEqual([
+			'ashby:example:a',
+			'ashby:example:b',
+			'ashby:example:d'
+		]);
+	});
+
+	it('orders by the latest score, unscored last, newest first within a score', async () => {
+		const { setup } = fakeModel(answered(good(3)), answered(good(5)), answered({ score: 9 }));
+		await scoreNewJobs(db, setup, { capMicros: 100_000, now: NOW, deadline: Infinity });
+		const ids = async (order: 'fit' | 'newest') =>
+			(await listOpenPostings(db, NO_FILTER, 50, order)).map((p) => p.id);
+		// a: 3, b: 5, d: unusable answer, c: no text.
+		expect(await ids('fit')).toEqual(['b', 'a', 'c', 'd']);
+		expect(await ids('newest')).toEqual(['c', 'a', 'b', 'd']);
+	});
+});
+
+describe('scoreNow', () => {
+	const key = { source: 'ashby', board: 'example', id: 'a' };
+
+	it('scores one job on the spot, with the same checks and trace', async () => {
+		const { setup } = fakeModel(answered(good()));
+		expect(await scoreNow(db, setup, key, 100_000, NOW)).toEqual({
+			ok: true,
+			message: 'Scored Engineer a at Example Co.'
+		});
+		const unusable = fakeModel(answered({ score: 9 }));
+		expect(await scoreNow(db, unusable.setup, { ...key, id: 'b' }, 100_000, NOW)).toEqual({
+			ok: true,
+			message: 'Couldn’t use the answer for Engineer b at Example Co; it says why on the job.'
+		});
+		expect((await latestScores(db)).size).toBe(2);
+	});
+
+	it('says why it can’t, and spends nothing', async () => {
+		const { setup, asked } = fakeModel(failed);
+		expect(
+			await scoreNow(db, { ok: false, message: 'Scoring isn’t set up yet.' }, key, 100_000, NOW)
+		).toEqual({
+			ok: false,
+			message: 'Scoring isn’t set up yet.'
+		});
+		expect(await scoreNow(db, setup, { ...key, id: 'c' }, 100_000, NOW)).toEqual({
+			ok: false,
+			message: 'That job is closed, gone, or has no posting text to score.'
+		});
+		expect(await jobToScore(db, { ...key, id: 'nope' })).toBeNull();
+		expect(await scoreNow(db, setup, key, 0, NOW)).toEqual({
+			ok: false,
+			message: 'Today’s scoring cap is used. It will be scored in tomorrow’s run.'
+		});
+		expect(asked).toHaveLength(0);
+		expect(await scoreNow(db, setup, key, 100_000, NOW)).toEqual({
+			ok: false,
+			message: 'Scoring failed: The API key was rejected.'
+		});
+		expect((await latestScores(db)).size).toBe(0);
 	});
 });

@@ -7,7 +7,7 @@
  * well inside D1's per-run query limits.
  */
 import { isSource, type Board, type Pay, type Workplace } from '#lib/jobs/posting.ts';
-import { NO_FILTER, type JobFilter } from '#lib/jobs/filter.ts';
+import { NO_FILTER, type JobFilter, type JobOrder } from '#lib/jobs/filter.ts';
 import { normalizeSql } from '#lib/jobs/interest-match.ts';
 import type { StoredPosting, SyncPlan } from '#lib/jobs/sync.ts';
 
@@ -377,17 +377,34 @@ function openWhere(filter: JobFilter): { sql: string; values: unknown[] } {
 	return { sql: clauses.join(' AND '), values };
 }
 
-/** Open postings on active boards that match the filter, newest first (by posting date, then when we first saw them). */
+/**
+ * A job's score from its latest scoring answer (design note 0008); NULL when
+ * that answer couldn't be used or there is none, so the order matches what
+ * each job's fit line says.
+ */
+const LATEST_SCORE = `(SELECT s.score FROM job_scores s
+	WHERE s.source = p.source AND s.board = p.board AND s.posting_id = p.id
+	ORDER BY s.id DESC LIMIT 1)`;
+
+const NEWEST = 'p.posted_at DESC NULLS LAST, p.first_seen_at DESC, p.company, p.title, p.id';
+
+/**
+ * Open postings on active boards that match the filter: newest first (by
+ * posting date, then when we first saw them), or best fit first (unscored
+ * last, newest first within a score).
+ */
 export async function listOpenPostings(
 	db: D1Database,
 	filter: JobFilter = NO_FILTER,
-	limit = LIST_LIMIT
+	limit = LIST_LIMIT,
+	order: JobOrder = 'newest'
 ): Promise<StoredPosting[]> {
 	const where = openWhere(filter);
+	const by = order === 'fit' ? `${LATEST_SCORE} DESC NULLS LAST, ${NEWEST}` : NEWEST;
 	const { results } = await db
 		.prepare(
 			`SELECT p.* FROM postings p WHERE ${where.sql}
-			 ORDER BY p.posted_at DESC NULLS LAST, p.first_seen_at DESC, p.company, p.title, p.id
+			 ORDER BY ${by}
 			 LIMIT ?${String(where.values.length + 1)}`
 		)
 		.bind(...where.values, limit)

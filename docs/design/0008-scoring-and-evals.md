@@ -138,10 +138,18 @@ short Markdown report, committed with the PR that changed the prompt.
   passed is "not wanted". A labelled set is exported from the database
   (`npm run eval:labels`) with posting text, so evals don't depend on jobs
   still being open. Scores I override later are labels too.
-- **A fixed set** of made-up postings with known answers, built from my
-  profile: clear fits, clear misses, and traps (a perfect title with the
-  wrong skills; a dream company with a role far off; a posting that names
-  my skills only in a "nice to have" list).
+- **A fixed set** of made-up postings with known answers
+  (`src/lib/evals/fixed-set.ts`): clear fits, clear misses, and traps (a
+  perfect title with the wrong skills; a dream company with a role far off;
+  a posting that names my skills only in a "nice to have" list; the right
+  work in other words; on site only; far above my level; a posting that
+  says nothing). It's scored against a **made-up profile shaped like mine**,
+  not my real one: the repo is public, and editing my Facts page shouldn't
+  move the set. My real profile is tested through the labels. (This note
+  first said "built from my profile".)
+- **Ties are measured fairly.** Scores are 1–5, so many jobs tie. Ranking
+  numbers are the exact average over every order of the tied jobs, so no
+  hidden tie-break flatters or punishes a scorer.
 - **What's measured:**
   - **Ranking:** of the jobs I wanted, how many land in the top 10 and top
     25 (recall@k), and NDCG over the labelled set.
@@ -200,8 +208,15 @@ short Markdown report, committed with the PR that changed the prompt.
    words, with its sources; a score from an older profile is shown and
    marked), why a job has no score, and "Score now" for a job with text when
    scoring is on, under the same cap.
-7. **Evals:** labels export, the fixed set, `npm run eval:score`, results
-   and report, the eval page.
+7. **Evals**, in three PRs:
+   - 7a. ~~**Metrics and the fixed set**~~ (built): `src/lib/evals/` —
+     recall@10 and @25, NDCG, separation, faithfulness, hard to read,
+     unusable, unstable and cost, each with how many items it rests on;
+     the fixed set; the keyword baseline's results on it pinned in a test
+     (7 of 13: it falls for every trap that needs reading).
+   - 7b. `npm run eval:labels` and `npm run eval:score`, results and
+     report in `evals/results/`, tested with recorded responses.
+   - 7c. The eval page.
 8. **First published run:** Haiku vs Sonnet vs the keyword baseline, which
    decides the default model.
 

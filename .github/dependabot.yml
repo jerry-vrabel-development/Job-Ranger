@@ -22,11 +22,6 @@ updates:
       # @types/node follows the Node in .nvmrc (22). Move it with .nvmrc, by hand.
       - dependency-name: '@types/node'
         update-types: ['version-update:semver-major']
-      # Adapter 9 builds its own Worker with only fetch, so the daily fetch's
-      # scheduled handler would be dropped. Held at 8 until the cron moves to
-      # its own Worker. Minor and patch updates still come.
-      - dependency-name: '@sveltejs/adapter-cloudflare'
-        update-types: ['version-update:semver-major']
 
   - package-ecosystem: github-actions
     directory: /

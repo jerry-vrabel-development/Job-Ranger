@@ -189,8 +189,8 @@ drafted.
 
 ### The database and the daily fetch
 
-Two Workers share one D1 database. **job-ranger** is the app: SvelteKit's pages
-(entry point `worker/index.js`). **job-ranger-daily** (`cron/`) only runs the
+Two Workers share one D1 database. **job-ranger** is the app: SvelteKit's pages,
+built by the Cloudflare adapter (no entry point of our own). **job-ranger-daily** (`cron/`) only runs the
 daily fetch and scoring on a cron at 11:23 UTC; it has no address, so nothing can
 reach it from outside (design note 0010). `npm run deploy` deploys both. Scoring
 settings (`ANTHROPIC_API_KEY`, `SCORE_MODEL`, `SCORE_DAILY_CAP_USD`) go on the

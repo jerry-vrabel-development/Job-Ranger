@@ -60,9 +60,9 @@ before code. Status words: **Built**, **Next**, **Planned**, **Later**.
    for Haiku and Sonnet; both runs committed and shown on `/evals`. The
    results decide the default model, or whether keyword matching ships and
    the model only gives reasons.
-4. **The daily fetch in its own Worker.** _Next:_ design note
-   [0010](0010-daily-fetch-worker.md). Unblocks the Cloudflare adapter
-   upgrade (held at 8, #71).
+4. **The daily fetch in its own Worker.** _Built:_ design note
+   [0010](0010-daily-fetch-worker.md). The cron Worker shipped in v0.3.2;
+   the app is on Cloudflare adapter 9 (no longer held at 8, #71).
 
 ### The big pieces before v1.0
 

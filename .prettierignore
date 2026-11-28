@@ -14,4 +14,4 @@ worker-configuration.d.ts
 /playwright-report/
 /test-results/
 /dist/
-/dist-cron/
+dist-cron/

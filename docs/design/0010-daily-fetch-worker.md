@@ -1,6 +1,6 @@
 # 0010 — The daily fetch in its own Worker
 
-- **Status:** Proposed
+- **Status:** Built
 - **Date:** 2026-11-28
 - **Author:** Jerry Vrabel
 
@@ -122,9 +122,16 @@ security fix arrives that needs 9.
    (`npm run fetch:local`) it read the app's own local database. Still to check
    after release: the old trigger gone from the app, and the next morning's run
    in job-ranger-daily's logs, before going on.
-3. **Adapter 9:** remove `worker/index.js` and `sveltekit.wrangler.jsonc`,
-   point the app at the adapter's output, drop the Dependabot hold. Full
-   browser suite, then a release.
+3. ~~**Adapter 9:**~~ _Built._ `worker/index.js` and
+   `sveltekit.wrangler.jsonc` are gone; `wrangler.jsonc` has no `main`, and the
+   adapter writes the Worker and its own deploy config
+   (`.svelte-kit/cloudflare/worker/wrangler.json`), pointing `wrangler deploy`
+   at it through `.wrangler/deploy/config.json`. Commands that read the
+   database (`d1 migrations apply`, `d1 execute`) and `wrangler types` name
+   `-c wrangler.jsonc`, so they never depend on a build. The Dependabot hold is
+   dropped. The app's upload grew from about 212 KB to 349 KB gzipped: the
+   adapter keeps the server's modules separate instead of Wrangler bundling
+   them into one file.
 
 ## To check while building
 

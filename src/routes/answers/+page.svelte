@@ -44,6 +44,8 @@
 				question !== 'other' && !data.answers.some((answer) => answer.question === question)
 		)
 	);
+	/** The add form starts on what was sent back, else the first open question. */
+	const addQuestion = $derived(add?.values.question ?? open[0] ?? 'other');
 
 	const afterAction: SubmitFunction =
 		() =>
@@ -112,13 +114,14 @@
 				<select
 					id="question"
 					name="question"
-					value={add?.values.question ?? open[0] ?? 'other'}
 					aria-invalid={field === 'question' ? 'true' : undefined}
 					aria-describedby={describedBy('question')}
 					bind:this={inputs['question']}
 				>
 					{#each QUESTIONS as question (question)}
-						<option value={question}>{QUESTION_LABELS[question]}</option>
+						<option value={question} selected={question === addQuestion}>
+							{QUESTION_LABELS[question]}
+						</option>
 					{/each}
 				</select>
 			</div>
@@ -175,12 +178,14 @@
 			<select
 				id="origin"
 				name="origin"
-				value={add?.values.origin ?? 'own'}
 				aria-invalid={field === 'origin' ? 'true' : undefined}
 				aria-describedby={describedBy('origin')}
 				bind:this={inputs['origin']}
 			>
-				{#each ORIGINS as origin (origin)}<option value={origin}>
+				{#each ORIGINS as origin (origin)}<option
+						value={origin}
+						selected={origin === (add?.values.origin ?? 'own')}
+					>
 						{ORIGIN_LABELS[origin]}
 					</option>{/each}
 			</select>
@@ -248,9 +253,11 @@
 								<form method="POST" action="?/edit" use:enhance={afterAction} class="edit">
 									<input type="hidden" name="id" value={answer.id} />
 									<label for="question-{answer.id}">Question</label>
-									<select id="question-{answer.id}" name="question" value={answer.question}>
+									<select id="question-{answer.id}" name="question">
 										{#each QUESTIONS as question (question)}
-											<option value={question}>{QUESTION_LABELS[question]}</option>
+											<option value={question} selected={question === answer.question}>
+												{QUESTION_LABELS[question]}
+											</option>
 										{/each}
 									</select>
 									<label for="label-{answer.id}">
@@ -274,8 +281,11 @@
 										value={browser ? undefined : answer.text}
 										defaultValue={answer.text}></textarea>
 									<label for="origin-{answer.id}">How it was written</label>
-									<select id="origin-{answer.id}" name="origin" value={answer.origin}>
-										{#each ORIGINS as origin (origin)}<option value={origin}>
+									<select id="origin-{answer.id}" name="origin">
+										{#each ORIGINS as origin (origin)}<option
+												value={origin}
+												selected={origin === answer.origin}
+											>
 												{ORIGIN_LABELS[origin]}
 											</option>{/each}
 									</select>

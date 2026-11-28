@@ -81,7 +81,8 @@ before code. Status words: **Built**, **Next**, **Planned**, **Later**.
     main feature switched off.
 11. **It says when it breaks.** A failed daily fetch two days running, or
     scoring that hits errors, shows on the home page, not just in the logs
-    and on the Companies page.
+    and on the Companies page. _Next:_ design note
+    [0011](0011-run-alerts.md).
 12. **Backups I've restored from.** A runbook for D1's point-in-time
     restore, one real restore drill, and an export of my tracker, facts and
     answers, so my data is never stuck in the app.

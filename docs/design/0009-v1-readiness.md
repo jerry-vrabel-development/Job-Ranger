@@ -20,7 +20,7 @@ it breaks.
   safe to rely on: it says when it breaks, its data can be restored, it's
   been checked by a person with a screen reader, and someone outside can see
   it.
-- **Smoke testing on my phone, early.** I check releases on my iPhone. An
+- **Smoke testing on my phone, early.** I check releases on my Android phone. An
   app I can open from the home screen makes that quick, so it comes first.
 
 ## Not goals
@@ -38,30 +38,31 @@ before code. Status words: **Built**, **Next**, **Planned**, **Later**.
 
 1. ~~**"Couldn't draft:" fix.**~~ Failed model calls say what failed.
    _Built_ (#98).
-2. **Installable on my phone (a PWA).** _Built, waiting on the iPhone
-   check below._ Moved up from "nice to have" because it makes smoke
+2. ~~**Installable on my phone (a PWA).**~~ _Built_ (#99, in v0.3.1);
+   installed and working on my Android phone, 2026-11-28. Moved up from "nice to have" because it makes smoke
    testing each release a tap from the home screen.
    - A web app manifest (name, icons, `display: standalone`, theme colors
      for light and dark), app icons made from the favicon, and the Apple
-     touch icon and status-bar tags iOS needs.
+     touch icon and status-bar tags iOS needs (for anyone on an iPhone).
    - **Behind Cloudflare Access:** browsers fetch the manifest without
      cookies by default, so Access would block it. The link needs
-     `crossorigin="use-credentials"`. Signing in from the installed app on
-     iOS has to be tried on the phone before this counts as done.
+     `crossorigin="use-credentials"`. Signing in from the installed app has to be tried on my phone before
+     this counts as done.
    - A small service worker only if it earns its place: an "offline" page
      instead of a browser error. No caching of job data, so nothing on the
      phone goes stale or outlives a sign-out. **Built without one:** Chrome
      reports the app installable with no service worker, so none ships
      yet.
-   - Done when: installed on my iPhone from Safari, it opens full screen,
+   - Done when: installed on my Android phone from Chrome, it opens full screen,
      signs in, and shows the Jobs page.
 3. **0008 step 8: the first published eval run.** _Next, needs me._ 40–50
    saved or passed jobs, `npm run eval:labels`, then `npm run eval:score`
    for Haiku and Sonnet; both runs committed and shown on `/evals`. The
    results decide the default model, or whether keyword matching ships and
    the model only gives reasons.
-4. **The daily fetch in its own Worker.** _Planned,_ with a short design
-   note. Unblocks the Cloudflare adapter upgrade (held at 8, #71).
+4. **The daily fetch in its own Worker.** _Next:_ design note
+   [0010](0010-daily-fetch-worker.md). Unblocks the Cloudflare adapter
+   upgrade (held at 8, #71).
 
 ### The big pieces before v1.0
 
@@ -86,7 +87,7 @@ before code. Status words: **Built**, **Next**, **Planned**, **Later**.
     answers, so my data is never stuck in the app.
 13. **A security review before the MCP server goes live.** A short threat
     model; Access, secrets and CSP checked; dependencies current.
-14. **An accessibility pass by a person.** VoiceOver on my iPhone and a
+14. **An accessibility pass by a person.** TalkBack on my Android phone and a
     keyboard-only run through the main flows: find a job, save it, apply,
     track it. Axe catches only part of what a person finds.
 

@@ -4,6 +4,10 @@ Job Ranger finds jobs on employers' own job boards, ranks them against rules you
 set, tracks every application, and flags likely scams, ghost jobs and missing pay,
 each with the evidence behind the flag.
 
+**The app:** <https://job-ranger.forwardslash.workers.dev>. It's private:
+every page is behind sign-in (Cloudflare Access), and only its owner can
+open it. Everyone else sees the sign-in page.
+
 ## Status
 
 **Being built.** Working now: a daily fetch from employers' Ashby, Greenhouse, Lever and Breezy job
@@ -138,9 +142,9 @@ npx wrangler secret put ACCESS_ALLOWED_EMAILS  # your email (comma-separate seve
 ### On your phone
 
 Job Ranger installs like an app, which makes checking a release on a phone
-quick (design note 0009). On an iPhone: open the site in Safari, sign in,
-then Share → **Add to Home Screen**. On Android, Chrome offers **Install
-app**. It opens full screen on the Jobs page.
+quick (design note 0009). On Android: open the site in Chrome, sign in,
+then **⋮** → **Install app**. On an iPhone: Safari, then Share → **Add to
+Home Screen**. It opens full screen on the Jobs page.
 
 Every path is behind Cloudflare Access, so the manifest is fetched with the
 sign-in cookie (`crossorigin="use-credentials"`). There's no service worker:
@@ -185,8 +189,12 @@ drafted.
 
 ### The database and the daily fetch
 
-The Worker's entry point is `worker/index.js`: SvelteKit's pages plus the daily
-fetch on a cron (11:23 UTC). Job boards are rows in D1, not code, so the list of
+Two Workers share one D1 database. **job-ranger** is the app: SvelteKit's pages
+(entry point `worker/index.js`). **job-ranger-daily** (`cron/`) only runs the
+daily fetch and scoring on a cron at 11:23 UTC; it has no address, so nothing can
+reach it from outside (design note 0010). `npm run deploy` deploys both. Scoring
+settings (`ANTHROPIC_API_KEY`, `SCORE_MODEL`, `SCORE_DAILY_CAP_USD`) go on the
+daily Worker too: `npx wrangler secret put <NAME> -c cron/wrangler.jsonc`. Job boards are rows in D1, not code, so the list of
 companies stays out of the repository. Add companies on the Companies page:
 paste links from jobs.ashbyhq.com, job-boards.greenhouse.io, jobs.lever.co or
 a company's breezy.hr page,
@@ -198,7 +206,8 @@ once before saving it.
 npm run db:migrate:local     # set up the local database
 npm run build && npm run preview
 # then open http://localhost:4173/companies to add a company
-curl "http://localhost:4173/cdn-cgi/handler/scheduled?cron=23+11+*+*+*"   # run the fetch now
+npm run fetch:local          # in another terminal: the daily Worker, same local database
+curl "http://localhost:4174/cdn-cgi/handler/scheduled?cron=23+11+*+*+*"   # run the fetch now
 ```
 
 The browser tests that change data (pause, remove) run last, in their own

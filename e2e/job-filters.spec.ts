@@ -5,6 +5,26 @@ import { expect, test } from '@playwright/test';
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
+// On a slow phone the page can be used before its script has loaded. Choices
+// made then must survive the script starting (it used to reset them all).
+test('keeps filter choices made before the page has finished loading', async ({ page }) => {
+	await page.route('**/_app/immutable/**/*.js', async (route) => {
+		await new Promise((resolve) => setTimeout(resolve, 1500));
+		await route.continue();
+	});
+	await page.goto('/jobs', { waitUntil: 'domcontentloaded' });
+	await page.getByRole('combobox', { name: 'Company' }).selectOption({ label: 'Civic Co' });
+	await page.getByRole('combobox', { name: 'Order' }).selectOption({ label: 'Best fit first' });
+	await page.getByRole('searchbox', { name: 'Search' }).fill('engineer');
+	await page.getByRole('checkbox', { name: 'Only new' }).check();
+	await page.waitForLoadState('networkidle');
+
+	await expect(page.getByRole('combobox', { name: 'Company' })).toHaveValue('greenhouse:civic');
+	await expect(page.getByRole('combobox', { name: 'Order' })).toHaveValue('fit');
+	await expect(page.getByRole('searchbox', { name: 'Search' })).toHaveValue('engineer');
+	await expect(page.getByRole('checkbox', { name: 'Only new' })).toBeChecked();
+});
+
 test.describe('filtering the jobs page', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.goto('/jobs');

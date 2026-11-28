@@ -26,6 +26,26 @@
 	const failed = $derived(data.boards.filter((board) => board.lastFetchOk === false));
 	const lastCheck = $derived(latest(data.boards.map((board) => board.lastFetchedAt)));
 	const orderWords = $derived(data.filter.sort === 'fit' ? 'best fit first' : 'newest first');
+
+	// The filters start from the address as defaults (selected, defaultValue,
+	// defaultChecked), never as values: a value is set again when the page's
+	// script starts, which wiped any choice made before it loaded.
+	const WORKPLACE_CHOICES = [
+		['', 'Any'],
+		['remote', 'Remote'],
+		['hybrid', 'Hybrid'],
+		['on-site', 'On site'],
+		['unknown', 'Not stated']
+	] as const;
+	const SHOW_CHOICES = [
+		['', 'All but passed'],
+		['saved', 'Saved only'],
+		['passed', 'Passed only']
+	] as const;
+	const ORDER_CHOICES = [
+		['newest', 'Newest first'],
+		['fit', 'Best fit first']
+	] as const;
 </script>
 
 {#snippet jobFields(job: { source: string; board: string; id: string })}
@@ -69,7 +89,7 @@
 				id="q"
 				name="q"
 				type="search"
-				value={data.filter.q}
+				defaultValue={data.filter.q}
 				autocomplete="off"
 				aria-describedby="q-hint"
 			/>
@@ -78,50 +98,53 @@
 		{#if data.interests.length > 0}
 			<div class="field">
 				<label for="interest">Interest</label>
-				<select id="interest" name="interest" value={data.filter.interest}>
-					<option value="">Any interest</option>
+				<select id="interest" name="interest">
+					<option value="" selected={data.filter.interest === ''}>Any interest</option>
 					{#each data.interests as interest (interest.id)}
-						<option value={interest.id}>{interest.name}</option>
+						<option value={interest.id} selected={data.filter.interest === interest.id}>
+							{interest.name}
+						</option>
 					{/each}
 				</select>
 			</div>
 		{/if}
 		<div class="field">
 			<label for="company">Company</label>
-			<select id="company" name="company" value={data.filter.company}>
-				<option value="">All companies</option>
+			<select id="company" name="company">
+				<option value="" selected={data.filter.company === ''}>All companies</option>
 				{#each data.boards as board (board.key)}
-					<option value={board.key}>{board.company}</option>
+					<option value={board.key} selected={data.filter.company === board.key}>
+						{board.company}
+					</option>
 				{/each}
 			</select>
 		</div>
 		<div class="field">
 			<label for="workplace">Workplace</label>
-			<select id="workplace" name="workplace" value={data.filter.workplace}>
-				<option value="">Any</option>
-				<option value="remote">Remote</option>
-				<option value="hybrid">Hybrid</option>
-				<option value="on-site">On site</option>
-				<option value="unknown">Not stated</option>
+			<select id="workplace" name="workplace">
+				{#each WORKPLACE_CHOICES as [value, label] (value)}
+					<option {value} selected={data.filter.workplace === value}>{label}</option>
+				{/each}
 			</select>
 		</div>
 		<div class="field">
 			<label for="show">Show</label>
-			<select id="show" name="show" value={data.filter.show}>
-				<option value="">All but passed</option>
-				<option value="saved">Saved only</option>
-				<option value="passed">Passed only</option>
+			<select id="show" name="show">
+				{#each SHOW_CHOICES as [value, label] (value)}
+					<option {value} selected={data.filter.show === value}>{label}</option>
+				{/each}
 			</select>
 		</div>
 		<div class="field">
 			<label for="sort">Order</label>
-			<select id="sort" name="sort" value={data.filter.sort}>
-				<option value="newest">Newest first</option>
-				<option value="fit">Best fit first</option>
+			<select id="sort" name="sort">
+				{#each ORDER_CHOICES as [value, label] (value)}
+					<option {value} selected={data.filter.sort === value}>{label}</option>
+				{/each}
 			</select>
 		</div>
 		<div class="field check">
-			<input id="new" name="new" type="checkbox" value="1" checked={data.filter.onlyNew} />
+			<input id="new" name="new" type="checkbox" value="1" defaultChecked={data.filter.onlyNew} />
 			<label for="new">Only new</label>
 		</div>
 		<div class="buttons">

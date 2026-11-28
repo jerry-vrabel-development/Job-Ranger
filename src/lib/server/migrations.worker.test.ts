@@ -602,3 +602,29 @@ describe('migration 0021: job scores', () => {
 		expect(await first('SELECT COUNT(*) AS n FROM job_scores')).toEqual({ n: 0 });
 	});
 });
+
+describe('migration 0022: runs', () => {
+	it('keeps counts at zero or more, and stages and stops to the known words', async () => {
+		await applyD1Migrations(db, [...MIGRATIONS]);
+		await db.prepare("INSERT INTO runs (scheduled_at, started_at) VALUES ('s', 't')").run();
+		expect(await first('SELECT finished_at, boards, scoring, problem FROM runs')).toEqual({
+			finished_at: null,
+			boards: null,
+			scoring: null,
+			problem: null
+		});
+		await db
+			.prepare("UPDATE runs SET boards = 0, scoring = 'ran', stopped = 'cap', problem = 'Words.'")
+			.run();
+		const bad = [
+			"INSERT INTO runs (started_at) VALUES ('t')",
+			"INSERT INTO runs (scheduled_at) VALUES ('s')",
+			'UPDATE runs SET boards = -1',
+			'UPDATE runs SET spent_micros = -1',
+			"UPDATE runs SET scoring = 'maybe'",
+			"UPDATE runs SET stopped = 'tired'",
+			`UPDATE runs SET problem = '${'x'.repeat(501)}'`
+		];
+		for (const sql of bad) await expect(db.prepare(sql).run()).rejects.toThrow();
+	});
+});

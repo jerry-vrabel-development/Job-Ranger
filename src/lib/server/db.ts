@@ -31,14 +31,14 @@ export function text(row: Row, column: string): string {
 	return value;
 }
 
-function textOrNull(row: Row, column: string): string | null {
+export function textOrNull(row: Row, column: string): string | null {
 	const value = row[column];
 	if (value === null || value === undefined) return null;
 	if (typeof value !== 'string') throw new StoredDataError(`${column} is not text`);
 	return value;
 }
 
-function numberOrNull(row: Row, column: string): number | null {
+export function numberOrNull(row: Row, column: string): number | null {
 	const value = row[column];
 	if (value === null || value === undefined) return null;
 	if (typeof value !== 'number') throw new StoredDataError(`${column} is not a number`);

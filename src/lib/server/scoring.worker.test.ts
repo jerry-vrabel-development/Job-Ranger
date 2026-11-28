@@ -296,7 +296,8 @@ describe('scoreNewJobs', () => {
 			unscored: 1,
 			waiting: 0,
 			spentMicros: 1350,
-			stopped: null
+			stopped: null,
+			error: null
 		});
 		expect(await scoringSpentOn(db, '2026-11-26')).toBe(1350);
 		expect(await scoringSpentOn(db, '2026-11-25')).toBe(0);
@@ -334,7 +335,14 @@ describe('scoreNewJobs', () => {
 		const broken = fakeModel(failed, answered(good()));
 		expect(
 			await scoreNewJobs(db, broken.setup, { capMicros: 100_000, now: NOW, deadline: Infinity })
-		).toEqual({ scored: 0, unscored: 0, waiting: 3, spentMicros: 0, stopped: 'error' });
+		).toEqual({
+			scored: 0,
+			unscored: 0,
+			waiting: 3,
+			spentMicros: 0,
+			stopped: 'error',
+			error: 'The API key was rejected.'
+		});
 		expect(broken.asked).toHaveLength(1);
 	});
 

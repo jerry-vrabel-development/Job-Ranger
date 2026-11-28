@@ -186,6 +186,8 @@ export interface ScoringSummary {
 	readonly spentMicros: number;
 	/** Why the run stopped early, if it did. */
 	readonly stopped: 'cap' | 'time' | 'error' | null;
+	/** When it stopped on an error: what went wrong, in the adapter's words. */
+	readonly error: string | null;
 }
 
 /**
@@ -214,6 +216,7 @@ export async function scoreNewJobs(
 	let unscored = 0;
 	let spentMicros = 0;
 	let stopped: ScoringSummary['stopped'] = null;
+	let error: string | null = null;
 	for (const job of jobs) {
 		if (spent >= options.capMicros) stopped = 'cap';
 		else if (clock() >= options.deadline) stopped = 'time';
@@ -221,6 +224,7 @@ export async function scoreNewJobs(
 		const result = await scoreJob(db, setup, job, profile, version, options.now);
 		if (result.kind === 'error') {
 			stopped = 'error';
+			error = result.message;
 			break;
 		}
 		if (result.kind === 'scored') scored += 1;
@@ -228,7 +232,14 @@ export async function scoreNewJobs(
 		spent += result.costMicros;
 		spentMicros += result.costMicros;
 	}
-	return { scored, unscored, waiting: jobs.length - scored - unscored, spentMicros, stopped };
+	return {
+		scored,
+		unscored,
+		waiting: jobs.length - scored - unscored,
+		spentMicros,
+		stopped,
+		error
+	};
 }
 
 /** Each job's latest scoring answer, by job key ("source:board:id"), for the Jobs page. */

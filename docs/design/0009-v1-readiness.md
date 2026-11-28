@@ -38,8 +38,8 @@ before code. Status words: **Built**, **Next**, **Planned**, **Later**.
 
 1. ~~**"Couldn't draft:" fix.**~~ Failed model calls say what failed.
    _Built_ (#98).
-2. **Installable on my phone (a PWA).** _Built, waiting on the phone
-   check below._ Moved up from "nice to have" because it makes smoke
+2. ~~**Installable on my phone (a PWA).**~~ _Built_ (#99, in v0.3.1);
+   installed and working on my Android phone, 2026-11-28. Moved up from "nice to have" because it makes smoke
    testing each release a tap from the home screen.
    - A web app manifest (name, icons, `display: standalone`, theme colors
      for light and dark), app icons made from the favicon, and the Apple
@@ -60,8 +60,9 @@ before code. Status words: **Built**, **Next**, **Planned**, **Later**.
    for Haiku and Sonnet; both runs committed and shown on `/evals`. The
    results decide the default model, or whether keyword matching ships and
    the model only gives reasons.
-4. **The daily fetch in its own Worker.** _Planned,_ with a short design
-   note. Unblocks the Cloudflare adapter upgrade (held at 8, #71).
+4. **The daily fetch in its own Worker.** _Next:_ design note
+   [0010](0010-daily-fetch-worker.md). Unblocks the Cloudflare adapter
+   upgrade (held at 8, #71).
 
 ### The big pieces before v1.0
 

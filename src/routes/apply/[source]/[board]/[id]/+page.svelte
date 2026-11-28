@@ -688,9 +688,11 @@
 		{/if}
 		<form method="POST" action="?/status" use:enhance={afterAction} class="stack">
 			<label for="status">Where it stands</label>
-			<select id="status" name="status" value={data.tracking?.status}>
+			<select id="status" name="status">
 				{#each data.statuses as status (status.value)}
-					<option value={status.value}>{status.label}</option>
+					<option value={status.value} selected={status.value === data.tracking?.status}>
+						{status.label}
+					</option>
 				{/each}
 			</select>
 			<label for="status-note">Note (optional, just for you)</label>
@@ -699,7 +701,7 @@
 				name="note"
 				type="text"
 				maxlength={data.statusNoteMax}
-				value={data.tracking?.note ?? ''}
+				defaultValue={data.tracking?.note ?? ''}
 			/>
 			<button type="submit">Update</button>
 		</form>

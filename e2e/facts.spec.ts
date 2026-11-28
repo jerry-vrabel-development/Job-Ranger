@@ -6,6 +6,27 @@ import { expect, test } from '@playwright/test';
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
+test('keeps choices made before the page has finished loading', async ({ page }) => {
+	// Slow the page's script so the choices land before it starts.
+	await page.route('**/_app/immutable/**/*.js', async (route) => {
+		await new Promise((resolve) => setTimeout(resolve, 1500));
+		await route.continue();
+	});
+	await page.goto('/facts', { waitUntil: 'domcontentloaded' });
+	const remote = page
+		.getByRole('group', { name: /Where you’ll work/ })
+		.getByRole('checkbox', { name: 'Remote' });
+	const wasRemote = await remote.isChecked();
+	await page.locator('#kind').selectOption({ label: 'Project' });
+	await page.locator('#experience').selectOption({ label: 'Learning now' });
+	await remote.setChecked(!wasRemote);
+	await page.waitForLoadState('networkidle');
+
+	await expect(page.locator('#kind')).toHaveValue('project');
+	await expect(page.locator('#experience')).toHaveValue('learning');
+	expect(await remote.isChecked()).toBe(!wasRemote);
+});
+
 test.describe('the facts page', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.goto('/facts');

@@ -217,7 +217,7 @@
 														type="checkbox"
 														name="company"
 														value={company.key}
-														checked={interest.companies.some(
+														defaultChecked={interest.companies.some(
 															(tagged) => tagged.key === company.key
 														)}
 													/>

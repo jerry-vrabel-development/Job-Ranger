@@ -193,13 +193,17 @@
 						value={browser ? undefined : fact.text}
 						defaultValue={fact.text}></textarea>
 					<label for="kind-{fact.id}">Kind</label>
-					<select id="kind-{fact.id}" name="kind" value={fact.kind}>
-						{#each KINDS as kind (kind)}<option value={kind}>{KIND_LABELS[kind]}</option>{/each}
+					<select id="kind-{fact.id}" name="kind">
+						{#each KINDS as kind (kind)}<option value={kind} selected={kind === fact.kind}>
+								{KIND_LABELS[kind]}
+							</option>{/each}
 					</select>
 					<label for="experience-{fact.id}">Experience</label>
-					<select id="experience-{fact.id}" name="experience" value={fact.experience}>
+					<select id="experience-{fact.id}" name="experience">
 						{#each EXPERIENCES as experience (experience)}
-							<option value={experience}>{EXPERIENCE_LABELS[experience]}</option>
+							<option value={experience} selected={experience === fact.experience}>
+								{EXPERIENCE_LABELS[experience]}
+							</option>
 						{/each}
 					</select>
 					<label for="organization-{fact.id}">Where <span class="optional">(optional)</span></label>
@@ -316,7 +320,7 @@
 						type="checkbox"
 						name="workplaces"
 						value={workplace}
-						checked={chosen('workplaces', workplace)}
+						defaultChecked={chosen('workplaces', workplace)}
 					/>
 					{WORKPLACE_LABELS[workplace]}
 				</label>
@@ -344,7 +348,12 @@
 			<legend>Levels <span class="optional">(optional)</span></legend>
 			{#each LEVELS as level (level)}
 				<label class="choice">
-					<input type="checkbox" name="levels" value={level} checked={chosen('levels', level)} />
+					<input
+						type="checkbox"
+						name="levels"
+						value={level}
+						defaultChecked={chosen('levels', level)}
+					/>
 					{LEVEL_LABELS[level]}
 				</label>
 			{/each}
@@ -431,12 +440,16 @@
 				<select
 					id="kind"
 					name="kind"
-					value={add?.values.kind ?? 'accomplishment'}
 					aria-invalid={field === 'kind' ? 'true' : undefined}
 					aria-describedby={describedBy('kind')}
 					bind:this={inputs['kind']}
 				>
-					{#each KINDS as kind (kind)}<option value={kind}>{KIND_LABELS[kind]}</option>{/each}
+					{#each KINDS as kind (kind)}<option
+							value={kind}
+							selected={kind === (add?.values.kind ?? 'accomplishment')}
+						>
+							{KIND_LABELS[kind]}
+						</option>{/each}
 				</select>
 			</div>
 			<div class="field">
@@ -448,13 +461,17 @@
 				<select
 					id="experience"
 					name="experience"
-					value={add?.values.experience ?? 'professional'}
 					aria-invalid={field === 'experience' ? 'true' : undefined}
 					aria-describedby={describedBy('experience')}
 					bind:this={inputs['experience']}
 				>
 					{#each EXPERIENCES as experience (experience)}
-						<option value={experience}>{EXPERIENCE_LABELS[experience]}</option>
+						<option
+							value={experience}
+							selected={experience === (add?.values.experience ?? 'professional')}
+						>
+							{EXPERIENCE_LABELS[experience]}
+						</option>
 					{/each}
 				</select>
 			</div>

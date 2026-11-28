@@ -1,6 +1,6 @@
 /**
- * The Worker's cron handler (see `triggers` in wrangler.jsonc). It sits beside
- * SvelteKit's fetch handler in worker/index.js. First the daily fetch, then
+ * The daily Worker's cron handler (cron/index.ts, `triggers` in
+ * cron/wrangler.jsonc; design note 0010). First the daily fetch, then
  * scoring the new jobs it found (design note 0008), if scoring is set up.
  */
 import { runDailyFetch } from './daily-fetch.ts';

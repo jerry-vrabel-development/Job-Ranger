@@ -3,12 +3,12 @@
 	"name": "job-ranger",
 	"compatibility_date": "2026-11-17",
 	"compatibility_flags": ["nodejs_als"],
-	// SvelteKit's worker. Build first: `npm run build`. The daily cron runs in
-	// its own Worker, job-ranger-daily (cron/wrangler.jsonc, design note 0010).
-	"main": "worker/index.js",
+	// No `main`: the SvelteKit adapter builds the Worker and its assets, and
+	// points `wrangler deploy` at its output. Build first: `npm run build`.
+	// The daily cron runs in its own Worker, job-ranger-daily
+	// (cron/wrangler.jsonc, design note 0010).
 	"assets": {
-		"binding": "ASSETS",
-		"directory": ".svelte-kit/cloudflare"
+		"binding": "ASSETS"
 	},
 	"d1_databases": [
 		{

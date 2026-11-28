@@ -7,13 +7,11 @@ import { ANNOUNCER_STYLE, styleHash } from './src/lib/csp.js';
 export default defineConfig({
 	plugins: [
 		sveltekit({
-			// The adapter writes SvelteKit's worker where sveltekit.wrangler.jsonc
-			// says; wrangler.jsonc's entry (worker/index.js) wraps it with the cron.
-			// Local dev still gets the real bindings (D1) from wrangler.jsonc.
-			adapter: adapter({
-				config: 'sveltekit.wrangler.jsonc',
-				platformProxy: { configPath: 'wrangler.jsonc' }
-			}),
+			// The adapter reads wrangler.jsonc, builds the app's Worker and points
+			// `wrangler deploy` at it. The daily cron is its own Worker (cron/).
+			// Dev names wrangler.jsonc too: left alone, it follows the deploy
+			// pointer to the last build's config and misses .dev.vars.
+			adapter: adapter({ platformProxy: { configPath: 'wrangler.jsonc' } }),
 			compilerOptions: {
 				// Runes mode for this project's code (libraries decide for themselves).
 				runes: ({ filename }) =>

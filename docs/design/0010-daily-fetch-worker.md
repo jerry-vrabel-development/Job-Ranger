@@ -115,10 +115,13 @@ security fix arrives that needs 9.
 ## Build order
 
 1. **This note.**
-2. **The cron Worker, while still on adapter 8:** add `cron/`, move the
-   trigger, update `npm run deploy` and CI. Released on its own, so a
-   problem is about the move, not the upgrade. Check the next morning's run
-   in the cron Worker's logs before going on.
+2. ~~**The cron Worker, while still on adapter 8:**~~ _Built._ Adds
+   `cron/`, moves the trigger, updates `npm run deploy` and CI. Released on its
+   own, so a problem is about the move, not the upgrade. The dry run bundled it
+   at 64 KB with the `#lib` imports and price table resolved, and run locally
+   (`npm run fetch:local`) it read the app's own local database. Still to check
+   after release: the old trigger gone from the app, and the next morning's run
+   in job-ranger-daily's logs, before going on.
 3. **Adapter 9:** remove `worker/index.js` and `sveltekit.wrangler.jsonc`,
    point the app at the adapter's output, drop the Dependabot hold. Full
    browser suite, then a release.

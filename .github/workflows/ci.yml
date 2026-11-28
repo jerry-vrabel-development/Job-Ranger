@@ -39,10 +39,11 @@ jobs:
       - run: npm run typecheck
       - run: npm run test:coverage
 
-      - name: Builds, and the Worker bundles for deploy (dry run)
+      - name: Builds, and both Workers bundle for deploy (dry run)
         run: |
           npm run build
           npx wrangler deploy --dry-run --outdir dist
+          npx wrangler deploy --dry-run -c cron/wrangler.jsonc --outdir dist-cron
 
       - name: Coverage summary
         if: always()

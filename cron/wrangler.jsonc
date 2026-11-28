@@ -1,0 +1,31 @@
+// job-ranger-daily: only the daily cron (design note 0010). Deployed by
+// `npm run deploy` after the app; migrations are applied once, from the app's
+// wrangler.jsonc. Scoring settings (ANTHROPIC_API_KEY, SCORE_MODEL,
+// SCORE_DAILY_CAP_USD) are set on this Worker with
+// `npx wrangler secret put <NAME> -c cron/wrangler.jsonc`.
+{
+	"$schema": "../node_modules/wrangler/config-schema.json",
+	"name": "job-ranger-daily",
+	"main": "index.ts",
+	// Keep these the same as the app's wrangler.jsonc.
+	"compatibility_date": "2026-11-17",
+	"compatibility_flags": ["nodejs_als"],
+	"d1_databases": [
+		{
+			// The app's database: the same ID as in wrangler.jsonc.
+			"binding": "DB",
+			"database_name": "job-ranger",
+			"database_id": "b13e4449-dd5e-46e3-8cd2-fdba06d223b0"
+		}
+	],
+	"triggers": {
+		// 11:23 UTC (5:23 or 6:23 in Chicago). Off the hour, when cron traffic is heaviest.
+		"crons": ["23 11 * * *"]
+	},
+	"observability": {
+		"enabled": true
+	},
+	// No address at all: the cron is the only way in.
+	"workers_dev": false,
+	"preview_urls": false
+}

@@ -189,8 +189,12 @@ drafted.
 
 ### The database and the daily fetch
 
-The Worker's entry point is `worker/index.js`: SvelteKit's pages plus the daily
-fetch on a cron (11:23 UTC). Job boards are rows in D1, not code, so the list of
+Two Workers share one D1 database. **job-ranger** is the app: SvelteKit's pages
+(entry point `worker/index.js`). **job-ranger-daily** (`cron/`) only runs the
+daily fetch and scoring on a cron at 11:23 UTC; it has no address, so nothing can
+reach it from outside (design note 0010). `npm run deploy` deploys both. Scoring
+settings (`ANTHROPIC_API_KEY`, `SCORE_MODEL`, `SCORE_DAILY_CAP_USD`) go on the
+daily Worker too: `npx wrangler secret put <NAME> -c cron/wrangler.jsonc`. Job boards are rows in D1, not code, so the list of
 companies stays out of the repository. Add companies on the Companies page:
 paste links from jobs.ashbyhq.com, job-boards.greenhouse.io, jobs.lever.co or
 a company's breezy.hr page,
@@ -202,7 +206,8 @@ once before saving it.
 npm run db:migrate:local     # set up the local database
 npm run build && npm run preview
 # then open http://localhost:4173/companies to add a company
-curl "http://localhost:4173/cdn-cgi/handler/scheduled?cron=23+11+*+*+*"   # run the fetch now
+npm run fetch:local          # in another terminal: the daily Worker, same local database
+curl "http://localhost:4174/cdn-cgi/handler/scheduled?cron=23+11+*+*+*"   # run the fetch now
 ```
 
 The browser tests that change data (pause, remove) run last, in their own

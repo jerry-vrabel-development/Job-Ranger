@@ -3,7 +3,8 @@
 	"name": "job-ranger",
 	"compatibility_date": "2026-11-17",
 	"compatibility_flags": ["nodejs_als"],
-	// SvelteKit's worker plus the daily cron. Build first: `npm run build`.
+	// SvelteKit's worker. Build first: `npm run build`. The daily cron runs in
+	// its own Worker, job-ranger-daily (cron/wrangler.jsonc, design note 0010).
 	"main": "worker/index.js",
 	"assets": {
 		"binding": "ASSETS",
@@ -19,9 +20,9 @@
 		}
 	],
 	"triggers": {
-		// The daily fetch, at 11:23 UTC (5:23 or 6:23 in Chicago). Off the hour,
-		// when cron traffic is heaviest.
-		"crons": ["23 11 * * *"]
+		// None: the daily fetch moved to job-ranger-daily (design note 0010).
+		// An empty list, not a missing key, so a deploy removes the old schedule.
+		"crons": []
 	},
 	"observability": {
 		"enabled": true
